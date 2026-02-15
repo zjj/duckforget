@@ -48,6 +48,11 @@ struct NoteEditorView: View {
 
     // 编辑状态追踪
     @State private var wasEdited = false
+    
+    // 语音输入拖拽状态
+    @State private var voiceDragOffset: CGFloat = 0
+    @State private var isVoiceButtonPressed = false
+    @State private var shouldCancelVoiceInput = false
 
     enum ScanMode { case text, document }
 
@@ -65,39 +70,61 @@ struct NoteEditorView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 0) {
-            // 文本编辑区
-            textEditorSection
+        ZStack {
+            // 主内容
+            VStack(spacing: 0) {
+                // 文本编辑区
+                textEditorSection
 
-            // 语音输入指示器
-            if speechRecognizer.isRecording {
-                voiceInputIndicator
-            }
+                // 附件缩略图区域
+                if !currentAttachments.isEmpty {
+                    Divider()
+                    attachmentStripSection
+                }
 
-            // 附件缩略图区域
-            if !currentAttachments.isEmpty {
+                // 富文本工具栏
+                if showRichTextBar && isEditorFocused {
+                    Divider()
+                    RichTextToolbar(
+                        onBold: { applyTextFormat(.bold) },
+                        onItalic: { applyTextFormat(.italic) },
+                        onBulletList: { insertPrefix("• ") },
+                        onNumberedList: { insertPrefix("1. ") },
+                        onDismissKeyboard: {
+                            textViewCoordinator?.blur()
+                        }
+                    )
+                }
+
                 Divider()
-                attachmentStripSection
-            }
 
-            // 富文本工具栏
-            if showRichTextBar && isEditorFocused {
-                Divider()
-                RichTextToolbar(
-                    onBold: { applyTextFormat(.bold) },
-                    onItalic: { applyTextFormat(.italic) },
-                    onBulletList: { insertPrefix("• ") },
-                    onNumberedList: { insertPrefix("1. ") },
-                    onDismissKeyboard: {
-                        textViewCoordinator?.blur()
-                    }
+                // 底部工具栏
+                bottomToolbar
+            }
+            
+            // 悬浮语音按钮（底部中央）
+            ZStack(alignment: .bottom) {
+                // 语音输入悬浮窗口（录音时显示）
+                VoiceInputOverlay(
+                    transcript: speechRecognizer.currentTranscript,
+                    isRecording: speechRecognizer.isRecording,
+                    dragOffset: 0, // 内部不移动，改为由外部控制整体Offset
+                    shouldCancel: voiceDragOffset < -80
                 )
+                .offset(y: voiceDragOffset) // 跟随拖拽
+                .padding(.bottom, 80)
+                .opacity(speechRecognizer.isRecording ? 1 : 0)
+                .scaleEffect(speechRecognizer.isRecording ? 1 : 0.5, anchor: .bottom)
+                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: speechRecognizer.isRecording)
+                
+                // 麦克风按钮（始终存在以接收手势，录音时变透明）
+                floatingVoiceButton
+                    .padding(.bottom, 80)
+                    .opacity(speechRecognizer.isRecording ? 0 : 1)
             }
-
-            Divider()
-
-            // 底部工具栏（仿 Apple Notes）
-            bottomToolbar
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            // .ignoresSafeArea(.keyboard) // 移除此行，让悬浮按钮跟随键盘上移
+            .allowsHitTesting(true)
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -153,6 +180,13 @@ struct NoteEditorView: View {
         .onChange(of: speechRecognizer.isRecording) {
             if !speechRecognizer.isRecording {
                 finalizeSpeechInsertion()
+            }
+        }
+        .onChange(of: isVoiceButtonPressed) {
+            // 当按钮松开时，停止录音
+            if !isVoiceButtonPressed && speechRecognizer.isRecording {
+                speechRecognizer.stopRecording()
+                voiceDragOffset = 0
             }
         }
         // 各类选择器
@@ -217,32 +251,39 @@ struct NoteEditorView: View {
         }
     }
 
-    // MARK: - 语音输入指示器
-    private var voiceInputIndicator: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "waveform")
-                .foregroundColor(.green)
-                .font(.subheadline)
-
-            Text(
-                speechRecognizer.currentTranscript.isEmpty
-                    ? "正在聆听..."
-                    : "转写中"
-            )
-            .font(.subheadline)
-            .foregroundColor(.secondary)
-            .lineLimit(2)
-
-            Spacer()
+    // MARK: - 悬浮语音按钮
+    
+    private var floatingVoiceButton: some View {
+        ZStack {
+            Circle()
+                .fill(buttonColor)
+                .frame(width: 64, height: 64)
+                .shadow(color: Color.black.opacity(0.2), radius: 8, x: 0, y: 4)
+            
+            Image(systemName: "mic.fill")
+                .font(.system(size: 28))
+                .foregroundColor(.white)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 0)
-                .fill(Color(.systemGray6))
+        .scaleEffect(isVoiceButtonPressed ? 1.1 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isVoiceButtonPressed)
+        .animation(.spring(response: 0.2, dampingFraction: 0.8), value: voiceDragOffset)
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    handleVoiceDragChanged(value)
+                }
+                .onEnded { value in
+                    handleVoiceDragEnded(value)
+                }
         )
     }
-
+    
+    private var buttonColor: Color {
+        if !isVoiceButtonPressed {
+            return .accentColor
+        }
+        return voiceDragOffset < -80 ? .red : .green
+    }
 
 
 
@@ -274,71 +315,88 @@ struct NoteEditorView: View {
         .background(Color(.systemBackground))
     }
 
-    // MARK: - 底部工具栏（仿 Apple Notes）
+    // MARK: - 底部工具栏（展开式附件选项）
 
     private var bottomToolbar: some View {
-        HStack(spacing: 0) {
-            // 附件弹出菜单（+ 按钮）
-            Menu {
-                Button {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 16) {
+                // 扫描文本
+                ToolbarButton(
+                    icon: "text.viewfinder",
+                    label: "扫描文本"
+                ) {
                     scanMode = .text
                     showDocumentScanner = true
-                } label: {
-                    Label("扫描文本", systemImage: "text.viewfinder")
                 }
-
-                Button {
+                
+                // 扫描文稿
+                ToolbarButton(
+                    icon: "doc.viewfinder",
+                    label: "扫描文稿"
+                ) {
                     scanMode = .document
                     showDocumentScanner = true
-                } label: {
-                    Label("扫描文稿", systemImage: "doc.viewfinder")
                 }
-
-                Button {
+                
+                // 拍照或录像
+                ToolbarButton(
+                    icon: "camera",
+                    label: "拍照录像"
+                ) {
                     showCamera = true
-                } label: {
-                    Label("拍照或录像", systemImage: "camera")
                 }
-
-                Button {
+                
+                // 选取照片或视频
+                ToolbarButton(
+                    icon: "photo.on.rectangle",
+                    label: "照片视频"
+                ) {
                     showPhotoPicker = true
-                } label: {
-                    Label("选取照片或视频", systemImage: "photo.on.rectangle")
                 }
-
-                Button {
+                
+                // 录音
+                ToolbarButton(
+                    icon: "waveform",
+                    label: "录音"
+                ) {
                     showAudioRecorder = true
-                } label: {
-                    Label("录音", systemImage: "waveform")
                 }
-
-                Button {
+                
+                // 附件文件
+                ToolbarButton(
+                    icon: "folder",
+                    label: "附件"
+                ) {
                     showFilePicker = true
-                } label: {
-                    Label("附件文件", systemImage: "folder")
                 }
-            } label: {
-                Image(systemName: "paperclip")
-                    .font(.system(size: 48))
-                    .foregroundColor(.accentColor)
-                    .frame(width: 44, height: 44)
             }
-
-            Spacer()
-
-            // 语音输入按钮
-            Button {
-                toggleVoiceInput()
-            } label: {
-                Image(systemName: speechRecognizer.isRecording ? "waveform.path" : "mic")
-                .font(.system(size: 48))
-                .foregroundColor( speechRecognizer.isRecording ? .green : .accentColor)
-                .frame(width: 44, height: 44)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+        }
+        .background(Color(.systemBackground))
+    }
+    
+    // MARK: - 工具栏按钮组件
+    
+    private struct ToolbarButton: View {
+        let icon: String
+        let label: String
+        let action: () -> Void
+        
+        var body: some View {
+            Button(action: action) {
+                VStack(spacing: 4) {
+                    Image(systemName: icon)
+                        .font(.system(size: 22))
+                        .foregroundColor(.accentColor)
+                        .frame(width: 44, height: 44)
+                    
+                    Text(label)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 4)
-        .background(Color(.systemBackground))
     }
 
     // MARK: - Actions
@@ -373,6 +431,9 @@ struct NoteEditorView: View {
     }
 
     private func saveContent() {
+        // 如果正在录音，跳过自动保存（等待最终确认）
+        guard !speechRecognizer.isRecording else { return }
+        
         guard note.content != content else { return }
         wasEdited = true
         note.content = content
@@ -380,6 +441,59 @@ struct NoteEditorView: View {
     }
 
     // MARK: - 语音输入
+
+    /// 处理语音按钮拖拽变化
+    private func handleVoiceDragChanged(_ value: DragGesture.Value) {
+        // 首次按下
+        if !isVoiceButtonPressed {
+            isVoiceButtonPressed = true
+            voiceDragOffset = 0
+            
+            // 震动反馈
+            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+            impactFeedback.impactOccurred()
+            
+            beginSpeechInsertion()
+            speechRecognizer.startRecording()
+        }
+        
+        // 更新拖拽偏移（只允许向上拖）
+        let newOffset = value.translation.height < 0 ? value.translation.height : 0
+        
+        // 检测是否进入取消状态
+        let wasInCancelZone = voiceDragOffset < -80
+        let isInCancelZone = newOffset < -80
+        
+        // 进入取消区域时震动
+        if !wasInCancelZone && isInCancelZone {
+            let notificationFeedback = UINotificationFeedbackGenerator()
+            notificationFeedback.notificationOccurred(.warning)
+        }
+        
+        voiceDragOffset = newOffset
+    }
+    
+    /// 处理语音按钮拖拽结束
+    private func handleVoiceDragEnded(_ value: DragGesture.Value) {
+        let shouldCancel = voiceDragOffset < -80
+        
+        // 设置取消标记（在停止录音之前）
+        shouldCancelVoiceInput = shouldCancel
+        
+        // 震动反馈
+        if shouldCancel {
+            // 取消操作 - 强烈震动
+            let notificationFeedback = UINotificationFeedbackGenerator()
+            notificationFeedback.notificationOccurred(.error)
+        } else {
+            // 正常完成 - 轻微震动
+            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+            impactFeedback.impactOccurred()
+        }
+        
+        // 松开按钮（会触发 onChange 停止录音）
+        isVoiceButtonPressed = false
+    }
 
     private func toggleVoiceInput() {
         if speechRecognizer.isRecording {
@@ -410,6 +524,9 @@ struct NoteEditorView: View {
         contentBeforeSpeech = String(content[content.startIndex..<startIndex])
         contentAfterSpeech = String(content[startIndex..<content.endIndex])
         lastTranscriptLength = 0
+        
+        // 重置取消标记
+        shouldCancelVoiceInput = false
     }
 
     /// 实时处理语音转文字：把 transcript 拼接到光标位置
@@ -429,19 +546,38 @@ struct NoteEditorView: View {
 
     /// 语音结束：最终确认内容
     private func finalizeSpeechInsertion() {
-        let finalTranscript = speechRecognizer.currentTranscript
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-
-        if finalTranscript.isEmpty {
-            // 没有识别到内容，恢复原文
+        // 如果用户选择取消
+        if shouldCancelVoiceInput {
+            // 恢复到录音前的内容（不触发保存）
             content = contentBeforeSpeech + contentAfterSpeech
+            speechRecognizer.currentTranscript = ""
+            shouldCancelVoiceInput = false
         } else {
-            // 最终内容已经在 handleRealtimeTranscript 中设置好了
-            // 确保最终版本正确
-            content = contentBeforeSpeech + finalTranscript + contentAfterSpeech
-        }
+            // 正常完成：保存识别的文字
+            let finalTranscript = speechRecognizer.currentTranscript
+                .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        speechRecognizer.currentTranscript = ""
+            if finalTranscript.isEmpty {
+                // 没有识别到内容，恢复原文
+                content = contentBeforeSpeech + contentAfterSpeech
+            } else {
+                // 保存识别的内容到光标位置
+                content = contentBeforeSpeech + finalTranscript + contentAfterSpeech
+                
+                // 更新光标位置到插入文字的末尾
+                let newCursorPos = (contentBeforeSpeech as NSString).length + (finalTranscript as NSString).length
+                cursorPosition = newCursorPos
+                
+                // 手动触发保存（因为 saveContent 在录音时被阻止了）
+                wasEdited = true
+                note.content = content
+                noteStore.updateNote(note)
+            }
+            
+            speechRecognizer.currentTranscript = ""
+        }
+        
+        // 清理临时状态
         contentBeforeSpeech = ""
         contentAfterSpeech = ""
         lastTranscriptLength = 0
