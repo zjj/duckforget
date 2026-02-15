@@ -326,24 +326,6 @@ struct NoteEditorView: View {
     private var bottomToolbar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 16) {
-                // 扫描文本
-                ToolbarButton(
-                    icon: "text.viewfinder",
-                    label: "扫描文本"
-                ) {
-                    scanMode = .text
-                    showDocumentScanner = true
-                }
-                
-                // 扫描文稿
-                ToolbarButton(
-                    icon: "doc.viewfinder",
-                    label: "扫描文稿"
-                ) {
-                    scanMode = .document
-                    showDocumentScanner = true
-                }
-                
                 // 拍照或录像
                 ToolbarButton(
                     icon: "camera",
@@ -367,6 +349,14 @@ struct NoteEditorView: View {
                 ) {
                     showAudioRecorder = true
                 }
+
+                // 附件文件
+                ToolbarButton(
+                    icon: "folder",
+                    label: "附件"
+                ) {
+                    showFilePicker = true
+                }
                 
                 // 涂鸦
                 ToolbarButton(
@@ -375,14 +365,26 @@ struct NoteEditorView: View {
                 ) {
                     showPaintingCanvas = true
                 }
-                
-                // 附件文件
+
+                // 扫描文本
                 ToolbarButton(
-                    icon: "folder",
-                    label: "附件"
+                    icon: "text.viewfinder",
+                    label: "扫描文本"
                 ) {
-                    showFilePicker = true
+                    scanMode = .text
+                    showDocumentScanner = true
                 }
+                
+                // 扫描文稿
+                ToolbarButton(
+                    icon: "doc.viewfinder",
+                    label: "扫描文稿"
+                ) {
+                    scanMode = .document
+                    showDocumentScanner = true
+                }
+
+               
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
