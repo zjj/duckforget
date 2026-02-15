@@ -26,7 +26,7 @@ struct AttachmentThumbnailView: View {
     @ViewBuilder
     private var content: some View {
         switch attachment.type {
-        case .photo, .scannedDocument, .scannedText:
+        case .photo, .scannedDocument, .scannedText, .drawing:
             imageContent
 
         case .video:
@@ -132,6 +132,7 @@ struct AttachmentThumbnailView: View {
                 || attachment.type == .video
                 || attachment.type == .scannedDocument
                 || attachment.type == .scannedText
+                || attachment.type == .drawing
         else { return }
 
         DispatchQueue.global(qos: .userInitiated).async {

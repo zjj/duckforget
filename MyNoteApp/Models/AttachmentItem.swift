@@ -9,6 +9,7 @@ enum AttachmentType: String, Codable {
     case scannedDocument
     case scannedText
     case audio
+    case drawing
     case file
 
     var iconName: String {
@@ -18,6 +19,7 @@ enum AttachmentType: String, Codable {
         case .scannedDocument: return "doc.viewfinder"
         case .scannedText: return "text.viewfinder"
         case .audio: return "waveform"
+        case .drawing: return "pencil.tip.crop.circle"
         case .file: return "doc.fill"
         }
     }
@@ -29,6 +31,7 @@ enum AttachmentType: String, Codable {
         case .scannedDocument: return "扫描文稿"
         case .scannedText: return "扫描文本"
         case .audio: return "录音"
+        case .drawing: return "涂鸦"
         case .file: return "文件"
         }
     }

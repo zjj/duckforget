@@ -24,6 +24,7 @@ struct NoteEditorView: View {
     @State private var showPhotoPicker = false
     @State private var showDocumentScanner = false
     @State private var showAudioRecorder = false
+    @State private var showPaintingCanvas = false
     @State private var showFilePicker = false
     @State private var scanMode = ScanMode.document
 
@@ -212,6 +213,11 @@ struct NoteEditorView: View {
         .sheet(isPresented: $showFilePicker) {
             FilePickerView { urls in handlePickedFiles(urls) }
         }
+        .fullScreenCover(isPresented: $showPaintingCanvas) {
+            PaintingView { imageData in
+                saveImage(UIImage(data: imageData)!, type: .drawing)
+            }
+        }
         .sheet(item: $selectedAttachment) { att in
             AttachmentViewerSheet(attachment: att)
                 .environment(noteStore)
@@ -360,6 +366,14 @@ struct NoteEditorView: View {
                     label: "录音"
                 ) {
                     showAudioRecorder = true
+                }
+                
+                // 涂鸦
+                ToolbarButton(
+                    icon: "pencil.tip.crop.circle",
+                    label: "涂鸦"
+                ) {
+                    showPaintingCanvas = true
                 }
                 
                 // 附件文件

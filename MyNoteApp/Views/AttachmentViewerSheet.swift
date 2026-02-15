@@ -13,7 +13,7 @@ struct AttachmentViewerSheet: View {
         NavigationStack {
             Group {
                 switch attachment.type {
-                case .photo, .scannedDocument, .scannedText:
+                case .photo, .scannedDocument, .scannedText, .drawing:
                     ImageViewer(attachment: attachment)
                 case .video:
                     VideoViewer(attachment: attachment)
