@@ -1,0 +1,58 @@
+import Foundation
+import SwiftData
+
+@Model
+final class NoteItem {
+    var id: UUID
+    var content: String
+    var createdAt: Date
+    var updatedAt: Date
+    var isPinned: Bool
+    var isDeleted: Bool
+    var deletedAt: Date?
+    var folder: FolderItem?
+
+    @Relationship(deleteRule: .cascade, inverse: \AttachmentItem.note)
+    var attachments: [AttachmentItem]
+
+    /// 标题：取内容的第一行非空文本
+    var title: String {
+        let lines = content.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        return lines.first ?? "新建备忘录"
+    }
+
+    /// 预览：取第二行非空文本
+    var preview: String {
+        let lines = content.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        if lines.count > 1 {
+            return lines[1]
+        }
+        return "无其他文本"
+    }
+
+    init(
+        id: UUID = UUID(),
+        content: String = "",
+        createdAt: Date = Date(),
+        updatedAt: Date = Date(),
+        isPinned: Bool = false,
+        isDeleted: Bool = false,
+        deletedAt: Date? = nil,
+        folder: FolderItem? = nil,
+        attachments: [AttachmentItem] = []
+    ) {
+        self.id = id
+        self.content = content
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.isPinned = isPinned
+        self.isDeleted = isDeleted
+        self.deletedAt = deletedAt
+        self.folder = folder
+        self.attachments = attachments
+    }
+}
