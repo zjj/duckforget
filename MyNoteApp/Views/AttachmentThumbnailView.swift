@@ -18,10 +18,29 @@ struct AttachmentThumbnailView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color(.systemGray4), lineWidth: 0.5)
         )
+        .overlay(alignment: .topTrailing) {
+            deleteButton
+        }
         .onAppear { loadThumbnail() }
     }
 
     // MARK: - 内容
+
+    @ViewBuilder
+    private var deleteButton: some View {
+        Button {
+            withAnimation {
+                noteStore.deleteAttachment(attachment)
+            }
+        } label: {
+            Image(systemName: "xmark.circle.fill")
+                .font(.system(size: 22))
+                .foregroundColor(.red)
+                .background(Circle().fill(Color.white))
+                .shadow(color: .black.opacity(0.1), radius: 2)
+        }
+        .padding(4)
+    }
 
     @ViewBuilder
     private var content: some View {

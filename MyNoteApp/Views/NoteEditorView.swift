@@ -4,6 +4,9 @@ import SwiftUI
 /// 备忘录编辑器 - 支持文字输入、语音转文字、附件管理
 struct NoteEditorView: View {
     let note: NoteItem
+    var isEmbedded: Bool = false
+    var onFocusChange: ((Bool) -> Void)? = nil
+    var onPublish: (() -> Void)? = nil
     @Environment(NoteStore.self) var noteStore
     @Environment(\.dismiss) private var dismiss
 
@@ -70,6 +73,11 @@ struct NoteEditorView: View {
 
     // MARK: - Body
 
+    /// 是否使用内嵌工具栏（嵌入 dashboard 且有 onPublish 时，nav bar 不可见）
+    private var useInlineToolbar: Bool {
+        isEmbedded && onPublish != nil
+    }
+
     var body: some View {
         ZStack {
             // 主内容
@@ -102,6 +110,15 @@ struct NoteEditorView: View {
                 // 底部工具栏
                 bottomToolbar
             }
+            .safeAreaInset(edge: .top) {
+                // 内嵌工具栏（fullPage newNote 组件使用，作为 safeAreaInset 确保不被键盘遮挡，且悬停在顶部）
+                if useInlineToolbar {
+                    VStack(spacing: 0) {
+                        embeddedToolbar
+                        Divider()
+                    }
+                }
+            }
             
             // 悬浮语音按钮（底部中央）
             ZStack(alignment: .bottom) {
@@ -127,54 +144,71 @@ struct NoteEditorView: View {
             // .ignoresSafeArea(.keyboard) // 移除此行，让悬浮按钮跟随键盘上移
             .allowsHitTesting(true)
         }
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarTitleDisplayMode(isEmbedded ? .automatic : .inline)
         .toolbar {
-            ToolbarItemGroup(placement: .navigationBarTrailing) {
-                Button {
-                    textViewCoordinator?.undo()
-                } label: {
-                    Image(systemName: "arrow.uturn.backward")
-                        .font(.system(size: 16))
-                }
-                .disabled(!canUndo)
-
-                Button {
-                    textViewCoordinator?.redo()
-                } label: {
-                    Image(systemName: "arrow.uturn.forward")
-                        .font(.system(size: 16))
-                }
-                .disabled(!canRedo)
-
-                Menu {
+            if !isEmbedded {
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
                     Button {
-                        noteStore.togglePin(note)
+                        textViewCoordinator?.undo()
                     } label: {
-                        Label(
-                            note.isPinned ? "取消置顶" : "置顶",
-                            systemImage: note.isPinned ? "pin.slash" : "pin"
-                        )
+                        Image(systemName: "arrow.uturn.backward")
+                            .font(.system(size: 16))
                     }
+                    .disabled(!canUndo)
+
                     Button {
-                        showExport = true
+                        textViewCoordinator?.redo()
                     } label: {
-                        Label("导出", systemImage: "square.and.arrow.up")
+                        Image(systemName: "arrow.uturn.forward")
+                            .font(.system(size: 16))
                     }
-                    Button(role: .destructive) {
-                        noteStore.softDeleteNote(note)
-                        dismiss()
-                    } label: {
-                        Label("删除", systemImage: "trash")
+                    .disabled(!canRedo)
+
+                    if let onPublish = onPublish {
+                        // 发布模式：保存当前备忘录并重置
+                        Button {
+                            saveContent()
+                            let generator = UINotificationFeedbackGenerator()
+                            generator.notificationOccurred(.success)
+                            onPublish()
+                        } label: {
+                            Text("发布")
+                                .fontWeight(.semibold)
+                        }
+                        .disabled(content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    } else {
+                        Menu {
+                            Button {
+                                noteStore.togglePin(note)
+                            } label: {
+                                Label(
+                                    note.isPinned ? "取消置顶" : "置顶",
+                                    systemImage: note.isPinned ? "pin.slash" : "pin"
+                                )
+                            }
+                            Button {
+                                showExport = true
+                            } label: {
+                                Label("导出", systemImage: "square.and.arrow.up")
+                            }
+                            Button(role: .destructive) {
+                                noteStore.softDeleteNote(note)
+                                dismiss()
+                            } label: {
+                                Label("删除", systemImage: "trash")
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                                .font(.system(size: 16))
+                        }
                     }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                        .font(.system(size: 16))
                 }
             }
         }
         .onAppear { loadContent() }
-        .onDisappear { cleanupOnExit() }
+        .onDisappear { if !isEmbedded { cleanupOnExit() } }
         .onChange(of: content) { saveContent() }
+        .onChange(of: isEditorFocused) { onFocusChange?(isEditorFocused) }
         //.onChange(of: speechRecognizer.currentTranscript) {
         //    handleRealtimeTranscript()
         //}
@@ -226,6 +260,51 @@ struct NoteEditorView: View {
             ExportSheet(note: note)
                 .environment(noteStore)
         }
+    }
+
+    // MARK: - 内嵌工具栏（fullPage 组件顶部）
+
+    /// 当 NoteEditorView 嵌入 dashboard 且 nav bar 不可见时，
+    /// 在视图内部顶端渲染 undo/redo/发布 按钮
+    private var embeddedToolbar: some View {
+        HStack(spacing: 16) {
+            Text("新建备忘录")
+                .font(.headline)
+            
+            Spacer()
+            
+            Button {
+                textViewCoordinator?.undo()
+            } label: {
+                Image(systemName: "arrow.uturn.backward")
+                    .font(.system(size: 16))
+            }
+            .disabled(!canUndo)
+            
+            Button {
+                textViewCoordinator?.redo()
+            } label: {
+                Image(systemName: "arrow.uturn.forward")
+                    .font(.system(size: 16))
+            }
+            .disabled(!canRedo)
+            
+            if let onPublish = onPublish {
+                Button {
+                    saveContent()
+                    let generator = UINotificationFeedbackGenerator()
+                    generator.notificationOccurred(.success)
+                    onPublish()
+                } label: {
+                    Text("发布")
+                        .fontWeight(.semibold)
+                }
+                .disabled(content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(Color(.systemBackground))
     }
 
     // MARK: - 文本编辑区
@@ -304,15 +383,7 @@ struct NoteEditorView: View {
                         .onTapGesture {
                             selectedAttachment = attachment
                         }
-                        .contextMenu {
-                            Button(role: .destructive) {
-                                withAnimation {
-                                    noteStore.deleteAttachment(attachment)
-                                }
-                            } label: {
-                                Label("删除", systemImage: "trash")
-                            }
-                        }
+/* Lines 390-399 omitted */
                 }
             }
             .padding(.horizontal, 16)
