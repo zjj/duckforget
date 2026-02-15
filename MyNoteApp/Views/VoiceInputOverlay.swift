@@ -13,7 +13,7 @@ struct VoiceInputOverlay: View {
             VStack(spacing: 12) {
                 // 识别的文字（顶部）
                 ScrollView {
-                    Text(transcript.isEmpty ? "开始说话..." : transcript)
+                    Text(transcript.isEmpty ? "开始聆听..." : transcript)
                         .font(.body)
                         .foregroundColor(transcript.isEmpty ? .secondary : .primary)
                         .multilineTextAlignment(.center)
@@ -25,29 +25,10 @@ struct VoiceInputOverlay: View {
                 
                 // 操作提示（中部）
                 HStack(spacing: 12) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.down.circle.fill")
-                            .foregroundColor(.green)
-                            .font(.system(size: 16))
-                        Text("松开结束")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundColor(.green)
-                    }
-                    
-                    Text(",")
+                    Text("松开结束，上移取消")
                         .font(.caption)
+                        .fontWeight(.medium)
                         .foregroundColor(.secondary)
-                    
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .foregroundColor(shouldCancel ? .red : .orange)
-                            .font(.system(size: 16))
-                        Text("上移取消")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundColor(shouldCancel ? .red : .orange)
-                    }
                 }
                 
                 Divider()
@@ -64,16 +45,6 @@ struct VoiceInputOverlay: View {
                     .fill(shouldCancel ? Color.red.opacity(0.1) : Color(.systemBackground))
             )
             .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 4)
-            
-            // 连接三角形（居中指向下方）
-            HStack {
-                Spacer()
-                Triangle()
-                    .fill(shouldCancel ? Color.red.opacity(0.1) : Color(.systemBackground))
-                    .frame(width: 20, height: 10)
-                Spacer()
-            }
-            .padding(.horizontal, 16)
         }
         .offset(y: dragOffset)
         .scaleEffect(isRecording ? 1.0 : 0.5)

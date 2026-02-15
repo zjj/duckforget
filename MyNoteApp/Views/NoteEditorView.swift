@@ -175,9 +175,9 @@ struct NoteEditorView: View {
         .onAppear { loadContent() }
         .onDisappear { cleanupOnExit() }
         .onChange(of: content) { saveContent() }
-        .onChange(of: speechRecognizer.currentTranscript) {
-            handleRealtimeTranscript()
-        }
+        //.onChange(of: speechRecognizer.currentTranscript) {
+        //    handleRealtimeTranscript()
+        //}
         .onChange(of: speechRecognizer.isRecording) {
             if !speechRecognizer.isRecording {
                 finalizeSpeechInsertion()
