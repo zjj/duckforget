@@ -498,11 +498,12 @@ struct NoteEditorView: View {
         if speechRecognizer.isRecording {
             speechRecognizer.stopRecording()
         }
-        // 仅删除从未被编辑过的空笔记
+        // 如果备忘录为空（无内容且无附件），则直接删除，不保留空记录
+        // 无论是否编辑过（wasEdited），只要最终结果为空就不保存
         let isEmpty = note.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let hasNoAttachments = note.attachments.isEmpty
 
-        if !wasEdited && isEmpty && hasNoAttachments {
+        if isEmpty && hasNoAttachments {
             noteStore.permanentlyDeleteNote(note)
         }
     }
