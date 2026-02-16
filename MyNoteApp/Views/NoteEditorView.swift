@@ -174,7 +174,7 @@ struct NoteEditorView: View {
                             Image(systemName: "checkmark")
                                 .fontWeight(.semibold)
                         }
-                        .disabled(content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .disabled(content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && note.attachments.isEmpty)
                     } else {
                         Menu {
                             Button {
@@ -197,7 +197,10 @@ struct NoteEditorView: View {
             }
         }
         .onAppear { loadContent() }
-        .onDisappear { if !isEmbedded { cleanupOnExit() } }
+        .onDisappear { 
+            // 无论嵌入与否，都需要清理逻辑（特别是针对 temporary note 的删除）
+            cleanupOnExit() 
+        }
         .onChange(of: content) { saveContent() }
         .onChange(of: isEditorFocused) { onFocusChange?(isEditorFocused) }
         //.onChange(of: speechRecognizer.currentTranscript) {
@@ -287,7 +290,7 @@ struct NoteEditorView: View {
                     Image(systemName: "checkmark")
                         .fontWeight(.semibold)
                 }
-                .disabled(content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .disabled(content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && note.attachments.isEmpty)
             }
         }
         .padding(.horizontal, 16)
