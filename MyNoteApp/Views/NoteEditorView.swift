@@ -148,47 +148,50 @@ struct NoteEditorView: View {
         .navigationBarTitleDisplayMode(isEmbedded ? .automatic : .inline)
         .toolbar(isEmbedded ? .hidden : .visible, for: .navigationBar)
         .toolbar {
-            ToolbarItemGroup(placement: .navigationBarTrailing) {
-                Button {
-                    textViewCoordinator?.undo()
-                } label: {
-                    Image(systemName: "arrow.uturn.backward")
-                        .font(.system(size: 16))
-                }
-                .disabled(!canUndo)
-
-                Button {
-                    textViewCoordinator?.redo()
-                } label: {
-                    Image(systemName: "arrow.uturn.forward")
-                        .font(.system(size: 16))
-                }
-                .disabled(!canRedo)
-                
-                if onPublish != nil {
+            // 如果是嵌入模式，不再向导航栏添加按钮（使用自定义嵌入式工具栏）
+            if !isEmbedded {
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
                     Button {
-                        performPublish()
+                        textViewCoordinator?.undo()
                     } label: {
-                        Image(systemName: "checkmark")
-                            .fontWeight(.semibold)
-                    }
-                    .disabled(content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                } else {
-                    Menu {
-                        Button {
-                            showExport = true
-                        } label: {
-                            Label("导出", systemImage: "square.and.arrow.up")
-                        }
-                        Button(role: .destructive) {
-                            noteStore.softDeleteNote(note)
-                            dismiss()
-                        } label: {
-                            Label("删除", systemImage: "trash")
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
+                        Image(systemName: "arrow.uturn.backward")
                             .font(.system(size: 16))
+                    }
+                    .disabled(!canUndo)
+
+                    Button {
+                        textViewCoordinator?.redo()
+                    } label: {
+                        Image(systemName: "arrow.uturn.forward")
+                            .font(.system(size: 16))
+                    }
+                    .disabled(!canRedo)
+                    
+                    if onPublish != nil {
+                        Button {
+                            performPublish()
+                        } label: {
+                            Image(systemName: "checkmark")
+                                .fontWeight(.semibold)
+                        }
+                        .disabled(content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    } else {
+                        Menu {
+                            Button {
+                                showExport = true
+                            } label: {
+                                Label("导出", systemImage: "square.and.arrow.up")
+                            }
+                            Button(role: .destructive) {
+                                noteStore.softDeleteNote(note)
+                                dismiss()
+                            } label: {
+                                Label("删除", systemImage: "trash")
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                                .font(.system(size: 16))
+                        }
                     }
                 }
             }
