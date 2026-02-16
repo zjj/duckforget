@@ -164,14 +164,11 @@ struct NoteEditorView: View {
                 }
                 .disabled(!canRedo)
                 
-                if let onPublish = onPublish {
+                if onPublish != nil {
                     Button {
-                        saveContent()
-                        let generator = UINotificationFeedbackGenerator()
-                        generator.notificationOccurred(.success)
-                        onPublish()
+                        performPublish()
                     } label: {
-                        Text("发布")
+                        Image(systemName: "checkmark")
                             .fontWeight(.semibold)
                     }
                     .disabled(content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -279,14 +276,11 @@ struct NoteEditorView: View {
             }
             .disabled(!canRedo)
             
-            if let onPublish = onPublish {
+            if onPublish != nil {
                 Button {
-                    saveContent()
-                    let generator = UINotificationFeedbackGenerator()
-                    generator.notificationOccurred(.success)
-                    onPublish()
+                    performPublish()
                 } label: {
-                    Text("发布")
+                    Image(systemName: "checkmark")
                         .fontWeight(.semibold)
                 }
                 .disabled(content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -492,6 +486,12 @@ struct NoteEditorView: View {
     }
 
     private func cleanupOnExit() {
+        // 如果是新建笔记模式（onPublish != nil），且未明确保存，则删除临时笔记
+        if onPublish != nil {
+            noteStore.permanentlyDeleteNote(note)
+            return
+        }
+
         // 保存最终内容
         saveContent()
         // 停止语音输入
@@ -508,9 +508,27 @@ struct NoteEditorView: View {
         }
     }
 
+    private func performPublish() {
+        // 强制保存内容
+        note.content = content
+        
+        // 只有内容发生变化或者有附件时才更新时间
+        if wasEdited || !note.attachments.isEmpty {
+            noteStore.updateNote(note)
+        }
+        
+        let generator = UINotificationFeedbackGenerator()
+        generator.notificationOccurred(.success)
+        onPublish?()
+    }
+
     private func saveContent() {
         // 如果正在录音，跳过自动保存（等待最终确认）
         guard !speechRecognizer.isRecording else { return }
+        
+        // 如果是新建笔记模式（onPublish != nil），不进行自动保存
+        // 只有点击发布按钮时才会保存
+        if onPublish != nil { return }
         
         guard note.content != content else { return }
         wasEdited = true
