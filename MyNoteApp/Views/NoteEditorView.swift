@@ -10,6 +10,7 @@ struct NoteEditorView: View {
     var onPublish: (() -> Void)? = nil
     @Environment(NoteStore.self) var noteStore
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var toolbarSettings: ToolbarSettings
 
     // 内容状态
     @State private var content = ""
@@ -395,70 +396,35 @@ struct NoteEditorView: View {
     private var bottomToolbar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 16) {
-                // 拍照或录像
-                ToolbarButton(
-                    icon: "camera"
-                ) {
-                    showCamera = true
+                ForEach(toolbarSettings.items) { item in
+                    toolButton(for: item)
                 }
-                
-                // 选取照片或视频
-                ToolbarButton(
-                    icon: "photo.on.rectangle"
-                ) {
-                    showPhotoPicker = true
-                }
-                
-                // 录音
-                ToolbarButton(
-                    icon: "waveform"
-                ) {
-                    showAudioRecorder = true
-                }
-
-                // 附件文件
-                ToolbarButton(
-                    icon: "folder"
-                ) {
-                    showFilePicker = true
-                }
-                
-                // 位置
-                ToolbarButton(
-                    icon: "mappin.and.ellipse"
-                ) {
-                    showLocationPicker = true
-                }
-                
-                // 涂鸦
-                ToolbarButton(
-                    icon: "pencil.tip.crop.circle"
-                ) {
-                    showPaintingCanvas = true
-                }
-
-                // 扫描文本
-                ToolbarButton(
-                    icon: "text.viewfinder"
-                ) {
-                    scanMode = .text
-                    showDocumentScanner = true
-                }
-                
-                // 扫描文稿
-                ToolbarButton(
-                    icon: "doc.viewfinder"
-                ) {
-                    scanMode = .document
-                    showDocumentScanner = true
-                }
-
-               
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
         }
         .background(Color(.systemBackground))
+    }
+    
+    private func toolButton(for item: ToolbarItemType) -> some View {
+        ToolbarButton(
+            icon: item.icon
+        ) {
+            switch item {
+            case .camera: showCamera = true
+            case .photo: showPhotoPicker = true
+            case .audio: showAudioRecorder = true
+            case .folder: showFilePicker = true
+            case .location: showLocationPicker = true
+            case .drawing: showPaintingCanvas = true
+            case .scanText:
+                scanMode = .text
+                showDocumentScanner = true
+            case .scanDocument:
+                scanMode = .document
+                showDocumentScanner = true
+            }
+        }
     }
     
     // MARK: - 工具栏按钮组件

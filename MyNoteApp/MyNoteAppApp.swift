@@ -5,6 +5,7 @@ import SwiftUI
 struct MyNoteAppApp: App {
     let container: ModelContainer
     let noteStore: NoteStore
+    @StateObject private var toolbarSettings = ToolbarSettings()
 
     init() {
         let schema = Schema([NoteItem.self, AttachmentItem.self, FolderItem.self])
@@ -41,6 +42,7 @@ struct MyNoteAppApp: App {
             FolderListView()
                 .modelContainer(container)
                 .environment(noteStore)
+                .environmentObject(toolbarSettings)
         }
     }
 }

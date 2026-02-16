@@ -390,6 +390,12 @@ struct DashboardManagementView: View {
                     dashboardConfig.movePage(from: source, to: destination)
                 }
             }
+            
+            Section(header: Text("编辑器")) {
+                NavigationLink(destination: ToolbarSortView()) {
+                    Label("工具栏排序", systemImage: "arrow.left.arrow.right")
+                }
+            }
         }
     }
 }
