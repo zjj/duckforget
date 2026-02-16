@@ -36,11 +36,13 @@ struct FolderListView: View {
                     TabView(selection: Binding(
                         get: { selectedTab ?? settingsTabID },
                         set: { 
-                            // 当任意页面处于编辑状态时，禁止切换 Tab（除非是代码内部强制跳转）
-                            // 注意：通过 Binding set 拦截 TabView 的 swipe 切换
-                            if !isAnyPageEditing {
-                                selectedTab = $0 
+                            // 当切换页面时，自动取消所有页面的编辑状态
+                            if isAnyPageEditing {
+                                for key in editingStates.keys {
+                                    editingStates[key] = false
+                                }
                             }
+                            selectedTab = $0
                         }
                     )) {
                         // Page 0: Settings / Management
@@ -161,7 +163,7 @@ struct FolderListView: View {
     /// 自定义头部：[齿轮+名称] [   页面指示点   ] [... / 完成]
     private var dashboardHeaderBar: some View {
         HStack(spacing: 0) {
-            // Left: Settings Gear + Title
+            // Left: Title (Tap to go to Settings)
             HStack(spacing: 12) {
                 Text(currentPageName)
                     .font(.headline)
