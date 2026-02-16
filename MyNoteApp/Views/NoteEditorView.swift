@@ -178,14 +178,6 @@ struct NoteEditorView: View {
                 } else {
                     Menu {
                         Button {
-                            noteStore.togglePin(note)
-                        } label: {
-                            Label(
-                                note.isPinned ? "取消置顶" : "置顶",
-                                systemImage: note.isPinned ? "pin.slash" : "pin"
-                            )
-                        }
-                        Button {
                             showExport = true
                         } label: {
                             Label("导出", systemImage: "square.and.arrow.up")

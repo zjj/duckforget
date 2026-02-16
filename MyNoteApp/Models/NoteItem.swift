@@ -7,7 +7,6 @@ final class NoteItem {
     var content: String
     var createdAt: Date
     var updatedAt: Date
-    var isPinned: Bool
     var isDeleted: Bool
     var deletedAt: Date?
     var folder: FolderItem?
@@ -39,7 +38,6 @@ final class NoteItem {
         content: String = "",
         createdAt: Date = Date(),
         updatedAt: Date = Date(),
-        isPinned: Bool = false,
         isDeleted: Bool = false,
         deletedAt: Date? = nil,
         folder: FolderItem? = nil,
@@ -49,7 +47,6 @@ final class NoteItem {
         self.content = content
         self.createdAt = createdAt
         self.updatedAt = updatedAt
-        self.isPinned = isPinned
         self.isDeleted = isDeleted
         self.deletedAt = deletedAt
         self.folder = folder

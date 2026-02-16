@@ -87,7 +87,6 @@ class NoteStore {
     func softDeleteNote(_ note: NoteItem) {
         note.isDeleted = true
         note.deletedAt = Date()
-        note.isPinned = false
         note.folder = nil
         try? modelContext.save()
         deindexNoteFromSpotlight(note)
@@ -144,14 +143,6 @@ class NoteStore {
             sortBy: [SortDescriptor(\.deletedAt, order: .reverse)]
         )
         return (try? modelContext.fetch(descriptor)) ?? []
-    }
-
-    // MARK: - Pin / Unpin
-
-    func togglePin(_ note: NoteItem) {
-        note.isPinned.toggle()
-        note.updatedAt = Date()
-        try? modelContext.save()
     }
 
     // MARK: - Attachment Management

@@ -7,16 +7,9 @@ struct NoteRowView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             // 标题
-            HStack(spacing: 4) {
-                if note.isPinned {
-                    Image(systemName: "pin.fill")
-                        .font(.caption2)
-                        .foregroundColor(.orange)
-                }
-                Text(note.title)
-                    .font(.headline)
-                    .lineLimit(1)
-            }
+            Text(note.title)
+                .font(.headline)
+                .lineLimit(1)
 
             // 日期 + 预览
             HStack(spacing: 8) {

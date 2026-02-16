@@ -35,16 +35,6 @@ struct NoteListView: View {
         return base.filter { $0.content.localizedCaseInsensitiveContains(searchText) }
     }
 
-    /// 置顶的
-    private var pinnedNotes: [NoteItem] {
-        filteredNotes.filter { $0.isPinned }
-    }
-
-    /// 非置顶的
-    private var unpinnedNotes: [NoteItem] {
-        filteredNotes.filter { !$0.isPinned }
-    }
-
     private var navigationTitle: String {
         if showAllNotes { return "所有备忘录" }
         return folder?.name ?? "备忘录"
@@ -194,19 +184,7 @@ struct NoteListView: View {
 
     private var notesListView: some View {
         List {
-            // 置顶区
-            if !pinnedNotes.isEmpty {
-                Section(header: Text("置顶")) {
-                    noteRows(pinnedNotes)
-                }
-            }
-
-            // 普通区
-            if !unpinnedNotes.isEmpty {
-                Section(header: pinnedNotes.isEmpty ? nil : Text("备忘录")) {
-                    noteRows(unpinnedNotes)
-                }
-            }
+            noteRows(filteredNotes)
         }
         .listStyle(.plain)
     }
@@ -229,28 +207,7 @@ struct NoteListView: View {
                     Label("删除", systemImage: "trash")
                 }
             }
-            .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                Button {
-                    withAnimation {
-                        noteStore.togglePin(note)
-                    }
-                } label: {
-                    Label(
-                        note.isPinned ? "取消置顶" : "置顶",
-                        systemImage: note.isPinned ? "pin.slash" : "pin"
-                    )
-                }
-                .tint(.orange)
-            }
             .contextMenu {
-                Button {
-                    noteStore.togglePin(note)
-                } label: {
-                    Label(
-                        note.isPinned ? "取消置顶" : "置顶",
-                        systemImage: note.isPinned ? "pin.slash" : "pin"
-                    )
-                }
                 Button {
                     noteToMove = note
                     showMoveSheet = true
