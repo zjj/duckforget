@@ -115,7 +115,7 @@ struct DashboardRow: View {
             Group {
                 switch item.type {
                 case .search:
-                    SearchWidget()
+                    SearchWidget(size: item.size)
                 case .folders:
                     FolderListWidget(size: item.size)
                 case .recentNotes:

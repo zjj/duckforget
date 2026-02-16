@@ -5,6 +5,8 @@ import SwiftUI
 struct NoteListView: View {
     let folder: FolderItem?
     let showAllNotes: Bool
+    var initialSearchText: String = ""
+    var hideSearchBar: Bool = false
 
     @Environment(NoteStore.self) var noteStore
     @Query(
@@ -65,6 +67,18 @@ struct NoteListView: View {
             bottomBar
         }
         .navigationTitle(navigationTitle)
+        .onAppear {
+            if !initialSearchText.isEmpty {
+                searchText = initialSearchText
+                isSearching = true
+            }
+        }
+        .onChange(of: initialSearchText) { _, newValue in
+            searchText = newValue
+            if !newValue.isEmpty {
+                isSearching = true
+            }
+        }
         .sheet(isPresented: $showMoveSheet) {
             if let note = noteToMove {
                 MoveToFolderSheet(note: note)
@@ -78,7 +92,7 @@ struct NoteListView: View {
     private var bottomBar: some View {
         VStack(spacing: 0) {
             // 搜索栏（展开时显示）
-            if isSearching {
+            if isSearching && !hideSearchBar {
                 HStack(spacing: 8) {
                     HStack(spacing: 6) {
                         Image(systemName: "magnifyingglass")

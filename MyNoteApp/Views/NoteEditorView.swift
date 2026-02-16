@@ -145,62 +145,60 @@ struct NoteEditorView: View {
             .allowsHitTesting(true)
         }
         .navigationBarTitleDisplayMode(isEmbedded ? .automatic : .inline)
+        .toolbar(isEmbedded ? .hidden : .visible, for: .navigationBar)
         .toolbar {
-            if !isEmbedded {
-                ToolbarItemGroup(placement: .navigationBarTrailing) {
-                    Button {
-                        textViewCoordinator?.undo()
-                    } label: {
-                        Image(systemName: "arrow.uturn.backward")
-                            .font(.system(size: 16))
-                    }
-                    .disabled(!canUndo)
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+                Button {
+                    textViewCoordinator?.undo()
+                } label: {
+                    Image(systemName: "arrow.uturn.backward")
+                        .font(.system(size: 16))
+                }
+                .disabled(!canUndo)
 
+                Button {
+                    textViewCoordinator?.redo()
+                } label: {
+                    Image(systemName: "arrow.uturn.forward")
+                        .font(.system(size: 16))
+                }
+                .disabled(!canRedo)
+                
+                if let onPublish = onPublish {
                     Button {
-                        textViewCoordinator?.redo()
+                        saveContent()
+                        let generator = UINotificationFeedbackGenerator()
+                        generator.notificationOccurred(.success)
+                        onPublish()
                     } label: {
-                        Image(systemName: "arrow.uturn.forward")
-                            .font(.system(size: 16))
+                        Text("发布")
+                            .fontWeight(.semibold)
                     }
-                    .disabled(!canRedo)
-
-                    if let onPublish = onPublish {
-                        // 发布模式：保存当前备忘录并重置
+                    .disabled(content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                } else {
+                    Menu {
                         Button {
-                            saveContent()
-                            let generator = UINotificationFeedbackGenerator()
-                            generator.notificationOccurred(.success)
-                            onPublish()
+                            noteStore.togglePin(note)
                         } label: {
-                            Text("发布")
-                                .fontWeight(.semibold)
+                            Label(
+                                note.isPinned ? "取消置顶" : "置顶",
+                                systemImage: note.isPinned ? "pin.slash" : "pin"
+                            )
                         }
-                        .disabled(content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    } else {
-                        Menu {
-                            Button {
-                                noteStore.togglePin(note)
-                            } label: {
-                                Label(
-                                    note.isPinned ? "取消置顶" : "置顶",
-                                    systemImage: note.isPinned ? "pin.slash" : "pin"
-                                )
-                            }
-                            Button {
-                                showExport = true
-                            } label: {
-                                Label("导出", systemImage: "square.and.arrow.up")
-                            }
-                            Button(role: .destructive) {
-                                noteStore.softDeleteNote(note)
-                                dismiss()
-                            } label: {
-                                Label("删除", systemImage: "trash")
-                            }
+                        Button {
+                            showExport = true
                         } label: {
-                            Image(systemName: "ellipsis.circle")
-                                .font(.system(size: 16))
+                            Label("导出", systemImage: "square.and.arrow.up")
                         }
+                        Button(role: .destructive) {
+                            noteStore.softDeleteNote(note)
+                            dismiss()
+                        } label: {
+                            Label("删除", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.system(size: 16))
                     }
                 }
             }
@@ -799,3 +797,4 @@ struct NoteEditorView: View {
         }
     }
 }
+

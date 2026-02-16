@@ -3,37 +3,46 @@ import SwiftData
 
 struct SearchWidget: View {
     @Environment(NoteStore.self) var noteStore
-    @State private var searchText = ""
-    @State private var isSearchActive = false
-    
-    // 搜索结果
-    @State private var searchResults: [NoteItem] = []
+    let size: WidgetSize
     
     var body: some View {
-        VStack(spacing: 8) {
-            Button {
-                isSearchActive = true
-            } label: {
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(.secondary)
-                    Text("搜索备忘录...")
-                        .foregroundColor(.secondary)
-                    Spacer()
-                }
-                .padding(12)
-                .background(Color(.systemGray6))
-                .cornerRadius(12)
-            }
-            .buttonStyle(.plain)
-            .sheet(isPresented: $isSearchActive) {
-                NavigationStack {
-                    NoteListView(folder: nil, showAllNotes: true)
-                        // 这里可以传入 initialSearchText 如果需要
-                        .environment(noteStore)
-                }
+        Group {
+            if size == .fullPage {
+                NoteSearchPage()
+            } else {
+                searchCard
             }
         }
+    }
+    
+    private var searchCard: some View {
+        NavigationLink {
+            NoteSearchPage()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(.accentColor)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("搜索备忘录")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    Text("点击开始搜索或语音输入")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(Color(.systemGray3))
+            }
+            .padding(16)
+            .background(Color(.systemBackground))
+            .cornerRadius(16)
+            .shadow(color: Color.black.opacity(0.05), radius: 6, x: 0, y: 3)
+        }
+        .buttonStyle(.plain)
     }
 }
 
