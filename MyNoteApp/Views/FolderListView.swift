@@ -66,7 +66,7 @@ struct FolderListView: View {
                 }
             }
             .navigationBarHidden(!isSettingsPage)
-            .navigationTitle(isSettingsPage ? "仪表盘管理" : "")
+            .navigationTitle(isSettingsPage ? "设置" : "")
             .navigationBarTitleDisplayMode(isSettingsPage ? .large : .inline)
             .toolbar {
                 if isSettingsPage {
@@ -233,7 +233,7 @@ struct DashboardManagementView: View {
     
     var body: some View {
         List {
-            Section("我的仪表盘") {
+            Section("页面定制") {
                 ForEach(dashboardConfig.pages) { page in
                     Button {
                         // Switch tab to this page
