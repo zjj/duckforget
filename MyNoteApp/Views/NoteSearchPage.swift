@@ -41,7 +41,7 @@ struct NoteSearchPage: View {
             .shadow(color: Color.black.opacity(0.05), radius: 2, y: 1)
             
             // Search Results
-            NoteListView(folder: nil, showAllNotes: true, initialSearchText: searchText, hideSearchBar: true)
+            NoteListView(folder: nil, showAllNotes: true, initialSearchText: searchText, hideSearchBar: true, hideBottomBar: true)
                 .environment(noteStore)
         }
         .navigationTitle("搜索")

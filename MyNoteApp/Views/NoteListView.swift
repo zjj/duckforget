@@ -7,6 +7,7 @@ struct NoteListView: View {
     let showAllNotes: Bool
     var initialSearchText: String = ""
     var hideSearchBar: Bool = false
+    var hideBottomBar: Bool = false
 
     @Environment(NoteStore.self) var noteStore
     @Query(
@@ -51,10 +52,12 @@ struct NoteListView: View {
                 }
             }
 
-            Divider()
+            if !hideBottomBar {
+                Divider()
 
-            // 底部搜索栏 + 新建按钮
-            bottomBar
+                // 底部搜索栏 + 新建按钮
+                bottomBar
+            }
         }
         .navigationTitle(navigationTitle)
         .onAppear {
