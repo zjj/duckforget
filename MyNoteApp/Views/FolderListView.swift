@@ -155,18 +155,7 @@ struct FolderListView: View {
     /// 自定义头部：[齿轮+名称] [   页面指示点   ] [... / 完成]
     private var dashboardHeaderBar: some View {
         HStack(spacing: 0) {
-            // Left: Dashboard name + settings gear
             HStack(spacing: 8) {
-                Button {
-                    let generator = UIImpactFeedbackGenerator(style: .light)
-                    generator.impactOccurred()
-                    withAnimation { selectedTab = settingsTabID }
-                } label: {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 15))
-                        .foregroundColor(.secondary)
-                }
-                
                 Text(currentPageName)
                     .font(.headline)
                     .lineLimit(1)
@@ -224,7 +213,7 @@ struct FolderListView: View {
                         editingStates[pageId] = true
                     }
                 } label: {
-                    Label("编辑仪表盘", systemImage: "pencil")
+                    Label("编辑", systemImage: "pencil")
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
