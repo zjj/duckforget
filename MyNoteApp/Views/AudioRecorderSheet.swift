@@ -36,9 +36,13 @@ struct AudioRecorderSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") {
+                    Button(role: .cancel) {
                         _ = recorder.stopRecording()
                         dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.secondary)
                     }
                 }
             }
@@ -98,9 +102,6 @@ struct AudioRecorderSheet: View {
                                 .fill(Color.white)
                                 .frame(width: 26, height: 26)
                         }
-                        Text("停止")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
                     }
                 }
             } else {
@@ -118,9 +119,6 @@ struct AudioRecorderSheet: View {
                                 .fill(Color.white)
                                 .frame(width: 26, height: 26)
                         }
-                        Text("录音")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
                     }
                 }
             }

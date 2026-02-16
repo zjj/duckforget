@@ -52,6 +52,7 @@ struct NoteEditorView: View {
 
     // 编辑状态追踪
     @State private var wasEdited = false
+    @State private var hasPublished = false // 标记是否已点击发布按钮保存
     
     // 语音输入拖拽状态
     @State private var voiceDragOffset: CGFloat = 0
@@ -383,48 +384,42 @@ struct NoteEditorView: View {
             HStack(spacing: 16) {
                 // 拍照或录像
                 ToolbarButton(
-                    icon: "camera",
-                    label: "拍照录像"
+                    icon: "camera"
                 ) {
                     showCamera = true
                 }
                 
                 // 选取照片或视频
                 ToolbarButton(
-                    icon: "photo.on.rectangle",
-                    label: "照片视频"
+                    icon: "photo.on.rectangle"
                 ) {
                     showPhotoPicker = true
                 }
                 
                 // 录音
                 ToolbarButton(
-                    icon: "waveform",
-                    label: "录音"
+                    icon: "waveform"
                 ) {
                     showAudioRecorder = true
                 }
 
                 // 附件文件
                 ToolbarButton(
-                    icon: "folder",
-                    label: "附件"
+                    icon: "folder"
                 ) {
                     showFilePicker = true
                 }
                 
                 // 涂鸦
                 ToolbarButton(
-                    icon: "pencil.tip.crop.circle",
-                    label: "涂鸦"
+                    icon: "pencil.tip.crop.circle"
                 ) {
                     showPaintingCanvas = true
                 }
 
                 // 扫描文本
                 ToolbarButton(
-                    icon: "text.viewfinder",
-                    label: "扫描文本"
+                    icon: "text.viewfinder"
                 ) {
                     scanMode = .text
                     showDocumentScanner = true
@@ -432,8 +427,7 @@ struct NoteEditorView: View {
                 
                 // 扫描文稿
                 ToolbarButton(
-                    icon: "doc.viewfinder",
-                    label: "扫描文稿"
+                    icon: "doc.viewfinder"
                 ) {
                     scanMode = .document
                     showDocumentScanner = true
@@ -451,20 +445,15 @@ struct NoteEditorView: View {
     
     private struct ToolbarButton: View {
         let icon: String
-        let label: String
         let action: () -> Void
         
         var body: some View {
             Button(action: action) {
                 VStack(spacing: 4) {
                     Image(systemName: icon)
-                        .font(.system(size: 22))
+                        .font(.system(size: 24))
                         .foregroundColor(.accentColor)
                         .frame(width: 44, height: 44)
-                    
-                    Text(label)
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
                 }
             }
         }
@@ -486,9 +475,13 @@ struct NoteEditorView: View {
     }
 
     private func cleanupOnExit() {
-        // 如果是新建笔记模式（onPublish != nil），且未明确保存，则删除临时笔记
+        // 如果是新建笔记模式（onPublish != nil）
         if onPublish != nil {
-            noteStore.permanentlyDeleteNote(note)
+            // 如果已点击发布，则不删除（已在 performPublish 中更新）
+            // 如果未点击发布，则视为因退出（如切换页面）而取消，需要删除临时笔记
+            if !hasPublished {
+                noteStore.permanentlyDeleteNote(note)
+            }
             return
         }
 
@@ -503,12 +496,17 @@ struct NoteEditorView: View {
         let isEmpty = note.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let hasNoAttachments = note.attachments.isEmpty
 
+        // 仅在非发布模式下检查空内容删除
+        // 发布模式下，performPublish 已经保存并更新了内容
         if isEmpty && hasNoAttachments {
             noteStore.permanentlyDeleteNote(note)
         }
     }
 
     private func performPublish() {
+        // 标记已发布，避免 cleanupOnExit 自动删除
+        hasPublished = true
+        
         // 强制保存内容
         note.content = content
         

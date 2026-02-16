@@ -40,7 +40,8 @@ struct FolderListView: View {
                             showingRenameAlert: $showingRenameAlert,
                             newPageName: $newPageName,
                             pageToRename: $pageToRename,
-                            selectedTab: $selectedTab
+                            selectedTab: $selectedTab,
+                            editingStates: $editingStates
                         )
                         .tag(settingsTabID)
                         
@@ -66,20 +67,15 @@ struct FolderListView: View {
                 }
             }
             .navigationBarHidden(!isSettingsPage)
-            .navigationTitle(isSettingsPage ? "设置" : "")
-            .navigationBarTitleDisplayMode(isSettingsPage ? .large : .inline)
+            .navigationTitle("")
             .toolbar {
                 if isSettingsPage {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        EditButton()
-                    }
-                    ToolbarItem(placement: .primaryAction) {
-                        Button(action: {
-                            newPageName = ""
-                            showingAddPageAlert = true
-                        }) {
-                            Label("新建页面", systemImage: "plus")
-                        }
+                    // Settings Icon as Title (Display only)
+                    ToolbarItem(placement: .topBarLeading) {
+                         Image(systemName: "gear")
+                            .font(.title) // Reduced from .largeTitle
+                            .fontWeight(.bold)
+                            .foregroundColor(.primary)
                     }
                 }
             }
@@ -155,10 +151,17 @@ struct FolderListView: View {
     /// 自定义头部：[齿轮+名称] [   页面指示点   ] [... / 完成]
     private var dashboardHeaderBar: some View {
         HStack(spacing: 0) {
-            HStack(spacing: 8) {
+            // Left: Settings Gear + Title
+            HStack(spacing: 12) {
                 Text(currentPageName)
                     .font(.headline)
                     .lineLimit(1)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                withAnimation {
+                    selectedTab = settingsTabID
+                }
             }
             
             Spacer()
@@ -196,14 +199,17 @@ struct FolderListView: View {
         let isEditing = editingStates[pageId] ?? false
         
         if isEditing {
-            Button("完成") {
+            Button {
                 let generator = UIImpactFeedbackGenerator(style: .light)
                 generator.impactOccurred()
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                     editingStates[pageId] = false
                 }
+            } label: {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(.accentColor)
             }
-            .fontWeight(.semibold)
         } else {
             Menu {
                 Button {
@@ -213,10 +219,37 @@ struct FolderListView: View {
                         editingStates[pageId] = true
                     }
                 } label: {
-                    Label("编辑", systemImage: "pencil")
+                    Label("编辑", systemImage: "pencil.circle")
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
+            }
+        }
+    }
+}
+
+// Helper to wrap EditButton with custom appearance
+struct EditButtonWrapper: View {
+    @Environment(\.editMode) private var editMode
+
+    var body: some View {
+        Button {
+            withAnimation {
+                if editMode?.wrappedValue == .active {
+                    editMode?.wrappedValue = .inactive
+                } else {
+                    editMode?.wrappedValue = .active
+                }
+            }
+        } label: {
+            if editMode?.wrappedValue == .active {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(.accentColor)
+            } else {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.system(size: 20))
+                    .foregroundColor(.accentColor)
             }
         }
     }
@@ -230,23 +263,93 @@ struct DashboardManagementView: View {
     @Binding var newPageName: String
     @Binding var pageToRename: DashboardPage?
     @Binding var selectedTab: UUID?
-    
+    @Binding var editingStates: [UUID: Bool]
+
     var body: some View {
         List {
-            Section("页面定制") {
-                ForEach(dashboardConfig.pages) { page in
+            Section(header: 
+                HStack {
+                    Text("页面定制")
+                    Spacer()
                     Button {
-                        // Switch tab to this page
-                        withAnimation {
-                            selectedTab = page.id
-                        }
+                        newPageName = ""
+                        showingAddPageAlert = true
                     } label: {
-                        HStack {
-                            Label(page.name, systemImage: "rectangle.grid.1x2")
-                            Spacer()
-                            Image(systemName: "chevron.right")
+                        Image(systemName: "plus")
+                            .font(.headline)
+                            .foregroundColor(.accentColor)
+                    }
+                }
+            ) {
+                ForEach(dashboardConfig.pages) { page in
+                    HStack {
+                        // 左侧点击区域：切换页面并进入编辑模式
+                        Button {
+                            withAnimation {
+                                selectedTab = page.id
+                                // 稍微延迟以确保页面切换完成
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                    editingStates[page.id] = true
+                                    // 关闭其他页面的编辑状态
+                                    for id in editingStates.keys where id != page.id {
+                                        editingStates[id] = false
+                                    }
+                                }
+                            }
+                        } label: {
+                            HStack {
+                                Image(systemName: "rectangle.grid.1x2")
+                                    .foregroundColor(.accentColor)
+                                
+                                Text(page.name)
+                                    .foregroundColor(.primary)
+                                
+                                Spacer()
+                            }
+                            .contentShape(Rectangle()) // 确保整个区域可点击
+                        }
+                        .buttonStyle(.plain) // 避免行高亮样式干扰
+                        
+                        // 右侧菜单按钮
+                        Menu {
+                            Button {
+                                // 切换并进入编辑模式
+                                withAnimation {
+                                    selectedTab = page.id
+                                    // 稍微延迟以确保页面切换完成
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                        editingStates[page.id] = true
+                                        // 关闭其他页面的编辑状态
+                                        for id in editingStates.keys where id != page.id {
+                                            editingStates[id] = false
+                                        }
+                                    }
+                                }
+                            } label: {
+                                Label("编辑", systemImage: "pencil.circle")
+                            }
+                            
+                            Divider()
+                            
+                            Button {
+                                pageToRename = page
+                                newPageName = page.name
+                                showingRenameAlert = true
+                            } label: {
+                                Label("重命名", systemImage: "pencil")
+                            }
+                            
+                            Button(role: .destructive) {
+                                dashboardConfig.removePage(page)
+                            } label: {
+                                Label("删除", systemImage: "trash")
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis")
+                                .font(.system(size: 20))
                                 .foregroundColor(.secondary)
-                                .font(.caption)
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
                         }
                     }
                     .swipeActions(edge: .trailing) {
@@ -269,48 +372,8 @@ struct DashboardManagementView: View {
                         }
                         .tint(.blue)
                     }
-                    .swipeActions(edge: .leading) {
-                        Button {
-                            let generator = UIImpactFeedbackGenerator(style: .light)
-                            generator.impactOccurred()
-                            let duplicated = dashboardConfig.duplicatePage(page)
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                selectedTab = duplicated.id
-                            }
-                        } label: {
-                            Label("复制", systemImage: "doc.on.doc")
-                        }
-                        .tint(.green)
-                    }
-                    .contextMenu {
-                        Button {
-                            selectedTab = page.id
-                        } label: {
-                            Label("打开", systemImage: "arrow.up.right.square")
-                        }
-                        
-                        Button {
-                            let duplicated = dashboardConfig.duplicatePage(page)
-                            selectedTab = duplicated.id
-                        } label: {
-                            Label("复制页面", systemImage: "doc.on.doc")
-                        }
-                        
-                        Divider()
-                        
-                        Button {
-                            pageToRename = page
-                            newPageName = page.name
-                            showingRenameAlert = true
-                        } label: {
-                            Label("重命名", systemImage: "pencil")
-                        }
-                        
-                        Button(role: .destructive) {
-                            dashboardConfig.removePage(page)
-                        } label: {
-                            Label("删除", systemImage: "trash")
-                        }
+                    .onDrag {
+                        return NSItemProvider(object: page.id.uuidString as NSString)
                     }
                 }
                 .onMove { source, destination in
@@ -320,3 +383,21 @@ struct DashboardManagementView: View {
         }
     }
 }
+
+struct PageDropDelegate: DropDelegate {
+    let pages: [DashboardPage]
+    let dashboardConfig: DashboardConfig
+    
+    func performDrop(info: DropInfo) -> Bool {
+        return true
+    }
+    
+    func dropEntered(info: DropInfo) {
+        // 简化拖动排序：
+        // List的原生.onDrag/.onDrop较为复杂，这里利用 DropDelegate 进行占位。
+        // 但最稳妥的Reorder方式还是在 EditMode 下使用 .onMove。
+        // 若要长按Reorder，可以尝试激活 EditMode 或使用第三方库。
+        // 鉴于系统限制，我们保留 EditMode 下的 reorder 能力。
+    }
+}
+

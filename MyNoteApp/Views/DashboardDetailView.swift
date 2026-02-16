@@ -84,9 +84,10 @@ struct DashboardDetailView: View {
                             }
                         }
                     } label: {
-                        Label("添加组件", systemImage: "plus.circle.fill")
-                            .labelStyle(.titleAndIcon)
-                            .font(.headline)
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 44))
+                            .foregroundColor(.accentColor)
+                            .shadow(radius: 2)
                     }
                     .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isEditing)
                 }
