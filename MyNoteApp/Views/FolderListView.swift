@@ -19,6 +19,10 @@ struct FolderListView: View {
     @State private var newFolderName = ""
     private let settingsTabID = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
 
+    private var isAnyPageEditing: Bool {
+        editingStates.values.contains(true)
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -31,7 +35,13 @@ struct FolderListView: View {
                 GeometryReader { geo in
                     TabView(selection: Binding(
                         get: { selectedTab ?? settingsTabID },
-                        set: { selectedTab = $0 }
+                        set: { 
+                            // 当任意页面处于编辑状态时，禁止切换 Tab（除非是代码内部强制跳转）
+                            // 注意：通过 Binding set 拦截 TabView 的 swipe 切换
+                            if !isAnyPageEditing {
+                                selectedTab = $0 
+                            }
+                        }
                     )) {
                         // Page 0: Settings / Management
                         DashboardManagementView(
@@ -283,32 +293,17 @@ struct DashboardManagementView: View {
             ) {
                 ForEach(dashboardConfig.pages) { page in
                     HStack {
-                        // 左侧点击区域：切换页面并进入编辑模式
-                        Button {
-                            withAnimation {
-                                selectedTab = page.id
-                                // 稍微延迟以确保页面切换完成
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                    editingStates[page.id] = true
-                                    // 关闭其他页面的编辑状态
-                                    for id in editingStates.keys where id != page.id {
-                                        editingStates[id] = false
-                                    }
-                                }
-                            }
-                        } label: {
-                            HStack {
-                                Image(systemName: "rectangle.grid.1x2")
-                                    .foregroundColor(.accentColor)
-                                
-                                Text(page.name)
-                                    .foregroundColor(.primary)
-                                
-                                Spacer()
-                            }
-                            .contentShape(Rectangle()) // 确保整个区域可点击
+                        // 禁用的左侧点击行为（只是展示）
+                        HStack {
+                            Image(systemName: "rectangle.grid.1x2")
+                                .foregroundColor(.accentColor)
+                            
+                            Text(page.name)
+                                .foregroundColor(.primary)
+                            
+                            Spacer()
                         }
-                        .buttonStyle(.plain) // 避免行高亮样式干扰
+                        .contentShape(Rectangle()) // 确保整个区域可点击但不触发操作
                         
                         // 右侧菜单按钮
                         Menu {
@@ -327,6 +322,19 @@ struct DashboardManagementView: View {
                                 }
                             } label: {
                                 Label("编辑", systemImage: "pencil.circle")
+                            }
+                            
+                            Button {
+                                // 仅跳转不编辑
+                                withAnimation {
+                                    selectedTab = page.id
+                                    // 确保编辑状态关闭
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                        editingStates[page.id] = false
+                                    }
+                                }
+                            } label: {
+                                Label("跳转", systemImage: "arrow.right.circle")
                             }
                             
                             Divider()
