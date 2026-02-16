@@ -496,8 +496,8 @@ struct NoteEditorView: View {
         // 强制保存内容
         note.content = content
         
-        // 只有内容发生变化或者有附件时才更新时间
-        if wasEdited || !note.attachments.isEmpty {
+        // 只要内容不为空或者有附件，就进行保存
+        if !note.content.isEmpty || !note.attachments.isEmpty {
             noteStore.updateNote(note)
         }
         
@@ -511,7 +511,8 @@ struct NoteEditorView: View {
         guard !speechRecognizer.isRecording else { return }
         
         // 如果是新建笔记模式（onPublish != nil），不进行自动保存
-        // 只有点击发布按钮时才会保存
+        // 但需要更新 content 状态以便 performPublish 时获取最新数据
+        // (注：performPublish 直接使用 @State content，所以这里不需要特别处理)
         if onPublish != nil { return }
         
         guard note.content != content else { return }
