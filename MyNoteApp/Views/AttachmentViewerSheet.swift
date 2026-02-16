@@ -2,6 +2,7 @@ import Combine
 import AVKit
 import QuickLook
 import SwiftUI
+import MapKit
 
 /// 附件查看器 - 根据类型选择合适的查看方式
 struct AttachmentViewerSheet: View {
@@ -21,6 +22,8 @@ struct AttachmentViewerSheet: View {
                     AudioPlayerView(attachment: attachment)
                 case .file:
                     FilePreviewView(attachment: attachment)
+                case .location:
+                    LocationViewer(attachment: attachment)
                 }
             }
             .navigationTitle(attachment.type.displayName)
@@ -339,5 +342,66 @@ struct QuickLookPreviewWrapper: UIViewControllerRepresentable {
         {
             url as NSURL
         }
+    }
+}
+
+// MARK: - 位置查看器
+
+struct LocationViewer: View {
+    let attachment: AttachmentItem
+    @Environment(NoteStore.self) var noteStore
+    @State private var coordinate: CLLocationCoordinate2D?
+    @State private var position: MapCameraPosition = .automatic
+    
+    var body: some View {
+        ZStack {
+            if let coordinate = coordinate {
+                Map(position: $position) {
+                    Marker("标记位置", coordinate: coordinate)
+                }
+                
+                VStack {
+                    Spacer()
+                    Button {
+                        openInMaps(coordinate)
+                    } label: {
+                        HStack {
+                            Image(systemName: "map.fill")
+                            Text("在地图应用中打开")
+                        }
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                        .padding()
+                        .background(.regularMaterial)
+                        .cornerRadius(12)
+                        .shadow(radius: 5)
+                    }
+                    .padding(.bottom, 40)
+                }
+            } else {
+                ProgressView()
+            }
+        }
+        .onAppear { loadLocation() }
+    }
+    
+    private func loadLocation() {
+        let url = noteStore.attachmentURL(for: attachment)
+        guard let data = try? Data(contentsOf: url),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let lat = json["latitude"] as? Double,
+              let lon = json["longitude"] as? Double
+        else { return }
+        
+        let coord = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+        self.coordinate = coord
+        self.position = .region(MKCoordinateRegion(center: coord, latitudinalMeters: 1000, longitudinalMeters: 1000))
+    }
+    
+    private func openInMaps(_ coordinate: CLLocationCoordinate2D) {
+        let placemark = MKPlacemark(coordinate: coordinate)
+        let mapItem = MKMapItem(placemark: placemark)
+        mapItem.name = "标记位置"
+        mapItem.openInMaps(launchOptions: nil)
     }
 }

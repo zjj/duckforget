@@ -56,6 +56,38 @@ struct AttachmentThumbnailView: View {
 
         case .file:
             fileContent
+            
+        case .location:
+            locationContent
+        }
+    }
+    
+    // MARK: - 位置类型
+    
+    @ViewBuilder
+    private var locationContent: some View {
+        ZStack {
+            if let image = thumbnailImage {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+            } else {
+                Color(.systemGray5)
+            }
+            
+            // 地图图标
+            ZStack {
+                Circle()
+                    .fill(.white)
+                    .frame(width: 32, height: 32)
+                    .shadow(radius: 2)
+                
+                Image(systemName: "mappin.and.ellipse")
+                    .font(.system(size: 16))
+                    .foregroundColor(.red)
+            }
         }
     }
 
@@ -152,6 +184,7 @@ struct AttachmentThumbnailView: View {
                 || attachment.type == .scannedDocument
                 || attachment.type == .scannedText
                 || attachment.type == .drawing
+                || attachment.type == .location
         else { return }
 
         DispatchQueue.global(qos: .userInitiated).async {

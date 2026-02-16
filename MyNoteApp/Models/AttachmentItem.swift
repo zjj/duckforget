@@ -11,6 +11,7 @@ enum AttachmentType: String, Codable {
     case audio
     case drawing
     case file
+    case location
 
     var iconName: String {
         switch self {
@@ -21,6 +22,7 @@ enum AttachmentType: String, Codable {
         case .audio: return "waveform"
         case .drawing: return "pencil.tip.crop.circle"
         case .file: return "doc.fill"
+        case .location: return "mappin.and.ellipse"
         }
     }
 
@@ -33,6 +35,7 @@ enum AttachmentType: String, Codable {
         case .audio: return "录音"
         case .drawing: return "涂鸦"
         case .file: return "文件"
+        case .location: return "位置"
         }
     }
 }

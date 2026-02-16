@@ -28,6 +28,8 @@
     <string>需要语音识别权限以将语音转为文字</string>
     <key>NSCameraUsageDescription</key>
     <string>需要访问相机以拍摄照片或录像</string>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>需要您的位置权限以在笔记中插入当前位置</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>需要访问照片库以选择照片或视频</string>
     <key>UIApplicationSceneManifest</key>

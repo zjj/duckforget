@@ -1,5 +1,6 @@
 import AVFoundation
 import SwiftUI
+import CoreLocation
 
 /// 备忘录编辑器 - 支持文字输入、语音转文字、附件管理
 struct NoteEditorView: View {
@@ -29,6 +30,7 @@ struct NoteEditorView: View {
     @State private var showAudioRecorder = false
     @State private var showPaintingCanvas = false
     @State private var showFilePicker = false
+    @State private var showLocationPicker = false
     @State private var scanMode = ScanMode.document
 
     // 附件查看
@@ -241,6 +243,11 @@ struct NoteEditorView: View {
         .sheet(isPresented: $showFilePicker) {
             FilePickerView { urls in handlePickedFiles(urls) }
         }
+        .sheet(isPresented: $showLocationPicker) {
+            LocationPickerView { coordinate, image in
+                saveLocation(coordinate: coordinate, snapshot: image)
+            }
+        }
         .fullScreenCover(isPresented: $showPaintingCanvas) {
             PaintingView { imageData in
                 saveImage(UIImage(data: imageData)!, type: .drawing)
@@ -414,6 +421,13 @@ struct NoteEditorView: View {
                     icon: "folder"
                 ) {
                     showFilePicker = true
+                }
+                
+                // 位置
+                ToolbarButton(
+                    icon: "mappin.and.ellipse"
+                ) {
+                    showLocationPicker = true
                 }
                 
                 // 涂鸦
@@ -756,6 +770,30 @@ struct NoteEditorView: View {
                 fileExtension: url.pathExtension
             )
         }
+    }
+
+    // MARK: - 保存位置附件
+    
+    private func saveLocation(coordinate: CLLocationCoordinate2D, snapshot: UIImage) {
+        let locationData: [String: Any] = [
+            "latitude": coordinate.latitude,
+            "longitude": coordinate.longitude
+        ]
+        
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: locationData),
+              let snapshotData = snapshot.jpegData(compressionQuality: 0.8) else { return }
+        
+        // 使用 addAttachmentWithThumbnail 存储
+        // thumbnailData: snapshot
+        // data: json string
+        // fileExtension: json
+        noteStore.addAttachmentWithThumbnail(
+            to: note,
+            type: .location,
+            data: jsonData,
+            thumbnailData: snapshotData,
+            fileExtension: "json"
+        )
     }
 
     // MARK: - 保存图片附件
