@@ -28,14 +28,10 @@ struct SearchWidget: View {
                     Text("搜索备忘录")
                         .font(.headline)
                         .foregroundColor(.primary)
-                    Text("点击开始搜索或语音输入")
+                    Text("点击开始搜索")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(Color(.systemGray3))
             }
             .padding(16)
             .background(Color(.systemBackground))
