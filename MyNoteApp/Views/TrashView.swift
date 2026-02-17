@@ -9,6 +9,8 @@ struct TrashView: View {
         sort: \NoteItem.updatedAt,
         order: .reverse
     ) var trashedNotes: [NoteItem]
+    
+    let appSettings = AppSettings.shared
 
     var body: some View {
         Group {
@@ -21,7 +23,7 @@ struct TrashView: View {
                     Text("回收站是空的")
                         .font(.title2)
                         .foregroundColor(.secondary)
-                    Text("删除的备忘录将保留 30 天")
+                    Text("删除的备忘录将保留 \(appSettings.trashRetentionDays) 天")
                         .font(.subheadline)
                         .foregroundColor(.secondary.opacity(0.7))
                     Spacer()
@@ -103,7 +105,7 @@ struct TrashView: View {
     private func daysRemaining(_ note: NoteItem) -> String {
         guard let deletedAt = note.deletedAt else { return "" }
         let calendar = Calendar.current
-        let expiryDate = calendar.date(byAdding: .day, value: 30, to: deletedAt) ?? deletedAt
+        let expiryDate = calendar.date(byAdding: .day, value: appSettings.trashRetentionDays, to: deletedAt) ?? deletedAt
         let remaining = calendar.dateComponents([.day], from: Date(), to: expiryDate).day ?? 0
         if remaining <= 0 {
             return "即将删除"

@@ -7,6 +7,7 @@ enum WidgetType: String, Codable, CaseIterable, Identifiable {
     case folders
     case recentNotes
     case newNote
+    case trash
     
     var id: String { rawValue }
     
@@ -16,6 +17,7 @@ enum WidgetType: String, Codable, CaseIterable, Identifiable {
         case .folders: return "文件夹"
         case .recentNotes: return "最近笔记"
         case .newNote: return "新建备忘录"
+        case .trash: return "回收站"
         }
     }
     
@@ -25,6 +27,7 @@ enum WidgetType: String, Codable, CaseIterable, Identifiable {
         case .folders: return "folder"
         case .recentNotes: return "clock"
         case .newNote: return "square.and.pencil"
+        case .trash: return "trash"
         }
     }
 }

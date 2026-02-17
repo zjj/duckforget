@@ -123,6 +123,8 @@ struct DashboardRow: View {
                     RecentNotesWidget(size: item.size)
                 case .newNote:
                     newNoteCard(size: item.size)
+                case .trash:
+                    TrashWidget(size: item.size)
                 }
             }
             .frame(minHeight: item.size == .fullPage ? fullPageHeight : nil)
@@ -152,42 +154,44 @@ struct DashboardRow: View {
                 
                 HStack(spacing: 8) {
                     // Resize Menu
-                    Menu {
-                        Button("小 (Compact)", systemImage: "rectangle.grid.1x2") {
-                            let generator = UISelectionFeedbackGenerator()
-                            generator.selectionChanged()
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { 
-                                dashboardConfig.updateSize(in: pageId, for: item.id, size: .small) 
+                    if item.type != .trash {
+                        Menu {
+                            Button("小 (Compact)", systemImage: "rectangle.grid.1x2") {
+                                let generator = UISelectionFeedbackGenerator()
+                                generator.selectionChanged()
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { 
+                                    dashboardConfig.updateSize(in: pageId, for: item.id, size: .small) 
+                                }
                             }
-                        }
-                        Button("中 (Standard)", systemImage: "rectangle.grid.2x2") {
-                            let generator = UISelectionFeedbackGenerator()
-                            generator.selectionChanged()
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { 
-                                dashboardConfig.updateSize(in: pageId, for: item.id, size: .medium) 
+                            Button("中 (Standard)", systemImage: "rectangle.grid.2x2") {
+                                let generator = UISelectionFeedbackGenerator()
+                                generator.selectionChanged()
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { 
+                                    dashboardConfig.updateSize(in: pageId, for: item.id, size: .medium) 
+                                }
                             }
-                        }
-                        Button("大 (Large)", systemImage: "rectangle.grid.3x2") {
-                            let generator = UISelectionFeedbackGenerator()
-                            generator.selectionChanged()
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { 
-                                dashboardConfig.updateSize(in: pageId, for: item.id, size: .large) 
+                            Button("大 (Large)", systemImage: "rectangle.grid.3x2") {
+                                let generator = UISelectionFeedbackGenerator()
+                                generator.selectionChanged()
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { 
+                                    dashboardConfig.updateSize(in: pageId, for: item.id, size: .large) 
+                                }
                             }
-                        }
-                        Button("全屏 (Full Page)", systemImage: "rectangle.expand.vertical") {
-                            let generator = UISelectionFeedbackGenerator()
-                            generator.selectionChanged()
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { 
-                                dashboardConfig.updateSize(in: pageId, for: item.id, size: .fullPage) 
+                            Button("全屏 (Full Page)", systemImage: "rectangle.expand.vertical") {
+                                let generator = UISelectionFeedbackGenerator()
+                                generator.selectionChanged()
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { 
+                                    dashboardConfig.updateSize(in: pageId, for: item.id, size: .fullPage) 
+                                }
                             }
+                        } label: {
+                            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding(8)
+                                .background(Circle().fill(Color.blue))
+                                .shadow(color: .blue.opacity(0.3), radius: 4, x: 0, y: 2)
                         }
-                    } label: {
-                        Image(systemName: "arrow.up.left.and.arrow.down.right")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(8)
-                            .background(Circle().fill(Color.blue))
-                            .shadow(color: .blue.opacity(0.3), radius: 4, x: 0, y: 2)
                     }
                     
                     // Delete Button

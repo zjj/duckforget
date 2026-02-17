@@ -121,9 +121,10 @@ class NoteStore {
         }
     }
 
-    /// 清理超过 30 天的回收站备忘录
+    /// 清理超过配置天数的回收站备忘录
     func cleanupExpiredTrash() {
-        let cutoff = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+        let retentionDays = AppSettings.shared.trashRetentionDays
+        let cutoff = Calendar.current.date(byAdding: .day, value: -retentionDays, to: Date()) ?? Date()
         let descriptor = FetchDescriptor<NoteItem>(
             predicate: #Predicate {
                 $0.isDeleted == true && $0.deletedAt != nil

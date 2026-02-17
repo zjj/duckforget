@@ -10,6 +10,8 @@ struct DashboardManagementView: View {
     @Binding var pageToRename: DashboardPage?
     @Binding var selectedTab: UUID?
     @Binding var editingStates: [UUID: Bool]
+    
+    @State private var trashRetentionDays: Int = AppSettings.shared.trashRetentionDays
 
     var body: some View {
         List {
@@ -134,6 +136,26 @@ struct DashboardManagementView: View {
                 NavigationLink(destination: ToolbarSortView()) {
                     Label("工具栏", systemImage: "arrow.left.arrow.right")
                 }
+            }
+            
+            Section {
+                HStack {
+                    Label("保留天数", systemImage: "trash")
+                    Spacer()
+                    Stepper(value: $trashRetentionDays, in: 1...90, step: 1) {
+                        Text("\(trashRetentionDays) 天")
+                            .foregroundColor(.secondary)
+                    }
+                    .onChange(of: trashRetentionDays) { _, newValue in
+                        AppSettings.shared.trashRetentionDays = newValue
+                    }
+                }
+            } header: {
+                Text("回收站")
+            } footer: {
+                Text("回收站中的备忘录将在删除后保留指定天数，超过时间后将被永久删除")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
         }
     }
