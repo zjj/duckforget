@@ -282,39 +282,102 @@ struct DashboardRow: View {
 /// 发布后自动重置为新笔记
 struct InlineNewNoteWidget: View {
     @Environment(NoteStore.self) var noteStore
-    @State private var currentNote: NoteItem?
+    @State private var showEditor = false
     var onFocused: (() -> Void)? = nil
     
     var body: some View {
-        Group {
-            if let note = currentNote {
-                NoteEditorView(
-                    note: note,
-                    isEmbedded: true,
-                    onFocusChange: { focused in
-                        if focused { onFocused?() }
-                    },
-                    onPublish: publishAndReset
-                )
-                .id(note.id)
-            } else {
-                ProgressView()
+        // 修改为点击触发式：显示一个看起来像编辑器的占位视图
+        // 点击后弹出全屏编辑器，从未彻底解决生命周期竞态问题
+        VStack(spacing: 0) {
+            // 模拟顶部工具栏区域
+            HStack {
+                Image(systemName: "square.and.pencil")
+                    .font(.headline)
+                    .foregroundColor(.accentColor)
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(Color(.systemBackground))
+            
+            Divider()
+            
+            // 模拟内容区域
+            ZStack(alignment: .topLeading) {
+                Color(.systemBackground)
+                
+                Text("点击此处开始新建备忘录...")
+                    .foregroundColor(.secondary)
+                    .padding(.top, 12)
+                    .padding(.horizontal, 16)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .contentShape(Rectangle()) // 确保整个区域可点击
+        .onTapGesture {
+            onFocused?()
+            showEditor = true
+        }
+        // 使用 fullScreenCover 进行物理隔离，确保编辑器拥有独立的生命周期
+        .fullScreenCover(isPresented: $showEditor) {
+            NewNoteModalView(isPresented: $showEditor)
+        }
+    }
+}
+
+/// 专门用于 Modal 弹出的新建笔记包装器
+struct NewNoteModalView: View {
+    @Environment(NoteStore.self) var noteStore
+    @Binding var isPresented: Bool
+    @State private var currentNote: NoteItem?
+    
+    var body: some View {
+        NavigationStack {
+            Group {
+                if let note = currentNote {
+                    NoteEditorView(
+                        note: note,
+                        onPublish: {
+                            // 发布成功，关闭页面
+                            isPresented = false
+                        }
+                    )
+                    // 确保每次都是全新的编辑器实例
+                    .id(note.id)
+                } else {
+                    ProgressView()
+                }
+            }
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Image(systemName: "square.and.pencil")
+                        .font(.headline)
+                        .foregroundColor(.accentColor)
+                }
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        // 手动取消，触发清理逻辑（需确保 NoteEditorView 的 onDisappear 能处理）
+                        // 或者在这里手动删除空笔记
+                        if let note = currentNote,
+                           note.content.isEmpty && note.attachments.isEmpty {
+                            noteStore.permanentlyDeleteNote(note)
+                        }
+                        isPresented = false
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.body.weight(.semibold))
+                    }
+                }
             }
         }
         .onAppear {
             if currentNote == nil {
-                createNewNote()
+                // 创建一个全新的临时笔记
+                currentNote = noteStore.createNote(in: nil)
             }
         }
-    }
-    
-    private func publishAndReset() {
-        createNewNote()
-    }
-    
-    private func createNewNote() {
-        let note = noteStore.createNote(in: nil)
-        currentNote = note
     }
 }
 

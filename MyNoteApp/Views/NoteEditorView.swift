@@ -1,6 +1,7 @@
 import AVFoundation
 import SwiftUI
 import CoreLocation
+import SwiftData
 
 /// 备忘录编辑器 - 支持文字输入、语音转文字、附件管理
 struct NoteEditorView: View {
@@ -322,6 +323,18 @@ struct NoteEditorView: View {
                 },
                 onCoordinatorReady: { coordinator in
                     textViewCoordinator = coordinator
+                    // 如果是新建/编辑页面，自动聚焦
+                    // 延迟一点点以确保视图完全准备好
+                    if onPublish != nil {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            coordinator.focus()
+                            // 确保光标在最后（loadContent 中已经设置了 cursorPosition，这里再次确保一下同步）
+                            let len = (self.content as NSString).length
+                            if len > 0 {
+                                coordinator.setCursor(to: len)
+                            }
+                        }
+                    }
                 }
             )
 
@@ -463,11 +476,18 @@ struct NoteEditorView: View {
     private func cleanupOnExit() {
         // 如果是新建笔记模式（onPublish != nil）
         if onPublish != nil {
-            // 如果已点击发布，则不删除（已在 performPublish 中更新）
-            // 如果未点击发布，则视为因退出（如切换页面）而取消，需要删除临时笔记
-            if !hasPublished {
-                noteStore.permanentlyDeleteNote(note)
-            }
+            // 策略：如果已发布（hasPublished == true），则保留数据。
+            // 如果未发布（hasPublished == false），因为我们在 saveContent 里禁用了自动保存，
+            // 此时 note.content 应该是空的（或者是 createNote 时的初始状态）。
+            // 即使 note 在内存里被改了，只要没 save 到 DB，重载后也是空的。
+            // 但为了保险，我们还是执行一次显式删除。
+            
+            if hasPublished { return }
+            
+            // 注意：由于现在改回了“手动发布才保存”，所以这里不需要再检查 isEffectiveContent
+            // 因为没点发布，就算有内容也是“用户未想要保存”的内容。
+            // 直接清理掉这条临时创建的 Note
+            noteStore.permanentlyDeleteNote(note)
             return
         }
 
@@ -490,20 +510,34 @@ struct NoteEditorView: View {
     }
 
     private func performPublish() {
-        // 标记已发布，避免 cleanupOnExit 自动删除
+        // 1. 标记已发布，这就像 "Commit Transaction"
         hasPublished = true
         
-        // 强制保存内容
-        note.content = content
-        
-        // 只要内容不为空或者有附件，就进行保存
-        if !note.content.isEmpty || !note.attachments.isEmpty {
-            noteStore.updateNote(note)
+        // 2. 再次确保内容最新（虽然 saveContent 应该已经处理了，但为了保险起见）
+        // 从 UITextView 获取最新文本以避免 State 延迟
+        if let latestText = textViewCoordinator?.getText() {
+             note.content = latestText
+        } else {
+             note.content = content
         }
         
+        // 3. 确保最终状态被保存 (Final Save)
+        if !note.content.isEmpty || !note.attachments.isEmpty {
+            noteStore.updateNote(note)
+            try? noteStore.modelContext.save()
+        }
+        
+        // 4. 反馈
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)
-        onPublish?()
+        
+        // 5. 触发回调，完成流程
+        // 由于我们采用了“实时保存 + 仅在取消时删除”的策略，这里只需要确保 hasPublished 状态生效即可
+        // 使用 Task 确保状态更新已提交到 RunLoop
+        Task { @MainActor in
+             try? await Task.sleep(for: .seconds(0.05))
+             onPublish?()
+        }
     }
 
     private func saveContent() {
@@ -511,8 +545,7 @@ struct NoteEditorView: View {
         guard !speechRecognizer.isRecording else { return }
         
         // 如果是新建笔记模式（onPublish != nil），不进行自动保存
-        // 但需要更新 content 状态以便 performPublish 时获取最新数据
-        // (注：performPublish 直接使用 @State content，所以这里不需要特别处理)
+        // 只有当用户点击“发布”按钮时，才会在 performPublish 中一次性保存
         if onPublish != nil { return }
         
         guard note.content != content else { return }
