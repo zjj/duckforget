@@ -62,7 +62,8 @@ struct NoteEditorView: View {
     @State private var editedContent = "" // 临时编辑内容，只有点击发布才会真正保存
     @State private var initialContent = "" // 初始内容，用于检测是否有变化
     @State private var initialAttachmentCount = 0 // 初始附件数量
-    
+    @State private var initialTagIDs: Set<UUID> = [] // 初始标签 ID 集合
+
     // 语音输入拖拽状态
     @State private var voiceDragOffset: CGFloat = 0
     @State private var isVoiceButtonPressed = false
@@ -92,7 +93,11 @@ struct NoteEditorView: View {
     private var hasActualChanges: Bool {
         let contentChanged = content != initialContent
         let attachmentsChanged = currentAttachments.count != initialAttachmentCount
-        return contentChanged || attachmentsChanged
+        // 标签变化（集合比较）
+        let currentTagIDs = Set(note.tags.map { $0.id })
+        let tagsChanged = currentTagIDs != initialTagIDs
+        
+        return contentChanged || attachmentsChanged || tagsChanged
     }
 
     // MARK: - Body
@@ -197,15 +202,16 @@ struct NoteEditorView: View {
                     }
                     .disabled(!canRedo)
                     
-                    // 菜单 - 仅编辑模式显示（新建模式没有菜单）
-                    if onPublish == nil {
-                        Menu {
-                            Button {
-                                showTagManagement = true
-                            } label: {
-                                Label("管理标签", systemImage: "tag")
-                            }
-                            
+                    // 菜单 - 新建和编辑都显示
+                    Menu {
+                        Button {
+                            showTagManagement = true
+                        } label: {
+                            Label("管理标签", systemImage: "tag")
+                        }
+                        
+                        // 仅编辑模式或已发布过才显示导出/删除
+                        if onPublish == nil || hasPublished {
                             Button {
                                 showExport = true
                             } label: {
@@ -216,10 +222,10 @@ struct NoteEditorView: View {
                             } label: {
                                 Label("删除", systemImage: "trash")
                             }
-                        } label: {
-                            Image(systemName: "ellipsis.circle")
-                                .font(.system(size: 16))
                         }
+                    } label: {
+                        Image(systemName: "ellipsis") // 不带圆圈
+                            .font(.system(size: 16))
                     }
                     
                     // 发布按钮 - 新建和编辑都显示
@@ -229,9 +235,7 @@ struct NoteEditorView: View {
                         Image(systemName: "checkmark")
                             .fontWeight(.semibold)
                     }
-                    .disabled(onPublish != nil ? 
-                        (content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && note.attachments.isEmpty) : 
-                        !hasActualChanges)
+                    .disabled(!hasActualChanges)
                 }
             }
         }
@@ -247,6 +251,10 @@ struct NoteEditorView: View {
         .onChange(of: currentAttachments.count) {
             // 标记已编辑，确保删除或添加附件都能触发 rollback/publish 逻辑
             wasEdited = true
+        }
+        .onChange(of: note.tags) {
+             // 标签发生变化（如从Sheet返回），标记已编辑
+             wasEdited = true
         }
         .onChange(of: isEditorFocused) { onFocusChange?(isEditorFocused) }
         //.onChange(of: speechRecognizer.currentTranscript) {
@@ -529,6 +537,10 @@ struct NoteEditorView: View {
         content = note.content
         initialContent = note.content // 保存初始内容
         initialAttachmentCount = currentAttachments.count // 保存初始附件数量
+        
+        // 载入标签状态
+        initialTagIDs = Set(note.tags.map { $0.id })
+        
         cursorPosition = (content as NSString).length
 
         // 清除初始加载产生的 undo 栈，确保新笔记无法 undo
@@ -542,8 +554,16 @@ struct NoteEditorView: View {
     private func cleanupOnExit() {
         // 如果是新建笔记模式（onPublish != nil）
         if onPublish != nil {
-            if hasPublished { return }
-            noteStore.permanentlyDeleteNote(note)
+            // 如果从未发布过，直接删
+            if !hasPublished {
+                noteStore.permanentlyDeleteNote(note)
+                return
+            }
+            // 如果发布过，但后续有未保存的修改，且用户希望不自动保存
+            // 则应当回滚这些修改（恢复到上次发布的状态）
+            if hasPublished && hasActualChanges {
+                 noteStore.modelContext.rollback()
+            }
             return
         }
 
@@ -562,7 +582,7 @@ struct NoteEditorView: View {
     }
 
     private func performPublish() {
-        // 1. 标记已发布，这就像 "Commit Transaction"
+        // 1. 标记已发布
         hasPublished = true
         
         // 2. 从 UITextView 获取最新文本以避免 State 延迟
@@ -582,19 +602,23 @@ struct NoteEditorView: View {
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)
         
-        // 5. 触发回调或更新基准状态
+        // 5. 更新基准状态以便用户继续编辑
+        // 不再自动退出，而是保留在当前页面
+        initialContent = note.content
+        initialAttachmentCount = currentAttachments.count
+        
+        // 更新标签基准状态
+        initialTagIDs = Set(note.tags.map { $0.id })
+        
+        wasEdited = false
+        
+        // 如果是新建模式（onPublish != nil），标记 hasPublished = true，防止退出时整条删除
         if onPublish != nil {
-            // 新建模式：触发回调（关闭页面）
-            Task { @MainActor in
-                 try? await Task.sleep(for: .seconds(0.05))
-                 onPublish?()
-            }
+            hasPublished = true
         } else {
-            // 编辑模式：不关闭页面，重置基准状态以便用户继续编辑
-            initialContent = note.content
-            initialAttachmentCount = currentAttachments.count
-            wasEdited = false
-            hasPublished = false // 重置状态，以便下次修改后仍需再次点击确认，或者在退出时回滚新修改
+            // 如果是编辑模式，重置 hasPublished = false
+            // 这样后续若有修改但未再次点击保存，退出时可以正确触发 rollback
+            hasPublished = false
         }
     }
 
