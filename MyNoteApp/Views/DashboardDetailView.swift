@@ -234,9 +234,6 @@ struct DashboardRow: View {
                 Image(systemName: "square.and.pencil")
                     .font(.system(size: 36))
                     .foregroundColor(.accentColor)
-                Text("新建备忘录")
-                    .font(.headline)
-                    .foregroundColor(.secondary)
                 if size == .fullPage {
                     Text("全屏模式：直接显示编辑器")
                         .font(.caption)
@@ -284,6 +281,10 @@ struct InlineNewNoteWidget: View {
                 Image(systemName: "square.and.pencil")
                     .font(.headline)
                     .foregroundColor(.accentColor)
+
+                Text("新建")
+                    .font(.headline)
+                    .foregroundColor(.secondary)
                 Spacer()
             }
             .padding(.horizontal, 16)
@@ -296,7 +297,7 @@ struct InlineNewNoteWidget: View {
             ZStack(alignment: .topLeading) {
                 Color(.systemBackground)
                 
-                Text("点击此处开始新建备忘录...")
+                Text("点击输入...")
                     .foregroundColor(.secondary)
                     .padding(.top, 12)
                     .padding(.horizontal, 16)
@@ -341,11 +342,7 @@ struct NewNoteModalView: View {
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Image(systemName: "square.and.pencil")
-                        .font(.headline)
-                        .foregroundColor(.accentColor)
-                }
+             
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
                         // 手动取消，触发清理逻辑（需确保 NoteEditorView 的 onDisappear 能处理）
@@ -389,7 +386,6 @@ struct NewNoteEditorPage: View {
                 ProgressView()
             }
         }
-        .navigationTitle("新建备忘录")
         .onAppear {
             if currentNote == nil {
                 createNewNote()
@@ -423,9 +419,7 @@ struct NewNoteButton: View {
                 Image(systemName: "square.and.pencil")
                     .font(.system(size: 36))
                     .foregroundColor(.accentColor)
-                Text("新建备忘录")
-                    .font(.headline)
-                Text("点击开始记录")
+                Text("点击新建")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }

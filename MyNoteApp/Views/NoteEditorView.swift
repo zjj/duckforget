@@ -304,11 +304,6 @@ struct NoteEditorView: View {
     /// 在视图内部顶端渲染 undo/redo/发布 按钮
     private var embeddedToolbar: some View {
         HStack(spacing: 16) {
-            Text("新建备忘录")
-                .font(.headline)
-            
-            Spacer()
-            
             Button {
                 textViewCoordinator?.undo()
             } label: {
