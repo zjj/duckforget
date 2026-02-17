@@ -74,7 +74,15 @@ struct DashboardDetailView: View {
             ToolbarItemGroup(placement: .bottomBar) {
                 if isEditing {
                     Menu {
-                        ForEach(WidgetType.allCases) { type in
+                        // 按照指定顺序展示组件类型
+                        let orderedTypes: [WidgetType] = [
+                            .trash,
+                            .recentNotes,
+                            .search,
+                            .newNote,
+                            .tag,
+                        ]
+                        ForEach(orderedTypes, id: \.self) { type in
                             Button(action: {
                                 let generator = UIImpactFeedbackGenerator(style: .light)
                                 generator.impactOccurred()

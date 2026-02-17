@@ -13,10 +13,10 @@ enum WidgetType: String, Codable, CaseIterable, Identifiable {
     
     var displayName: String {
         switch self {
+        case .newNote: return "新建"
+        case .tag: return "xx标签"
+        case .recentNotes: return "最近"
         case .search: return "搜索"
-        case .tag: return "标签"
-        case .recentNotes: return "最近笔记"
-        case .newNote: return "新建备忘录"
         case .trash: return "回收站"
         }
     }
