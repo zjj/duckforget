@@ -227,8 +227,12 @@ struct NoteEditorView: View {
             cleanupOnExit() 
         }
         .onChange(of: content) { 
-            // 仅标记已编辑，不自动保存
+            // 标记已编辑
             wasEdited = true 
+        }
+        .onChange(of: currentAttachments.count) {
+            // 标记已编辑，确保删除或添加附件都能触发 rollback/publish 逻辑
+            wasEdited = true
         }
         .onChange(of: isEditorFocused) { onFocusChange?(isEditorFocused) }
         //.onChange(of: speechRecognizer.currentTranscript) {
@@ -418,11 +422,14 @@ struct NoteEditorView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             LazyHStack(spacing: 12) {
                 ForEach(currentAttachments) { attachment in
-                    AttachmentThumbnailView(attachment: attachment)
-                        .frame(width: 100, height: 100)
-                        .onTapGesture {
-                            selectedAttachment = attachment
-                        }
+                    AttachmentThumbnailView(
+                        attachment: attachment,
+                        shouldSaveOnDelete: false // 在编辑器中删除，只有点保存才执行
+                    )
+                    .frame(width: 100, height: 100)
+                    .onTapGesture {
+                        selectedAttachment = attachment
+                    }
 /* Lines 390-399 omitted */
                 }
             }
@@ -504,17 +511,7 @@ struct NoteEditorView: View {
     private func cleanupOnExit() {
         // 如果是新建笔记模式（onPublish != nil）
         if onPublish != nil {
-            // 策略：如果已发布（hasPublished == true），则保留数据。
-            // 如果未发布（hasPublished == false），因为我们在 saveContent 里禁用了自动保存，
-            // 此时 note.content 应该是空的（或者是 createNote 时的初始状态）。
-            // 即使 note 在内存里被改了，只要没 save 到 DB，重载后也是空的。
-            // 但为了保险，我们还是执行一次显式删除。
-            
             if hasPublished { return }
-            
-            // 注意：由于现在改回了“手动发布才保存”，所以这里不需要再检查 isEffectiveContent
-            // 因为没点发布，就算有内容也是“用户未想要保存”的内容。
-            // 直接清理掉这条临时创建的 Note
             noteStore.permanentlyDeleteNote(note)
             return
         }
@@ -524,10 +521,11 @@ struct NoteEditorView: View {
             speechRecognizer.stopRecording()
         }
         
-        // 编辑模式：如果编辑过但未保存，丢弃未保存的更改
-        // SwiftData会自动丢弃未保存的更改
-        if wasEdited {
-            // 手动刷新上下文以丢弃未保存的更改
+        // 编辑模式：如果有任何未发布的改动（内容或附件），执行回滚
+        // 这样可以丢弃那些虽然已 inserted 到 context 但尚未 checked (save) 的附件
+        if !hasPublished && hasActualChanges {
+            // 注意：rollback 只能撤销内存中的 SwiftData 对象
+            // 附件对应的物理文件如果没被 cleanup，会暂时滞留在磁盘
             noteStore.modelContext.rollback()
         }
     }
@@ -565,7 +563,7 @@ struct NoteEditorView: View {
             initialContent = note.content
             initialAttachmentCount = currentAttachments.count
             wasEdited = false
-            // 注意：hasPublished 保持为 true，这样退出时不会丢弃已保存的内容
+            hasPublished = false // 重置状态，以便下次修改后仍需再次点击确认，或者在退出时回滚新修改
         }
     }
 
@@ -800,9 +798,11 @@ struct NoteEditorView: View {
                 to: note,
                 type: .file,
                 data: data,
-                fileExtension: url.pathExtension
+                fileExtension: url.pathExtension,
+                shouldSave: false // 手动发布前不持久化到数据库
             )
         }
+        wasEdited = true
     }
 
     // MARK: - 保存位置附件
@@ -825,8 +825,10 @@ struct NoteEditorView: View {
             type: .location,
             data: jsonData,
             thumbnailData: snapshotData,
-            fileExtension: "json"
+            fileExtension: "json",
+            shouldSave: false // 确保不自动触发 context save
         )
+        wasEdited = true
     }
 
     // MARK: - 保存图片附件
@@ -847,8 +849,10 @@ struct NoteEditorView: View {
             type: type,
             data: imageData,
             thumbnailData: thumbnailData,
-            fileExtension: "jpg"
+            fileExtension: "jpg",
+            shouldSave: false // 确保不自动触发 context save
         )
+        wasEdited = true
     }
 
     // MARK: - 保存视频附件
@@ -864,8 +868,10 @@ struct NoteEditorView: View {
             type: .video,
             data: videoData,
             thumbnailData: thumbnailData,
-            fileExtension: ext
+            fileExtension: ext,
+            shouldSave: false // 确保不自动触发 context save
         )
+        wasEdited = true
     }
 
     /// 从视频生成缩略图

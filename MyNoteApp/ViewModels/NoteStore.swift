@@ -145,15 +145,13 @@ class NoteStore {
         return (try? modelContext.fetch(descriptor)) ?? []
     }
 
-    // MARK: - Attachment Management
-
     /// 添加附件（无缩略图）
     @discardableResult
-    func addAttachment(to note: NoteItem, type: AttachmentType, data: Data, fileExtension: String)
+    func addAttachment(to note: NoteItem, type: AttachmentType, data: Data, fileExtension: String, shouldSave: Bool = true)
         -> AttachmentItem?
     {
         return addAttachmentWithThumbnail(
-            to: note, type: type, data: data, thumbnailData: nil, fileExtension: fileExtension)
+            to: note, type: type, data: data, thumbnailData: nil, fileExtension: fileExtension, shouldSave: shouldSave)
     }
 
     /// 添加附件（含缩略图）
@@ -163,7 +161,8 @@ class NoteStore {
         type: AttachmentType,
         data: Data,
         thumbnailData: Data?,
-        fileExtension: String
+        fileExtension: String,
+        shouldSave: Bool = true
     ) -> AttachmentItem? {
         let fileID = UUID().uuidString
         let fileName = "\(fileID).\(fileExtension)"
@@ -195,20 +194,28 @@ class NoteStore {
         note.updatedAt = Date()
 
         modelContext.insert(attachment)
-        try? modelContext.save()
+        if shouldSave {
+            try? modelContext.save()
+        }
         return attachment
     }
 
     /// 删除附件
-    func deleteAttachment(_ attachment: AttachmentItem) {
-        removeAttachmentFile(attachment)
+    func deleteAttachment(_ attachment: AttachmentItem, shouldSave: Bool = true) {
+        // 如果是自动保存模式，则立即删除物理文件
+        if shouldSave {
+            removeAttachmentFile(attachment)
+        }
 
         if let note = attachment.note {
             note.updatedAt = Date()
         }
 
         modelContext.delete(attachment)
-        try? modelContext.save()
+        
+        if shouldSave {
+            try? modelContext.save()
+        }
     }
 
     /// 获取附件文件URL

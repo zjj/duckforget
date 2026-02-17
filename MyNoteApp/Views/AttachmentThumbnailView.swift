@@ -3,6 +3,7 @@ import SwiftUI
 /// 附件缩略图视图 - 根据附件类型显示不同的预览样式
 struct AttachmentThumbnailView: View {
     let attachment: AttachmentItem
+    var shouldSaveOnDelete: Bool = true
     @Environment(NoteStore.self) var noteStore
     @State private var thumbnailImage: UIImage?
 
@@ -30,7 +31,7 @@ struct AttachmentThumbnailView: View {
     private var deleteButton: some View {
         Button {
             withAnimation {
-                noteStore.deleteAttachment(attachment)
+                noteStore.deleteAttachment(attachment, shouldSave: shouldSaveOnDelete)
             }
         } label: {
             Image(systemName: "xmark.circle.fill")
