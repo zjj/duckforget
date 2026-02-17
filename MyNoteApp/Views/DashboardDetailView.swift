@@ -289,7 +289,7 @@ struct InlineNewNoteWidget: View {
                     .foregroundColor(.accentColor)
 
                 Text("新建")
-                    .font(.subheadline)
+                    .font(.headline)
                     .foregroundColor(.primary)
                 Spacer()
             }
