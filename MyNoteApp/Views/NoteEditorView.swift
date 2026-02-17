@@ -56,11 +56,17 @@ struct NoteEditorView: View {
     // 编辑状态追踪
     @State private var wasEdited = false
     @State private var hasPublished = false // 标记是否已点击发布按钮保存
+    @State private var editedContent = "" // 临时编辑内容，只有点击发布才会真正保存
+    @State private var initialContent = "" // 初始内容，用于检测是否有变化
+    @State private var initialAttachmentCount = 0 // 初始附件数量
     
     // 语音输入拖拽状态
     @State private var voiceDragOffset: CGFloat = 0
     @State private var isVoiceButtonPressed = false
     @State private var shouldCancelVoiceInput = false
+    
+    // 删除确认
+    @State private var showDeleteConfirmation = false
 
     enum ScanMode: String, Identifiable {
         case textExtraction // Renamed from text
@@ -77,6 +83,13 @@ struct NoteEditorView: View {
 
     private var currentAttachments: [AttachmentItem] {
         noteStore.getAttachments(for: note)
+    }
+    
+    // 检测是否有实际的内容或附件变化
+    private var hasActualChanges: Bool {
+        let contentChanged = content != initialContent
+        let attachmentsChanged = currentAttachments.count != initialAttachmentCount
+        return contentChanged || attachmentsChanged
     }
 
     // MARK: - Body
@@ -176,15 +189,8 @@ struct NoteEditorView: View {
                     }
                     .disabled(!canRedo)
                     
-                    if onPublish != nil {
-                        Button {
-                            performPublish()
-                        } label: {
-                            Image(systemName: "checkmark")
-                                .fontWeight(.semibold)
-                        }
-                        .disabled(content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && note.attachments.isEmpty)
-                    } else {
+                    // 菜单 - 仅编辑模式显示（新建模式没有菜单）
+                    if onPublish == nil {
                         Menu {
                             Button {
                                 showExport = true
@@ -192,8 +198,7 @@ struct NoteEditorView: View {
                                 Label("导出", systemImage: "square.and.arrow.up")
                             }
                             Button(role: .destructive) {
-                                noteStore.softDeleteNote(note)
-                                dismiss()
+                                showDeleteConfirmation = true
                             } label: {
                                 Label("删除", systemImage: "trash")
                             }
@@ -202,6 +207,17 @@ struct NoteEditorView: View {
                                 .font(.system(size: 16))
                         }
                     }
+                    
+                    // 发布按钮 - 新建和编辑都显示
+                    Button {
+                        performPublish()
+                    } label: {
+                        Image(systemName: "checkmark")
+                            .fontWeight(.semibold)
+                    }
+                    .disabled(onPublish != nil ? 
+                        (content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && note.attachments.isEmpty) : 
+                        !hasActualChanges)
                 }
             }
         }
@@ -210,7 +226,10 @@ struct NoteEditorView: View {
             // 无论嵌入与否，都需要清理逻辑（特别是针对 temporary note 的删除）
             cleanupOnExit() 
         }
-        .onChange(of: content) { saveContent() }
+        .onChange(of: content) { 
+            // 仅标记已编辑，不自动保存
+            wasEdited = true 
+        }
         .onChange(of: isEditorFocused) { onFocusChange?(isEditorFocused) }
         //.onChange(of: speechRecognizer.currentTranscript) {
         //    handleRealtimeTranscript()
@@ -267,6 +286,15 @@ struct NoteEditorView: View {
         .sheet(isPresented: $showExport) {
             ExportSheet(note: note)
                 .environment(noteStore)
+        }
+        .alert("确认删除", isPresented: $showDeleteConfirmation) {
+            Button("取消", role: .cancel) { }
+            Button("删除", role: .destructive) {
+                noteStore.softDeleteNote(note)
+                dismiss()
+            }
+        } message: {
+            Text("确定要删除这条备忘录吗？")
         }
     }
 
@@ -466,6 +494,8 @@ struct NoteEditorView: View {
     private func loadContent() {
         guard !hasLoaded else { return }
         content = note.content
+        initialContent = note.content // 保存初始内容
+        initialAttachmentCount = currentAttachments.count // 保存初始附件数量
         cursorPosition = (content as NSString).length
 
         // 清除初始加载产生的 undo 栈，确保新笔记无法 undo
@@ -494,21 +524,16 @@ struct NoteEditorView: View {
             return
         }
 
-        // 保存最终内容
-        saveContent()
         // 停止语音输入
         if speechRecognizer.isRecording {
             speechRecognizer.stopRecording()
         }
-        // 如果备忘录为空（无内容且无附件），则直接删除，不保留空记录
-        // 无论是否编辑过（wasEdited），只要最终结果为空就不保存
-        let isEmpty = note.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        let hasNoAttachments = note.attachments.isEmpty
-
-        // 仅在非发布模式下检查空内容删除
-        // 发布模式下，performPublish 已经保存并更新了内容
-        if isEmpty && hasNoAttachments {
-            noteStore.permanentlyDeleteNote(note)
+        
+        // 编辑模式：如果编辑过但未保存，丢弃未保存的更改
+        // SwiftData会自动丢弃未保存的更改
+        if wasEdited {
+            // 手动刷新上下文以丢弃未保存的更改
+            noteStore.modelContext.rollback()
         }
     }
 
@@ -516,15 +541,14 @@ struct NoteEditorView: View {
         // 1. 标记已发布，这就像 "Commit Transaction"
         hasPublished = true
         
-        // 2. 再次确保内容最新（虽然 saveContent 应该已经处理了，但为了保险起见）
-        // 从 UITextView 获取最新文本以避免 State 延迟
+        // 2. 从 UITextView 获取最新文本以避免 State 延迟
         if let latestText = textViewCoordinator?.getText() {
              note.content = latestText
         } else {
              note.content = content
         }
         
-        // 3. 确保最终状态被保存 (Final Save)
+        // 3. 确保内容被保存到数据库
         if !note.content.isEmpty || !note.attachments.isEmpty {
             noteStore.updateNote(note)
             try? noteStore.modelContext.save()
@@ -534,27 +558,25 @@ struct NoteEditorView: View {
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)
         
-        // 5. 触发回调，完成流程
-        // 由于我们采用了“实时保存 + 仅在取消时删除”的策略，这里只需要确保 hasPublished 状态生效即可
-        // 使用 Task 确保状态更新已提交到 RunLoop
-        Task { @MainActor in
-             try? await Task.sleep(for: .seconds(0.05))
-             onPublish?()
+        // 5. 触发回调或更新基准状态
+        if onPublish != nil {
+            // 新建模式：触发回调（关闭页面）
+            Task { @MainActor in
+                 try? await Task.sleep(for: .seconds(0.05))
+                 onPublish?()
+            }
+        } else {
+            // 编辑模式：不关闭页面，重置基准状态以便用户继续编辑
+            initialContent = note.content
+            initialAttachmentCount = currentAttachments.count
+            wasEdited = false
+            // 注意：hasPublished 保持为 true，这样退出时不会丢弃已保存的内容
         }
     }
 
     private func saveContent() {
-        // 如果正在录音，跳过自动保存（等待最终确认）
-        guard !speechRecognizer.isRecording else { return }
-        
-        // 如果是新建笔记模式（onPublish != nil），不进行自动保存
-        // 只有当用户点击“发布”按钮时，才会在 performPublish 中一次性保存
-        if onPublish != nil { return }
-        
-        guard note.content != content else { return }
-        wasEdited = true
-        note.content = content
-        noteStore.updateNote(note)
+        // 已废弃自动保存功能
+        // 现在所有保存操作都通过 performPublish 手动触发
     }
 
     // MARK: - 语音输入
@@ -685,10 +707,8 @@ struct NoteEditorView: View {
                 let newCursorPos = (contentBeforeSpeech as NSString).length + (finalTranscript as NSString).length
                 cursorPosition = newCursorPos
                 
-                // 手动触发保存（因为 saveContent 在录音时被阻止了）
+                // 标记已编辑（不自动保存）
                 wasEdited = true
-                note.content = content
-                noteStore.updateNote(note)
             }
             
             speechRecognizer.currentTranscript = ""
