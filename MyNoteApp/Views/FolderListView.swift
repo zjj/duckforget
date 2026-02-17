@@ -267,6 +267,7 @@ struct EditButtonWrapper: View {
 /// The view for managing dashboards (Page 0)
 struct DashboardManagementView: View {
     @ObservedObject var dashboardConfig: DashboardConfig
+    @EnvironmentObject var toolbarSettings: ToolbarSettings
     @Binding var showingAddPageAlert: Bool
     @Binding var showingRenameAlert: Bool
     @Binding var newPageName: String
@@ -389,6 +390,11 @@ struct DashboardManagementView: View {
             }
             
             Section(header: Text("编辑器")) {
+                Toggle(isOn: $toolbarSettings.isVoiceInputEnabled) {
+                    Label("启用语音输入", systemImage: "mic.fill")
+                }
+                .toggleStyle(SwitchToggleStyle(tint: .accentColor))
+                
                 NavigationLink(destination: ToolbarSortView()) {
                     Label("工具栏排序", systemImage: "arrow.left.arrow.right")
                 }

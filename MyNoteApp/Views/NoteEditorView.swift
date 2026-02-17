@@ -130,23 +130,25 @@ struct NoteEditorView: View {
             
             // 悬浮语音按钮（底部中央）
             ZStack(alignment: .bottom) {
-                // 语音输入悬浮窗口（录音时显示）
-                VoiceInputOverlay(
-                    transcript: speechRecognizer.currentTranscript,
-                    isRecording: speechRecognizer.isRecording,
-                    dragOffset: 0, // 内部不移动，改为由外部控制整体Offset
-                    shouldCancel: voiceDragOffset < -80
-                )
-                .offset(y: voiceDragOffset) // 跟随拖拽
-                .padding(.bottom, 80)
-                .opacity(speechRecognizer.isRecording ? 1 : 0)
-                .scaleEffect(speechRecognizer.isRecording ? 1 : 0.5, anchor: .bottom)
-                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: speechRecognizer.isRecording)
-                
-                // 麦克风按钮（始终存在以接收手势，录音时变透明）
-                floatingVoiceButton
+                if toolbarSettings.isVoiceInputEnabled {
+                    // 语音输入悬浮窗口（录音时显示）
+                    VoiceInputOverlay(
+                        transcript: speechRecognizer.currentTranscript,
+                        isRecording: speechRecognizer.isRecording,
+                        dragOffset: 0, // 内部不移动，改为由外部控制整体Offset
+                        shouldCancel: voiceDragOffset < -80
+                    )
+                    .offset(y: voiceDragOffset) // 跟随拖拽
                     .padding(.bottom, 80)
-                    .opacity(speechRecognizer.isRecording ? 0 : 1)
+                    .opacity(speechRecognizer.isRecording ? 1 : 0)
+                    .scaleEffect(speechRecognizer.isRecording ? 1 : 0.5, anchor: .bottom)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: speechRecognizer.isRecording)
+                    
+                    // 麦克风按钮（始终存在以接收手势，录音时变透明）
+                    floatingVoiceButton
+                        .padding(.bottom, 80)
+                        .opacity(speechRecognizer.isRecording ? 0 : 1)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
             // .ignoresSafeArea(.keyboard) // 移除此行，让悬浮按钮跟随键盘上移

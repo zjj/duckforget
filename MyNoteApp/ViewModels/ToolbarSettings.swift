@@ -24,8 +24,12 @@ class ToolbarSettings: ObservableObject {
         configs.filter { $0.isEnabled }.map { $0.type }
     }
     
-    // The previous property 'items' is now deprecated/removed in favor of configs
-    // But we need to update NoteEditorView to use activeItems
+    // Voice Input Toggle
+    @Published var isVoiceInputEnabled: Bool = true {
+        didSet {
+            UserDefaults.standard.set(isVoiceInputEnabled, forKey: "isVoiceInputEnabled")
+        }
+    }
     
     private let userDefaultsKey = "toolbarOrder"
     private let legacyDefaultsKey = "toolbarOrderLegacy" // If we want to keep old key separate, or just overwrite?
@@ -36,6 +40,13 @@ class ToolbarSettings: ObservableObject {
     }
     
     private func load() {
+        // Load voice input setting (default true)
+        if UserDefaults.standard.object(forKey: "isVoiceInputEnabled") != nil {
+            isVoiceInputEnabled = UserDefaults.standard.bool(forKey: "isVoiceInputEnabled")
+        } else {
+            isVoiceInputEnabled = true
+        }
+
         let savedData = UserDefaults.standard.string(forKey: userDefaultsKey)
         
         if let dataString = savedData,
