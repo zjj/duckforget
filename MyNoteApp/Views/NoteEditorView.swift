@@ -3,7 +3,7 @@ import SwiftUI
 import CoreLocation
 import SwiftData
 
-/// 备忘录编辑器 - 支持文字输入、语音转文字、附件管理
+/// 记录编辑器 - 支持文字输入、语音转文字、附件管理
 struct NoteEditorView: View {
     let note: NoteItem
     var isEmbedded: Bool = false
@@ -324,7 +324,7 @@ struct NoteEditorView: View {
                 dismiss()
             }
         } message: {
-            Text("确定要删除这条备忘录吗？")
+            Text("确定要删除这条记录吗？")
         }
     }
 
@@ -543,7 +543,7 @@ struct NoteEditorView: View {
         
         cursorPosition = (content as NSString).length
 
-        // 清除初始加载产生的 undo 栈，确保新笔记无法 undo
+        // 清除初始加载产生的 undo 栈，确保新记录无法 undo
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             textViewCoordinator?.clearUndoStack()
         }
@@ -552,7 +552,7 @@ struct NoteEditorView: View {
     }
 
     private func cleanupOnExit() {
-        // 如果是新建笔记模式（onPublish != nil）
+        // 如果是新建记录模式（onPublish != nil）
         if onPublish != nil {
             // 如果从未发布过，直接删
             if !hasPublished {

@@ -3,7 +3,7 @@ import SwiftData
 import SwiftUI
 import UIKit
 
-/// 备忘录数据管理 - 负责所有备忘录和附件的CRUD及持久化（SwiftData）
+/// 记录数据管理 - 负责所有记录和附件的CRUD及持久化（SwiftData）
 @Observable
 class NoteStore {
     let modelContext: ModelContext
@@ -43,9 +43,9 @@ class NoteStore {
         try? modelContext.save()
     }
 
-    /// 删除标签（解除所有笔记的关联，不删除笔记）
+    /// 删除标签（解除所有记录的关联，不删除记录）
     func deleteTag(_ tag: TagItem) {
-        // 解除所有笔记的关联
+        // 解除所有记录的关联
         for note in tag.notes {
             note.tags.removeAll { $0.id == tag.id }
         }
@@ -59,7 +59,7 @@ class NoteStore {
         return (try? modelContext.fetch(descriptor)) ?? []
     }
 
-    /// 为笔记添加标签
+    /// 为记录添加标签
     func addTag(_ tag: TagItem, to note: NoteItem) {
         if !note.tags.contains(where: { $0.id == tag.id }) {
             note.tags.append(tag)
@@ -68,14 +68,14 @@ class NoteStore {
         }
     }
 
-    /// 从笔记移除标签
+    /// 从记录移除标签
     func removeTag(_ tag: TagItem, from note: NoteItem) {
         note.tags.removeAll { $0.id == tag.id }
         note.updatedAt = Date()
         try? modelContext.save()
     }
     
-    /// 设置笔记的标签（替换所有标签）
+    /// 设置记录的标签（替换所有标签）
     func setTags(_ tags: [TagItem], for note: NoteItem) {
         note.tags = tags
         note.updatedAt = Date()
@@ -84,7 +84,7 @@ class NoteStore {
 
     // MARK: - Note CRUD
 
-    /// 创建新备忘录
+    /// 创建新记录
     @discardableResult
     func createNote(withTags tags: [TagItem] = []) -> NoteItem {
         let note = NoteItem(tags: tags)
@@ -93,14 +93,14 @@ class NoteStore {
         return note
     }
 
-    /// 更新备忘录（标记更新时间并保存）
+    /// 更新记录（标记更新时间并保存）
     func updateNote(_ note: NoteItem) {
         note.updatedAt = Date()
         try? modelContext.save()
         indexNoteInSpotlight(note)
     }
 
-    /// 软删除备忘录（移到"最近删除"）
+    /// 软删除记录（移到"最近删除"）
     func softDeleteNote(_ note: NoteItem) {
         note.isDeleted = true
         note.deletedAt = Date()
@@ -108,7 +108,7 @@ class NoteStore {
         deindexNoteFromSpotlight(note)
     }
 
-    /// 恢复已删除备忘录
+    /// 恢复已删除记录
     func restoreNote(_ note: NoteItem) {
         note.isDeleted = false
         note.deletedAt = nil
@@ -117,7 +117,7 @@ class NoteStore {
         indexNoteInSpotlight(note)
     }
 
-    /// 永久删除备忘录及其所有附件文件
+    /// 永久删除记录及其所有附件文件
     func permanentlyDeleteNote(_ note: NoteItem) {
         for attachment in note.attachments {
             removeAttachmentFile(attachment)
@@ -136,7 +136,7 @@ class NoteStore {
         }
     }
 
-    /// 清理超过配置天数的回收站备忘录
+    /// 清理超过配置天数的回收站记录
     func cleanupExpiredTrash() {
         let retentionDays = AppSettings.shared.trashRetentionDays
         let cutoff = Calendar.current.date(byAdding: .day, value: -retentionDays, to: Date()) ?? Date()
@@ -152,7 +152,7 @@ class NoteStore {
         }
     }
 
-    /// 获取回收站中的备忘录
+    /// 获取回收站中的记录
     func fetchTrashedNotes() -> [NoteItem] {
         let descriptor = FetchDescriptor<NoteItem>(
             predicate: #Predicate { $0.isDeleted == true },
@@ -245,7 +245,7 @@ class NoteStore {
         return attachmentsDirectory.appendingPathComponent(thumbName)
     }
 
-    /// 获取备忘录的所有附件（按创建时间排序）
+    /// 获取记录的所有附件（按创建时间排序）
     func getAttachments(for note: NoteItem) -> [AttachmentItem] {
         note.attachments.sorted { $0.createdAt < $1.createdAt }
     }
@@ -343,7 +343,7 @@ class NoteStore {
         }
     }
 
-    /// 索引所有非删除的备忘录到 Spotlight
+    /// 索引所有非删除的记录到 Spotlight
     func reindexAllNotes() {
         let descriptor = FetchDescriptor<NoteItem>(predicate: #Predicate { $0.isDeleted == false })
         guard let notes = try? modelContext.fetch(descriptor) else { return }

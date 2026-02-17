@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 导出备忘录的操作表
+/// 导出记录的操作表
 struct ExportSheet: View {
     let note: NoteItem
     @Environment(NoteStore.self) var noteStore
@@ -71,7 +71,7 @@ struct ExportSheet: View {
                     .padding(.vertical, 4)
                 }
             }
-            .navigationTitle("导出备忘录")
+            .navigationTitle("导出记录")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

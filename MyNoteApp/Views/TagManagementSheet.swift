@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// 标签管理Sheet - 在笔记编辑时管理标签
+/// 标签管理Sheet - 在记录编辑时管理标签
 struct TagManagementSheet: View {
     let note: NoteItem
     @Environment(NoteStore.self) var noteStore

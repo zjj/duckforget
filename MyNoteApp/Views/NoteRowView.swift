@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 备忘录列表行视图
+/// 记录列表行视图
 struct NoteRowView: View {
     let note: NoteItem
 

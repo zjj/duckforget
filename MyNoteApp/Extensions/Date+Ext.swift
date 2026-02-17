@@ -74,7 +74,7 @@ enum DateSection: String, CaseIterable {
     }
 }
 
-/// 按日期分组笔记的工具函数
+/// 按日期分组记录的工具函数
 func groupNotesByDate<T>(_ items: [T], dateKeyPath: KeyPath<T, Date>) -> [(DateSection, [T])] {
     var grouped: [DateSection: [T]] = [:]
     

@@ -1,7 +1,7 @@
 import SwiftData
 import SwiftUI
 
-/// 回收站视图 - 显示最近删除的备忘录
+/// 回收站视图 - 显示最近删除的记录
 struct TrashView: View {
     @Environment(NoteStore.self) var noteStore
     @Query(
@@ -23,7 +23,7 @@ struct TrashView: View {
                     Text("回收站是空的")
                         .font(.title2)
                         .foregroundColor(.secondary)
-                    Text("删除的备忘录将保留 \(appSettings.trashRetentionDays) 天")
+                    Text("删除的记录将保留 \(appSettings.trashRetentionDays) 天")
                         .font(.subheadline)
                         .foregroundColor(.secondary.opacity(0.7))
                     Spacer()

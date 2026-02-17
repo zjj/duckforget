@@ -15,7 +15,7 @@ enum WidgetType: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .newNote: return "新建"
         case .tag: return "xx标签"
-        case .recentNotes: return "最近"
+        case .recentNotes: return "最近记录"
         case .search: return "搜索"
         case .trash: return "回收站"
         }

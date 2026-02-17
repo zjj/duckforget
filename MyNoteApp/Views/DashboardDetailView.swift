@@ -182,7 +182,7 @@ struct DashboardRow: View {
             }
             .navigationDestination(isPresented: $showRecentNotesDetail) {
                 NoteSearchPage(
-                    pageTitle: "最近笔记",
+                    pageTitle: "最近记录",
                     filterRecentDays: 7,
                     hideSearchBar: false
                 )
@@ -268,7 +268,7 @@ struct DashboardRow: View {
         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
     }
     
-    // MARK: - 新建备忘录卡片
+    // MARK: - 新建记录卡片
     
     @ViewBuilder
     private func newNoteCard(size: WidgetSize) -> some View {
@@ -323,11 +323,11 @@ struct DashboardRow: View {
     }
 }
 
-// MARK: - 全屏内嵌新建备忘录编辑器
+// MARK: - 全屏内嵌新建记录编辑器
 
 /// 全屏模式下直接嵌入 dashboard 的编辑器
 /// 保持 isEmbedded=true 让 dashboard 的 "..." 工具栏可见
-/// 发布后自动重置为新笔记
+/// 发布后自动重置为新记录
 struct InlineNewNoteWidget: View {
     @Environment(NoteStore.self) var noteStore
     @State private var showEditor = false
@@ -344,7 +344,7 @@ struct InlineNewNoteWidget: View {
                     .foregroundColor(.accentColor)
                     .fontWeight(.bold)
 
-                Text("新建笔记")
+                Text("新建记录")
                     .font(.headline)
                     .foregroundColor(.primary)
                 Spacer()
@@ -378,7 +378,7 @@ struct InlineNewNoteWidget: View {
     }
 }
 
-/// 专门用于 Modal 弹出的新建笔记包装器
+/// 专门用于 Modal 弹出的新建记录包装器
 struct NewNoteModalView: View {
     @Environment(NoteStore.self) var noteStore
     @Binding var isPresented: Bool
@@ -408,7 +408,7 @@ struct NewNoteModalView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
                         // 手动取消，触发清理逻辑（需确保 NoteEditorView 的 onDisappear 能处理）
-                        // 或者在这里手动删除空笔记
+                        // 或者在这里手动删除空记录
                         if let note = currentNote,
                            note.content.isEmpty && note.attachments.isEmpty {
                             noteStore.permanentlyDeleteNote(note)
@@ -423,17 +423,17 @@ struct NewNoteModalView: View {
         }
         .onAppear {
             if currentNote == nil {
-                // 创建一个全新的临时笔记
+                // 创建一个全新的临时记录
                 currentNote = noteStore.createNote()
             }
         }
     }
 }
 
-// MARK: - 新建备忘录独立页面
+// MARK: - 新建记录独立页面
 
-/// 新建备忘录编辑页 - 点击组件后 push 到这个页面
-/// 工具栏：撤销、重做、发布（保存并重置为新笔记）
+/// 新建记录编辑页 - 点击组件后 push 到这个页面
+/// 工具栏：撤销、重做、发布（保存并重置为新记录）
 /// 返回按钮关闭页面回到 dashboard
 struct NewNoteEditorPage: View {
     @Environment(NoteStore.self) var noteStore
@@ -456,8 +456,8 @@ struct NewNoteEditorPage: View {
     }
     
     private func publishAndReset() {
-        // 当前笔记已通过 NoteEditorView 自动保存
-        // 创建新笔记并重置编辑器
+        // 当前记录已通过 NoteEditorView 自动保存
+        // 创建新记录并重置编辑器
         createNewNote()
     }
     
@@ -467,7 +467,7 @@ struct NewNoteEditorPage: View {
     }
 }
 
-// MARK: - 新建备忘录按钮组件
+// MARK: - 新建记录按钮组件
 
 struct NewNoteButton: View {
     let verticalPadding: CGFloat
@@ -485,7 +485,7 @@ struct NewNoteButton: View {
                     .symbolRenderingMode(.hierarchical)
                     .fontWeight(.bold)
                 
-                Text("点击新建")
+                Text("点击记录")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }

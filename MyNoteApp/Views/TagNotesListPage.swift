@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// 显示特定标签的所有笔记（类似NoteSearchPage但筛选特定标签）
+/// 显示特定标签的所有记录（类似NoteSearchPage但筛选特定标签）
 struct TagNotesListPage: View {
     @Environment(NoteStore.self) var noteStore
     @Environment(\.dismiss) private var dismiss
@@ -10,7 +10,7 @@ struct TagNotesListPage: View {
     var isEmbedded: Bool = false
     var onSearchTap: (() -> Void)? = nil
     
-    // 优化：使用反向查询，从 TagItem 获取笔记列表，利用数据库索引
+    // 优化：使用反向查询，从 TagItem 获取记录列表，利用数据库索引
     @Query(sort: \TagItem.sortOrder)
     var allTags: [TagItem]
     
@@ -24,7 +24,7 @@ struct TagNotesListPage: View {
         allTags.first { $0.name == tagName }
     }
     
-    // 通过标签的 notes 关系获取笔记，过滤已删除的笔记
+    // 通过标签的 notes 关系获取记录，过滤已删除的记录
     var tagNotes: [NoteItem] {
         guard let tag = tag else { return [] }
         let filtered = tag.notes.filter { !$0.isDeleted }
@@ -111,13 +111,13 @@ struct TagNotesListPage: View {
             
             Divider()
             
-            // 笔记列表
+            // 记录列表
             if filteredNotes.isEmpty {
                 ContentUnavailableView {
-                    Label(searchText.isEmpty ? "此标签下暂无笔记" : "无匹配结果", systemImage: "tag")
+                    Label(searchText.isEmpty ? "此标签下暂无记录" : "无匹配结果", systemImage: "tag")
                 } description: {
                     if searchText.isEmpty {
-                        Text("创建笔记并添加 \(tagName) 标签")
+                        Text("创建记录并添加 \(tagName) 标签")
                     } else {
                         Text("尝试其他关键词")
                     }

@@ -32,7 +32,7 @@ struct NoteSearchPage: View {
     @Environment(\.dismiss) private var dismiss
     
     var pageTitle: String = "搜索" // 页面标题
-    var filterRecentDays: Int? = nil // 筛选最近几天的笔记（nil表示不筛选）
+    var filterRecentDays: Int? = nil // 筛选最近几天的记录（nil表示不筛选）
     var hideSearchBar: Bool = false // 是否隐藏搜索栏
     var isEmbedded: Bool = false // 是否嵌入在Dashboard中
     var onSearchTap: (() -> Void)? = nil // 点击搜索框的回调（用于跳转）

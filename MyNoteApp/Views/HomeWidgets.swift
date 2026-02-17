@@ -52,7 +52,7 @@ struct TagWidget: View {
     let size: WidgetSize
     @Binding var showTagDetail: Bool
     
-    // 优化：使用反向查询，从 TagItem 获取笔记列表，利用数据库索引
+    // 优化：使用反向查询，从 TagItem 获取记录列表，利用数据库索引
     @Query(sort: \TagItem.sortOrder)
     var allTags: [TagItem]
     
@@ -61,7 +61,7 @@ struct TagWidget: View {
         allTags.first { $0.name == tagName }
     }
     
-    // 通过标签的 notes 关系获取笔记，过滤已删除的笔记
+    // 通过标签的 notes 关系获取记录，过滤已删除的记录
     var tagNotes: [NoteItem] {
         guard let tag = tag else { return [] }
         return tag.notes
@@ -80,7 +80,7 @@ struct TagWidget: View {
     
     var body: some View {
         if size == .fullPage {
-            // 全屏嵌入模式：显示笔记列表预览（前100条），点击跳转到完整列表页
+            // 全屏嵌入模式：显示记录列表预览（前100条），点击跳转到完整列表页
             TagFullPagePreview(tagName: tagName, displayedNotes: displayedNotes, onTap: { showTagDetail = true })
         } else {
             VStack(alignment: .leading, spacing: 12) {
@@ -100,7 +100,7 @@ struct TagWidget: View {
                 .buttonStyle(.plain)
                 
                 if displayedNotes.isEmpty {
-                    Text("暂无笔记")
+                    Text("暂无记录")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -189,7 +189,7 @@ struct RecentNotesWidget: View {
     @Binding var showRecentNotes: Bool
     
     var displayedNotes: [NoteItem] {
-        // 先筛选最近7天的笔记
+        // 先筛选最近7天的记录
         let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
         let recentNotes = notes.filter { $0.updatedAt >= sevenDaysAgo }
         
@@ -210,7 +210,7 @@ struct RecentNotesWidget: View {
             VStack(alignment: .leading, spacing: 12) {
                 // 标题区域：点击跳转到完整列表
                 NavigationLink(destination: NoteSearchPage(
-                    pageTitle: "最近笔记",
+                    pageTitle: "最近记录",
                     filterRecentDays: 7,
                     hideSearchBar: false // 显示顶部搜索栏
                 ).environment(noteStore)) {
@@ -218,7 +218,7 @@ struct RecentNotesWidget: View {
                         Image(systemName: "clock.fill")
                             .foregroundColor(.accentColor)
                             .font(.subheadline)
-                        Text("最近笔记")
+                        Text("最近记录")
                             .font(.headline)
                             .foregroundColor(.secondary)
                         Spacer()
@@ -228,7 +228,7 @@ struct RecentNotesWidget: View {
                 .buttonStyle(.plain)
                 
                 if displayedNotes.isEmpty {
-                    Text("暂无笔记")
+                    Text("暂无记录")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -394,7 +394,7 @@ struct TrashDetailPage: View {
                     Text("回收站是空的")
                         .font(.title2)
                         .foregroundColor(.secondary)
-                    Text("删除的备忘录将保留 \(appSettings.trashRetentionDays) 天")
+                    Text("删除的记录将保留 \(appSettings.trashRetentionDays) 天")
                         .font(.subheadline)
                         .foregroundColor(.secondary.opacity(0.7))
                     Spacer()
@@ -488,7 +488,7 @@ struct TrashDetailPage: View {
     }
 }
 
-// MARK: - 回收站笔记只读查看页面
+// MARK: - 回收站记录只读查看页面
 
 struct TrashNoteDetailView: View {
     @Environment(NoteStore.self) var noteStore
@@ -830,14 +830,14 @@ struct TagFullPagePreview: View {
             Divider()
                 .padding(.top, 8)
             
-            // 笔记预览（最多显示100条）
+            // 记录预览（最多显示100条）
             if displayedNotes.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "tag")
                         .font(.system(size: 48))
                         .foregroundColor(.secondary.opacity(0.5))
                     
-                    Text("此标签下暂无笔记")
+                    Text("此标签下暂无记录")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     
@@ -892,7 +892,7 @@ struct TagFullPagePreview: View {
                             Button(action: onTap) {
                                 HStack {
                                     Spacer()
-                                    Text("查看全部 \(displayedNotes.count) 条笔记")
+                                    Text("查看全部 \(displayedNotes.count) 条记录")
                                         .font(.subheadline)
                                         .foregroundColor(.accentColor)
                                     Image(systemName: "chevron.right")
@@ -914,7 +914,7 @@ struct TagFullPagePreview: View {
     }
 }
 
-/// 最近笔记组件的全屏预览（嵌入模式）
+/// 最近记录组件的全屏预览（嵌入模式）
 struct RecentNotesFullPagePreview: View {
     @Environment(NoteStore.self) var noteStore
     let displayedNotes: [NoteItem]
@@ -927,7 +927,7 @@ struct RecentNotesFullPagePreview: View {
                 Image(systemName: "clock.fill")
                     .foregroundColor(.accentColor)
                     .font(.subheadline)
-                Text("最近笔记")
+                Text("最近记录")
                     .font(.headline)
                     .fontWeight(.semibold)
                     .foregroundColor(.secondary)
@@ -957,18 +957,18 @@ struct RecentNotesFullPagePreview: View {
             Divider()
                 .padding(.top, 8)
             
-            // 笔记预览（最多显示100条）
+            // 记录预览（最多显示100条）
             if displayedNotes.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "clock")
                         .font(.system(size: 48))
                         .foregroundColor(.secondary.opacity(0.5))
                     
-                    Text("最近7天无笔记")
+                    Text("最近7天无记录")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     
-                    Text("点击查看全部笔记")
+                    Text("点击查看全部记录")
                         .font(.caption)
                         .foregroundColor(.secondary.opacity(0.7))
                 }
@@ -1019,7 +1019,7 @@ struct RecentNotesFullPagePreview: View {
                             Button(action: onTap) {
                                 HStack {
                                     Spacer()
-                                    Text("查看全部 \(displayedNotes.count) 条笔记")
+                                    Text("查看全部 \(displayedNotes.count) 条记录")
                                         .font(.subheadline)
                                         .foregroundColor(.accentColor)
                                     Image(systemName: "chevron.right")
@@ -1084,7 +1084,7 @@ struct TagFullPagePreviewStatic: View {
                     .font(.system(size: 64))
                     .foregroundColor(.secondary.opacity(0.5))
                 
-                Text("点击查看 \(tagName) 标签下的笔记")
+                Text("点击查看 \(tagName) 标签下的记录")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                 

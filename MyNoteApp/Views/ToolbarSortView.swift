@@ -5,7 +5,7 @@ struct ToolbarSortView: View {
     
     var body: some View {
         List {
-            Section(footer: Text("拖动行可以调整笔记编辑器底部工具栏的按钮顺序，使用开关控制按钮是否显示")) {
+            Section(footer: Text("拖动行可以调整记录编辑器底部工具栏的按钮顺序，使用开关控制按钮是否显示")) {
                 ForEach($settings.configs) { $config in
                     HStack {
                         // 图标和标题

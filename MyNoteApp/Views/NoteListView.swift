@@ -1,7 +1,7 @@
 import SwiftData
 import SwiftUI
 
-/// 备忘录列表主页 - 模仿 iOS 备忘录
+/// 记录列表主页 - 模仿 iOS 记录
 struct NoteListView: View {
     let showAllNotes: Bool
     var initialSearchText: String = ""
@@ -10,7 +10,7 @@ struct NoteListView: View {
     var hideNavigationTitle: Bool = false
     var viewMode: ViewMode = .list
     var sortMode: SortMode = .dateModified
-    var filterRecentDays: Int? = nil // 筛选最近几天的笔记（nil表示不筛选）
+    var filterRecentDays: Int? = nil // 筛选最近几天的记录（nil表示不筛选）
     var customTitle: String? = nil // 自定义标题
 
     @Environment(NoteStore.self) var noteStore
@@ -23,11 +23,11 @@ struct NoteListView: View {
     @State private var isSearching = false
     @FocusState private var searchFocused: Bool
 
-    /// 当前显示的活跃备忘录
+    /// 当前显示的活跃记录
     private var scopedNotes: [NoteItem] {
         var notes: [NoteItem] = allActiveNotes
         
-        // 如果设置了日期筛选，只显示最近N天的笔记
+        // 如果设置了日期筛选，只显示最近N天的记录
         if let days = filterRecentDays {
             let cutoffDate = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
             notes = notes.filter { $0.updatedAt >= cutoffDate }
@@ -52,7 +52,7 @@ struct NoteListView: View {
         }
     }
     
-    /// 按日期分组的笔记（用于列表和网格视图）
+    /// 按日期分组的记录（用于列表和网格视图）
     private var groupedNotes: [(DateSection, [NoteItem])] {
         // 根据排序模式选择日期字段
         let dateKeyPath: KeyPath<NoteItem, Date> = sortMode == .dateCreated ? \.createdAt : \.updatedAt
@@ -64,7 +64,7 @@ struct NoteListView: View {
         if let title = customTitle {
             return title
         }
-        return showAllNotes ? "所有备忘录" : "备忘录"
+        return showAllNotes ? "所有记录" : "记录"
     }
 
     var body: some View {
@@ -166,7 +166,7 @@ struct NoteListView: View {
 
                 Spacer()
 
-                Text("\(scopedNotes.count) 个备忘录")
+                Text("\(scopedNotes.count) 个记录")
                     .font(.footnote)
                     .foregroundColor(.secondary)
 
@@ -195,10 +195,10 @@ struct NoteListView: View {
             Image(systemName: "note.text")
                 .font(.system(size: 64))
                 .foregroundColor(.secondary.opacity(0.6))
-            Text("没有备忘录")
+            Text("没有记录")
                 .font(.title2)
                 .foregroundColor(.secondary)
-            Text("点击右下角按钮创建新备忘录")
+            Text("点击右下角按钮创建新记录")
                 .font(.subheadline)
                 .foregroundColor(.secondary.opacity(0.7))
             Spacer()
@@ -224,7 +224,7 @@ struct NoteListView: View {
                                     .padding(.horizontal, 4)
                                     .padding(.top, 8)
                                 
-                                // 该段的笔记
+                                // 该段的记录
                                 noteRows(notes)
                             }
                         }
@@ -253,7 +253,7 @@ struct NoteListView: View {
                                 .padding(.top, 8)
                                 .gridCellColumns(2)
                             
-                            // 该段的笔记
+                            // 该段的记录
                             noteGridItems(notes)
                         }
                     } else {
@@ -355,7 +355,7 @@ extension View {
 }
 
 
-/// 在 onAppear 时创建新备忘录，然后显示编辑器
+/// 在 onAppear 时创建新记录，然后显示编辑器
 struct NewNoteEditorView: View {
     @Environment(NoteStore.self) var noteStore
     @State private var note: NoteItem?
@@ -376,7 +376,7 @@ struct NewNoteEditorView: View {
     }
 }
 
-// MARK: - 网格笔记卡片（带缩略图）
+// MARK: - 网格记录卡片（带缩略图）
 struct GridNoteCard: View {
     let note: NoteItem
     @Environment(NoteStore.self) var noteStore
