@@ -209,7 +209,7 @@ struct RecentNotesWidget: View {
                                         noteAttachmentIcons(note)
                                     }
                                     
-                                    Text(note.updatedAt.formatted(.relative(presentation: .named)))
+                                    Text(note.createdAt.formattedAbsolute)
                                         .font(.caption2)
                                         .foregroundStyle(.tertiary)
                                 }

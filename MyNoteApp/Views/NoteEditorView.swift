@@ -106,6 +106,11 @@ struct NoteEditorView: View {
                 // 文本编辑区
                 textEditorSection
 
+                // 时间信息（仅编辑模式显示，且如果内容不为空）
+                if onPublish == nil {
+                    timeInfoSection
+                }
+
                 // 附件缩略图区域
                 if !currentAttachments.isEmpty {
                     Divider()
@@ -125,7 +130,7 @@ struct NoteEditorView: View {
                         }
                     )
                 }
-
+                
                 Divider()
 
                 // 底部工具栏
@@ -437,6 +442,19 @@ struct NoteEditorView: View {
             .padding(.vertical, 12)
         }
         .background(Color(.systemBackground))
+    }
+
+    // MARK: - 时间信息显示
+    
+    private var timeInfoSection: some View {
+        HStack {
+            Spacer()
+            Text(note.createdAt.formattedFull)
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
     }
 
     // MARK: - 底部工具栏（展开式附件选项）

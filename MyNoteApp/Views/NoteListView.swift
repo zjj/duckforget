@@ -59,6 +59,13 @@ struct NoteListView: View {
             return filtered.sorted { $0.preview.localizedCompare($1.preview) == .orderedAscending }
         }
     }
+    
+    /// 按日期分组的笔记（用于列表和网格视图）
+    private var groupedNotes: [(DateSection, [NoteItem])] {
+        // 根据排序模式选择日期字段
+        let dateKeyPath: KeyPath<NoteItem, Date> = sortMode == .dateCreated ? \.createdAt : \.updatedAt
+        return groupNotesByDate(filteredNotes, dateKeyPath: dateKeyPath)
+    }
 
     private var navigationTitle: String {
         // 如果有自定义标题，优先使用
@@ -219,7 +226,26 @@ struct NoteListView: View {
         ScrollView {
             if viewMode == .list {
                 LazyVStack(spacing: 8) {
-                    noteRows(filteredNotes)
+                    // 按日期分组显示（仅在按日期排序时）
+                    if sortMode == .dateModified || sortMode == .dateCreated {
+                        ForEach(groupedNotes, id: \.0) { section, notes in
+                            VStack(alignment: .leading, spacing: 8) {
+                                // 日期段标题
+                                Text(section.rawValue)
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.secondary)
+                                    .padding(.horizontal, 4)
+                                    .padding(.top, 8)
+                                
+                                // 该段的笔记
+                                noteRows(notes)
+                            }
+                        }
+                    } else {
+                        // 按标题排序时不分组
+                        noteRows(filteredNotes)
+                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
@@ -229,7 +255,25 @@ struct NoteListView: View {
                     GridItem(.flexible(), spacing: 12)
                 ]
                 LazyVGrid(columns: columns, spacing: 12) {
-                    noteGridItems(filteredNotes)
+                    // 按日期分组显示（仅在按日期排序时）
+                    if sortMode == .dateModified || sortMode == .dateCreated {
+                        ForEach(groupedNotes, id: \.0) { section, notes in
+                            // 日期段标题（占满两列）
+                            Text(section.rawValue)
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal, 4)
+                                .padding(.top, 8)
+                                .gridCellColumns(2)
+                            
+                            // 该段的笔记
+                            noteGridItems(notes)
+                        }
+                    } else {
+                        // 按标题排序时不分组
+                        noteGridItems(filteredNotes)
+                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
@@ -254,7 +298,7 @@ struct NoteListView: View {
                                 .foregroundColor(.primary)
                         }
                         Spacer()
-                        Text(note.updatedAt.formatted(.relative(presentation: .named)))
+                        Text(note.createdAt.formattedAbsolute)
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }
@@ -479,7 +523,7 @@ struct GridNoteCard: View {
                     Spacer()
                     
                     // 时间
-                    Text(note.updatedAt.formatted(.relative(presentation: .named)))
+                    Text(note.createdAt.formattedAbsolute)
                         .font(.caption2)
                         .foregroundColor(thumbnailImage != nil ? .white.opacity(0.9) : .secondary)
                 }
