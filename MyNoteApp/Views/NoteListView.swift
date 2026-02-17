@@ -9,6 +9,8 @@ struct NoteListView: View {
     var hideSearchBar: Bool = false
     var hideBottomBar: Bool = false
     var hideNavigationTitle: Bool = false
+    var viewMode: ViewMode = .list
+    var sortMode: SortMode = .dateModified
 
     @Environment(NoteStore.self) var noteStore
     @Query(
@@ -30,11 +32,20 @@ struct NoteListView: View {
         return allActiveNotes.filter { $0.folder?.id == folder?.id }
     }
 
-    /// 搜索过滤
+    /// 搜索过滤和排序
     private var filteredNotes: [NoteItem] {
         let base = scopedNotes
-        guard !searchText.isEmpty else { return base }
-        return base.filter { $0.content.localizedCaseInsensitiveContains(searchText) }
+        let filtered = searchText.isEmpty ? base : base.filter { $0.content.localizedCaseInsensitiveContains(searchText) }
+        
+        // 应用排序
+        switch sortMode {
+        case .dateModified:
+            return filtered.sorted { $0.updatedAt > $1.updatedAt }
+        case .dateCreated:
+            return filtered.sorted { $0.createdAt > $1.createdAt }
+        case .title:
+            return filtered.sorted { $0.preview.localizedCompare($1.preview) == .orderedAscending }
+        }
     }
 
     private var navigationTitle: String {
@@ -189,10 +200,25 @@ struct NoteListView: View {
     // MARK: - 列表
 
     private var notesListView: some View {
-        List {
-            noteRows(filteredNotes)
+        ScrollView {
+            if viewMode == .list {
+                LazyVStack(spacing: 8) {
+                    noteRows(filteredNotes)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+            } else {
+                let columns = [
+                    GridItem(.flexible(), spacing: 12),
+                    GridItem(.flexible(), spacing: 12)
+                ]
+                LazyVGrid(columns: columns, spacing: 12) {
+                    noteGridItems(filteredNotes)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+            }
         }
-        .listStyle(.plain)
     }
 
     @ViewBuilder
@@ -202,17 +228,69 @@ struct NoteListView: View {
                 NoteEditorView(note: note)
                     .environment(noteStore)
             } label: {
-                NoteRowView(note: note)
-            }
-            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                Button(role: .destructive) {
-                    withAnimation {
-                        noteStore.softDeleteNote(note)
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(note.preview)
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .lineLimit(2)
+                                .foregroundColor(.primary)
+                        }
+                        Spacer()
+                        Text(note.updatedAt.formatted(.relative(presentation: .named)))
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
                     }
+                    
+                    // 附件图标
+                    if !note.attachments.isEmpty {
+                        let noteAttachments = note.attachments.sorted { $0.createdAt < $1.createdAt }
+                        HStack(spacing: 6) {
+                            ForEach(noteAttachments.prefix(6)) { att in
+                                AttachmentMiniIcon(type: att.type)
+                            }
+                            if noteAttachments.count > 6 {
+                                Text("+\\(noteAttachments.count - 6)")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                }
+                .padding(12)
+                .background(Color(.systemGray6))
+                .cornerRadius(12)
+            }
+            .buttonStyle(.plain)
+            .contextMenu {
+                Button {
+                    noteToMove = note
+                    showMoveSheet = true
+                } label: {
+                    Label("移动到文件夹", systemImage: "folder")
+                }
+                Button(role: .destructive) {
+                    noteStore.softDeleteNote(note)
                 } label: {
                     Label("删除", systemImage: "trash")
                 }
             }
+        }
+    }
+    
+    // MARK: - 网格视图项
+    
+    @ViewBuilder
+    private func noteGridItems(_ notes: [NoteItem]) -> some View {
+        ForEach(notes) { note in
+            NavigationLink {
+                NoteEditorView(note: note)
+                    .environment(noteStore)
+            } label: {
+                GridNoteCard(note: note)
+            }
+            .buttonStyle(.plain)
             .contextMenu {
                 Button {
                     noteToMove = note
@@ -321,3 +399,111 @@ struct NewNoteEditorView: View {
         }
     }
 }
+
+// MARK: - 网格笔记卡片（带缩略图）
+struct GridNoteCard: View {
+    let note: NoteItem
+    @Environment(NoteStore.self) var noteStore
+    @State private var thumbnailImage: UIImage?
+    
+    // 获取第一个可显示缩略图的附件
+    private var thumbnailAttachment: AttachmentItem? {
+        note.attachments.first { att in
+            switch att.type {
+            case .photo, .video, .scannedDocument, .scannedText, .drawing, .location:
+                return true
+            default:
+                return false
+            }
+        }
+    }
+    
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            // 背景：缩略图或纯色
+            if let image = thumbnailImage {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+                    .overlay(
+                        LinearGradient(
+                            colors: [.black.opacity(0.6), .clear],
+                            startPoint: .top,
+                            endPoint: .center
+                        )
+                    )
+            } else {
+                Color(.systemGray6)
+            }
+            
+            // 文本内容
+            VStack(alignment: .leading, spacing: 6) {
+                Text(note.preview)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .lineLimit(2)
+                    .foregroundColor(thumbnailImage != nil ? .white : .primary)
+                
+                Spacer()
+                
+                HStack(alignment: .bottom) {
+                    // 附件数量
+                    if !note.attachments.isEmpty {
+                        HStack(spacing: 4) {
+                            Image(systemName: "paperclip")
+                                .font(.caption2)
+                            Text("\(note.attachments.count)")
+                                .font(.caption2)
+                        }
+                        .foregroundColor(thumbnailImage != nil ? .white.opacity(0.9) : .secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    // 时间
+                    Text(note.updatedAt.formatted(.relative(presentation: .named)))
+                        .font(.caption2)
+                        .foregroundColor(thumbnailImage != nil ? .white.opacity(0.9) : .secondary)
+                }
+            }
+            .padding(10)
+        }
+        .frame(height: 140)
+        .frame(maxWidth: .infinity)
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+        .onAppear {
+            loadThumbnail()
+        }
+    }
+    
+    private func loadThumbnail() {
+        guard let attachment = thumbnailAttachment else { return }
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            var image: UIImage?
+            
+            // 优先加载缩略图
+            if let thumbURL = noteStore.thumbnailURL(for: attachment),
+               let data = try? Data(contentsOf: thumbURL) {
+                image = UIImage(data: data)
+            }
+            
+            // 回退到原图
+            if image == nil {
+                let url = noteStore.attachmentURL(for: attachment)
+                if let data = try? Data(contentsOf: url) {
+                    image = UIImage(data: data)
+                }
+            }
+            
+            DispatchQueue.main.async {
+                thumbnailImage = image
+            }
+        }
+    }
+}
+
+import AVFoundation

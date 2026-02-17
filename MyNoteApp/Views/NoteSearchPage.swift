@@ -1,11 +1,39 @@
 import SwiftUI
 import SwiftData
 
+enum ViewMode: String, CaseIterable {
+    case list = "列表"
+    case grid = "网格"
+    
+    var icon: String {
+        switch self {
+        case .list: return "list.bullet"
+        case .grid: return "square.grid.2x2"
+        }
+    }
+}
+
+enum SortMode: String, CaseIterable {
+    case dateModified = "修改日期"
+    case dateCreated = "创建日期"
+    case title = "标题"
+    
+    var icon: String {
+        switch self {
+        case .dateModified: return "clock"
+        case .dateCreated: return "calendar"
+        case .title: return "textformat"
+        }
+    }
+}
+
 struct NoteSearchPage: View {
     @Environment(NoteStore.self) var noteStore
     @Environment(\.dismiss) private var dismiss
     
     @State private var searchText = ""
+    @State private var viewMode: ViewMode = .list
+    @State private var sortMode: SortMode = .dateModified
     @FocusState private var isSearchFocused: Bool
     
     var body: some View {
@@ -41,11 +69,36 @@ struct NoteSearchPage: View {
             .shadow(color: Color.black.opacity(0.05), radius: 2, y: 1)
             
             // Search Results
-            NoteListView(folder: nil, showAllNotes: true, initialSearchText: searchText, hideSearchBar: true, hideBottomBar: true, hideNavigationTitle: true)
+            NoteListView(folder: nil, showAllNotes: true, initialSearchText: searchText, hideSearchBar: true, hideBottomBar: true, hideNavigationTitle: true, viewMode: viewMode, sortMode: sortMode)
                 .environment(noteStore)
         }
         .navigationTitle("搜索")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Section("视图模式") {
+                        Picker("视图", selection: $viewMode) {
+                            ForEach(ViewMode.allCases, id: \.self) { mode in
+                                Label(mode.rawValue, systemImage: mode.icon)
+                                    .tag(mode)
+                            }
+                        }
+                    }
+                    
+                    Section("排序方式") {
+                        Picker("排序", selection: $sortMode) {
+                            ForEach(SortMode.allCases, id: \.self) { mode in
+                                Label(mode.rawValue, systemImage: mode.icon)
+                                    .tag(mode)
+                            }
+                        }
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+            }
+        }
         .onAppear {
             // Auto focus on open
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
