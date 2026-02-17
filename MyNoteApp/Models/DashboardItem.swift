@@ -26,7 +26,7 @@ enum WidgetType: String, Codable, CaseIterable, Identifiable {
         case .search: return "magnifyingglass"
         case .tag: return "tag"
         case .recentNotes: return "clock"
-        case .newNote: return "square.and.pencil"
+        case .newNote: return "text.pad.header.badge.plus"
         case .trash: return "trash"
         }
     }

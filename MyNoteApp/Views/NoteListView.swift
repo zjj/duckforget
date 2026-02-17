@@ -176,8 +176,9 @@ struct NoteListView: View {
                     NewNoteEditorView()
                         .environment(noteStore)
                 } label: {
-                    Image(systemName: "square.and.pencil")
-                        .font(.system(size: 18))
+                    Image(systemName: "text.pad.header.badge.plus")
+                        .font(.system(size: 22))
+                        .fontWeight(.semibold)
                 }
             }
             .padding(.horizontal, 16)

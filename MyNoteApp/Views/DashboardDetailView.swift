@@ -260,6 +260,15 @@ struct DashboardRow: View {
     
     @ViewBuilder
     private func newNoteCard(size: WidgetSize) -> some View {
+        // 根据尺寸动态计算图标大小
+        let iconSize: CGFloat = {
+            switch size {
+            case .small: return 36
+            case .medium: return 48
+            case .large, .fullPage: return 64
+            }
+        }()
+        
         if isEditing {
             // 编辑模式：所有尺寸统一显示占位卡片
             let verticalPadding: CGFloat = {
@@ -271,8 +280,8 @@ struct DashboardRow: View {
                 }
             }()
             VStack(spacing: 8) {
-                Image(systemName: "square.and.pencil")
-                    .font(.system(size: 36))
+                Image(systemName: "text.pad.header.badge.plus")
+                    .font(.system(size: iconSize))
                     .foregroundColor(.accentColor)
                 if size == .fullPage {
                     Text("全屏模式：直接显示编辑器")
@@ -297,7 +306,7 @@ struct DashboardRow: View {
                 case .fullPage: return 80
                 }
             }()
-            NewNoteButton(verticalPadding: verticalPadding)
+            NewNoteButton(verticalPadding: verticalPadding, iconSize: iconSize)
         }
     }
 }
@@ -318,11 +327,12 @@ struct InlineNewNoteWidget: View {
         VStack(spacing: 0) {
             // 模拟顶部工具栏区域
             HStack {
-                Image(systemName: "square.and.pencil")
+                Image(systemName: "text.pad.header.badge.plus")
                     .font(.headline)
                     .foregroundColor(.accentColor)
+                    .fontWeight(.bold)
 
-                Text("新建")
+                Text("新建笔记")
                     .font(.headline)
                     .foregroundColor(.primary)
                 Spacer()
@@ -450,15 +460,20 @@ struct NewNoteEditorPage: View {
 struct NewNoteButton: View {
     @State private var showNewNote = false
     let verticalPadding: CGFloat
+    var iconSize: CGFloat = 36 // Default size
     
     var body: some View {
         Button {
             showNewNote = true
         } label: {
-            VStack(spacing: 10) {
-                Image(systemName: "square.and.pencil")
-                    .font(.system(size: 36))
+            VStack(spacing: 12) {
+                Image(systemName: "text.pad.header.badge.plus")
+                    .font(.system(size: iconSize))
                     .foregroundColor(.accentColor)
+                    // Make it more eye-catching with a symbol effect (iOS 17+) or just bold
+                    .symbolRenderingMode(.hierarchical)
+                    .fontWeight(.bold)
+                
                 Text("点击新建")
                     .font(.caption)
                     .foregroundColor(.secondary)
