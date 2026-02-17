@@ -87,7 +87,7 @@ struct LocationPickerView: View {
         let options = MKMapSnapshotter.Options()
         options.region = MKCoordinateRegion(center: coordinate, latitudinalMeters: 500, longitudinalMeters: 500)
         options.size = CGSize(width: 300, height: 300)
-        options.scale = UIScreen.main.scale
+        options.scale = 3.0 // Use a fixed scale appropriate for modern devices
         
         let snapshotter = MKMapSnapshotter(options: options)
         snapshotter.start { snapshot, error in

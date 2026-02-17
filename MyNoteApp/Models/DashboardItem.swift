@@ -43,7 +43,7 @@ enum WidgetSize: String, Codable, CaseIterable {
         case .small: return 80
         case .medium: return 160
         case .large: return 320
-        case .fullPage: return UIScreen.main.bounds.height * 0.85
+        case .fullPage: return 600
         }
     }
     

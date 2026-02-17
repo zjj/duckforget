@@ -936,12 +936,18 @@ struct NoteEditorView: View {
         generator.appliesPreferredTrackTransform = true
         generator.maximumSize = CGSize(width: 200, height: 200)
 
-        do {
-            let cgImage = try generator.copyCGImage(at: .zero, actualTime: nil)
-            return UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.6)
-        } catch {
-            return nil
+        var resultData: Data?
+        let semaphore = DispatchSemaphore(value: 0)
+        
+        generator.generateCGImageAsynchronously(for: .zero) { cgImage, _, error in
+            if let cgImage = cgImage {
+                resultData = UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.6)
+            }
+            semaphore.signal()
         }
+        
+        semaphore.wait()
+        return resultData
     }
 }
 

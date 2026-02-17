@@ -127,6 +127,7 @@ struct DashboardDetailView: View {
 }
 
 struct DashboardRow: View {
+    @Environment(NoteStore.self) var noteStore
     let item: DashboardItem
     let isEditing: Bool
     @ObservedObject var dashboardConfig: DashboardConfig
@@ -134,9 +135,13 @@ struct DashboardRow: View {
     var availableHeight: CGFloat = 0
     var onFullPageFocused: (() -> Void)? = nil
     
+    @State private var showSearchDetail = false
+    @State private var showTagDetail = false
+    @State private var showRecentNotesDetail = false
+    
     /// Full page height: use available height from container, minus some padding for list insets
     private var fullPageHeight: CGFloat {
-        availableHeight > 0 ? availableHeight - 32 : UIScreen.main.bounds.height * 0.8
+        availableHeight > 0 ? availableHeight - 32 : 600
     }
     
     var body: some View {
@@ -145,16 +150,16 @@ struct DashboardRow: View {
             Group {
                 switch item.type {
                 case .search:
-                    SearchWidget(size: item.size)
+                    SearchWidget(size: item.size, showSearch: $showSearchDetail)
                 case .tag:
                     if let tagName = item.tagName {
-                        TagWidget(tagName: tagName, size: item.size)
+                        TagWidget(tagName: tagName, size: item.size, showTagDetail: $showTagDetail)
                     } else {
                         Text("标签未设置")
                             .foregroundColor(.secondary)
                     }
                 case .recentNotes:
-                    RecentNotesWidget(size: item.size)
+                    RecentNotesWidget(size: item.size, showRecentNotes: $showRecentNotesDetail)
                 case .newNote:
                     newNoteCard(size: item.size)
                 case .trash:
@@ -166,15 +171,22 @@ struct DashboardRow: View {
             .opacity(isEditing ? 0.7 : 1.0)
             .scaleEffect(isEditing ? 0.98 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isEditing)
-            
-            // 全屏组件的透明层，仅拦截「非按钮区域」以触发聚焦滚动
-            if !isEditing && item.size == .fullPage {
-                Color.clear
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        onFullPageFocused?()
-                    }
-                    .allowsHitTesting(false) // 重要：允许点击穿透到底层的编辑器进行输入
+            .navigationDestination(isPresented: $showSearchDetail) {
+                NoteSearchPage(pageTitle: "搜索")
+            }
+            .navigationDestination(isPresented: $showTagDetail) {
+                if let tagName = item.tagName {
+                    TagNotesListPage(tagName: tagName)
+                        .environment(noteStore)
+                }
+            }
+            .navigationDestination(isPresented: $showRecentNotesDetail) {
+                NoteSearchPage(
+                    pageTitle: "最近笔记",
+                    filterRecentDays: 7,
+                    hideSearchBar: false
+                )
+                .environment(noteStore)
             }
             
             // Edit Overlays
@@ -458,13 +470,12 @@ struct NewNoteEditorPage: View {
 // MARK: - 新建备忘录按钮组件
 
 struct NewNoteButton: View {
-    @State private var showNewNote = false
     let verticalPadding: CGFloat
     var iconSize: CGFloat = 36 // Default size
     
     var body: some View {
-        Button {
-            showNewNote = true
+        NavigationLink {
+            NewNoteEditorPage()
         } label: {
             VStack(spacing: 12) {
                 Image(systemName: "text.pad.header.badge.plus")
@@ -482,9 +493,6 @@ struct NewNoteButton: View {
             .padding(.vertical, verticalPadding)
             .background(Color(.systemGray6))
             .cornerRadius(16)
-        }
-        .navigationDestination(isPresented: $showNewNote) {
-            NewNoteEditorPage()
         }
     }
 }

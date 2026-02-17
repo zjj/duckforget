@@ -4,18 +4,16 @@ import SwiftData
 struct SearchWidget: View {
     @Environment(NoteStore.self) var noteStore
     let size: WidgetSize
-    @State private var showSearch = false
+    @Binding var showSearch: Bool
     
     var body: some View {
         Group {
             if size == .fullPage {
-                NoteSearchPage()
+                // 全屏嵌入模式：显示预览界面，点击跳转到完整搜索页
+                SearchFullPagePreview(onTap: { showSearch = true })
             } else {
                 searchCard
             }
-        }
-        .navigationDestination(isPresented: $showSearch) {
-            NoteSearchPage()
         }
     }
     
@@ -52,15 +50,23 @@ struct TagWidget: View {
     @Environment(NoteStore.self) var noteStore
     let tagName: String
     let size: WidgetSize
+    @Binding var showTagDetail: Bool
     
-    @Query(filter: #Predicate<NoteItem> { $0.isDeleted == false }, sort: \NoteItem.updatedAt, order: .reverse)
-    var allNotes: [NoteItem]
+    // 优化：使用反向查询，从 TagItem 获取笔记列表，利用数据库索引
+    @Query(sort: \TagItem.sortOrder)
+    var allTags: [TagItem]
     
-    // 筛选属于该标签的笔记
+    // 找到匹配的标签
+    var tag: TagItem? {
+        allTags.first { $0.name == tagName }
+    }
+    
+    // 通过标签的 notes 关系获取笔记，过滤已删除的笔记
     var tagNotes: [NoteItem] {
-        allNotes.filter { note in
-            note.tags.contains { $0.name == tagName }
-        }
+        guard let tag = tag else { return [] }
+        return tag.notes
+            .filter { !$0.isDeleted }
+            .sorted { $0.updatedAt > $1.updatedAt }
     }
     
     var displayedNotes: [NoteItem] {
@@ -68,15 +74,14 @@ struct TagWidget: View {
         case .small: return Array(tagNotes.prefix(3))
         case .medium: return Array(tagNotes.prefix(5))
         case .large: return Array(tagNotes.prefix(10))
-        case .fullPage: return Array(tagNotes.prefix(20))
+        case .fullPage: return Array(tagNotes.prefix(100)) // 全屏模式显示前100条
         }
     }
     
     var body: some View {
         if size == .fullPage {
-            // fullPage 模式显示完整列表
-            TagNotesListPage(tagName: tagName)
-                .environment(noteStore)
+            // 全屏嵌入模式：显示笔记列表预览（前100条），点击跳转到完整列表页
+            TagFullPagePreview(tagName: tagName, displayedNotes: displayedNotes, onTap: { showTagDetail = true })
         } else {
             VStack(alignment: .leading, spacing: 12) {
                 // 标题区域：点击跳转到完整列表
@@ -181,6 +186,7 @@ struct RecentNotesWidget: View {
     ) var notes: [NoteItem]
     
     let size: WidgetSize
+    @Binding var showRecentNotes: Bool
     
     var displayedNotes: [NoteItem] {
         // 先筛选最近7天的笔记
@@ -198,13 +204,8 @@ struct RecentNotesWidget: View {
     
     var body: some View {
         if size == .fullPage {
-            // fullPage 模式使用 NoteSearchPage，显示顶部搜索栏
-            NoteSearchPage(
-                pageTitle: "最近笔记",
-                filterRecentDays: 7,
-                hideSearchBar: false // 显示顶部搜索栏
-            )
-            .environment(noteStore)
+            // 全屏嵌入模式：显示预览界面，点击跳转到完整列表页
+            RecentNotesFullPagePreview(displayedNotes: displayedNotes, onTap: { showRecentNotes = true })
         } else {
             VStack(alignment: .leading, spacing: 12) {
                 // 标题区域：点击跳转到完整列表
@@ -214,6 +215,9 @@ struct RecentNotesWidget: View {
                     hideSearchBar: false // 显示顶部搜索栏
                 ).environment(noteStore)) {
                     HStack {
+                        Image(systemName: "clock.fill")
+                            .foregroundColor(.accentColor)
+                            .font(.subheadline)
                         Text("最近笔记")
                             .font(.headline)
                             .foregroundColor(.secondary)
@@ -726,5 +730,375 @@ struct ReadOnlyAttachmentView: View {
                 thumbnailImage = image
             }
         }
+    }
+}
+
+// MARK: - Full Page Preview Components for Embedded Mode
+
+/// 搜索组件的全屏预览（嵌入模式）
+struct SearchFullPagePreview: View {
+    let onTap: () -> Void
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // 标题
+            Text("搜索")
+                .font(.largeTitle)
+                .fontWeight(.bold)
+                .padding(.horizontal)
+                .padding(.top, 16)
+            
+            // 搜索框（伪）
+            Button(action: onTap) {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(.secondary)
+                    
+                    Text("输入进行搜索...")
+                        .foregroundColor(.secondary)
+                    
+                    Spacer()
+                }
+                .padding(10)
+                .background(Color(.systemGray6))
+                .cornerRadius(10)
+                .padding(.horizontal)
+            }
+            .buttonStyle(.plain)
+            
+            // 提示文本
+            VStack(spacing: 12) {
+                Image(systemName: "magnifyingglass.circle")
+                    .font(.system(size: 48))
+                    .foregroundColor(.secondary.opacity(0.5))
+                
+                Text("点击搜索框开始搜索")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, 40)
+            
+            Spacer()
+        }
+        .background(Color(.systemBackground))
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onTap)
+    }
+}
+
+/// 标签组件的全屏预览（嵌入模式）
+struct TagFullPagePreview: View {
+    @Environment(NoteStore.self) var noteStore
+    let tagName: String
+    let displayedNotes: [NoteItem]
+    let onTap: () -> Void
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // 标题
+            HStack {
+                Image(systemName: "tag.fill")
+                    .foregroundColor(.accentColor)
+                    .font(.subheadline)
+                Text(tagName)
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+                Spacer()
+            }
+            .padding(.horizontal)
+            .padding(.top, 16)
+            
+            // 搜索框（伪）
+            Button(action: onTap) {
+                HStack(spacing: 12) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(.secondary)
+                    
+                    Text("搜索 \(tagName) 标签")
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                .padding(12)
+                .background(Color(.systemGray6))
+                .cornerRadius(12)
+                .padding(.horizontal)
+            }
+            .buttonStyle(.plain)
+            
+            Divider()
+                .padding(.top, 8)
+            
+            // 笔记预览（最多显示100条）
+            if displayedNotes.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "tag")
+                        .font(.system(size: 48))
+                        .foregroundColor(.secondary.opacity(0.5))
+                    
+                    Text("此标签下暂无笔记")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    Text("点击查看详情")
+                        .font(.caption)
+                        .foregroundColor(.secondary.opacity(0.7))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 40)
+            } else {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        ForEach(displayedNotes.prefix(100)) { note in
+                            NavigationLink(destination: NoteEditorView(note: note).environment(noteStore)) {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(note.preview)
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                        .lineLimit(2)
+                                        .foregroundColor(.primary)
+                                    
+                                    HStack {
+                                        if !note.attachments.isEmpty {
+                                            HStack(spacing: 4) {
+                                                ForEach(note.attachments.prefix(3)) { att in
+                                                    AttachmentMiniIcon(type: att.type)
+                                                }
+                                                if note.attachments.count > 3 {
+                                                    Text("+\(note.attachments.count - 3)")
+                                                        .font(.caption2)
+                                                        .foregroundColor(.secondary)
+                                                }
+                                            }
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        Text(note.createdAt.formattedAbsolute)
+                                            .font(.caption2)
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                }
+                                .padding()
+                            }
+                            .buttonStyle(.plain)
+                            
+                            Divider()
+                                .padding(.leading)
+                        }
+                        
+                        if displayedNotes.count > 100 {
+                            Button(action: onTap) {
+                                HStack {
+                                    Spacer()
+                                    Text("查看全部 \(displayedNotes.count) 条笔记")
+                                        .font(.subheadline)
+                                        .foregroundColor(.accentColor)
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundColor(.accentColor)
+                                    Spacer()
+                                }
+                                .padding()
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+            
+            Spacer()
+        }
+        .background(Color(.systemBackground))
+    }
+}
+
+/// 最近笔记组件的全屏预览（嵌入模式）
+struct RecentNotesFullPagePreview: View {
+    @Environment(NoteStore.self) var noteStore
+    let displayedNotes: [NoteItem]
+    let onTap: () -> Void
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // 标题
+            HStack {
+                Image(systemName: "clock.fill")
+                    .foregroundColor(.accentColor)
+                    .font(.subheadline)
+                Text("最近笔记")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+                Spacer()
+            }
+            .padding(.horizontal)
+            .padding(.top, 16)
+            
+            // 搜索框（伪）
+            Button(action: onTap) {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(.secondary)
+                    
+                    Text("输入进行搜索...")
+                        .foregroundColor(.secondary)
+                    
+                    Spacer()
+                }
+                .padding(10)
+                .background(Color(.systemGray6))
+                .cornerRadius(10)
+                .padding(.horizontal)
+            }
+            .buttonStyle(.plain)
+            
+            Divider()
+                .padding(.top, 8)
+            
+            // 笔记预览（最多显示100条）
+            if displayedNotes.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "clock")
+                        .font(.system(size: 48))
+                        .foregroundColor(.secondary.opacity(0.5))
+                    
+                    Text("最近7天无笔记")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    Text("点击查看全部笔记")
+                        .font(.caption)
+                        .foregroundColor(.secondary.opacity(0.7))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 40)
+            } else {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        ForEach(displayedNotes.prefix(100)) { note in
+                            NavigationLink(destination: NoteEditorView(note: note).environment(noteStore)) {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(note.preview)
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                        .lineLimit(2)
+                                        .foregroundColor(.primary)
+                                    
+                                    HStack {
+                                        if !note.attachments.isEmpty {
+                                            HStack(spacing: 4) {
+                                                ForEach(note.attachments.prefix(3)) { att in
+                                                    AttachmentMiniIcon(type: att.type)
+                                                }
+                                                if note.attachments.count > 3 {
+                                                    Text("+\(note.attachments.count - 3)")
+                                                        .font(.caption2)
+                                                        .foregroundColor(.secondary)
+                                                }
+                                            }
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        Text(note.createdAt.formattedAbsolute)
+                                            .font(.caption2)
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                }
+                                .padding()
+                            }
+                            .buttonStyle(.plain)
+                            
+                            Divider()
+                                .padding(.leading)
+                        }
+                        
+                        if displayedNotes.count > 100 {
+                            Button(action: onTap) {
+                                HStack {
+                                    Spacer()
+                                    Text("查看全部 \(displayedNotes.count) 条笔记")
+                                        .font(.subheadline)
+                                        .foregroundColor(.accentColor)
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundColor(.accentColor)
+                                    Spacer()
+                                }
+                                .padding()
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+            
+            Spacer()
+        }
+        .background(Color(.systemBackground))
+    }
+}
+
+/// 标签组件的静态全屏预览（不查询数据，避免卡死）
+struct TagFullPagePreviewStatic: View {
+    let tagName: String
+    let onTap: () -> Void
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // 标题
+            HStack {
+                Image(systemName: "tag.fill")
+                    .foregroundColor(.accentColor)
+                    .font(.largeTitle)
+                Text(tagName)
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                Spacer()
+            }
+            .padding(.horizontal)
+            .padding(.top, 16)
+            
+            // 搜索框（伪）
+            Button(action: onTap) {
+                HStack(spacing: 12) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(.secondary)
+                    
+                    Text("搜索 \(tagName) 标签")
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                .padding(12)
+                .background(Color(.systemGray6))
+                .cornerRadius(12)
+                .padding(.horizontal)
+            }
+            .buttonStyle(.plain)
+            
+            // 静态提示文本（不查询数据）
+            VStack(spacing: 12) {
+                Image(systemName: "tag.circle")
+                    .font(.system(size: 64))
+                    .foregroundColor(.secondary.opacity(0.5))
+                
+                Text("点击查看 \(tagName) 标签下的笔记")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                Text("或使用搜索功能")
+                    .font(.caption)
+                    .foregroundColor(.secondary.opacity(0.7))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, 60)
+            
+            Spacer()
+        }
+        .background(Color(.systemBackground))
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onTap)
     }
 }

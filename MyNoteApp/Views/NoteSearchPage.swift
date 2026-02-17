@@ -34,6 +34,8 @@ struct NoteSearchPage: View {
     var pageTitle: String = "搜索" // 页面标题
     var filterRecentDays: Int? = nil // 筛选最近几天的笔记（nil表示不筛选）
     var hideSearchBar: Bool = false // 是否隐藏搜索栏
+    var isEmbedded: Bool = false // 是否嵌入在Dashboard中
+    var onSearchTap: (() -> Void)? = nil // 点击搜索框的回调（用于跳转）
     
     @State private var searchText = ""
     @State private var viewMode: ViewMode = .list
@@ -42,36 +44,74 @@ struct NoteSearchPage: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Search Bar Area
-            if !hideSearchBar {
-            VStack(spacing: 12) {
-                HStack(spacing: 12) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(.secondary)
-                        
-                        TextField("输入进行搜索...", text: $searchText)
-                            .focused($isSearchFocused)
-                            .submitLabel(.search)
-                    }
-                    .padding(10)
-                    .background(Color(.systemGray6))
-                    .cornerRadius(10)
-                    
-                    if !searchText.isEmpty {
-                        Button("取消") {
-                            searchText = ""
-                            isSearchFocused = false
-                        }
-                        .foregroundColor(.accentColor)
-                    }
+            // Header for embedded mode
+            if isEmbedded {
+                HStack {
+                    Text(pageTitle)
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+                    Spacer()
                 }
                 .padding(.horizontal)
-                .padding(.top, 8)
+                .padding(.top, 16)
                 .padding(.bottom, 8)
             }
-            .background(Color(.systemBackground))
-            .shadow(color: Color.black.opacity(0.05), radius: 2, y: 1)
+
+            // Search Bar Area
+            if !hideSearchBar {
+                if let onSearchTap = onSearchTap {
+                    // 嵌入模式下的伪搜索框（按钮）
+                    Button(action: onSearchTap) {
+                        HStack(spacing: 12) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "magnifyingglass")
+                                    .foregroundColor(.secondary)
+                                
+                                Text("输入进行搜索...")
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                            }
+                            .padding(10)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(10)
+                        }
+                        .padding(.horizontal)
+                        .padding(.vertical, 8)
+                        .background(Color(.systemBackground))
+                        .shadow(color: Color.black.opacity(0.05), radius: 2, y: 1)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    // 正常模式下的真搜索框
+                    VStack(spacing: 12) {
+                        HStack(spacing: 12) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "magnifyingglass")
+                                    .foregroundColor(.secondary)
+                                
+                                TextField("输入进行搜索...", text: $searchText)
+                                    .focused($isSearchFocused)
+                                    .submitLabel(.search)
+                            }
+                            .padding(10)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(10)
+                            
+                            if !searchText.isEmpty {
+                                Button("取消") {
+                                    searchText = ""
+                                    isSearchFocused = false
+                                }
+                                .foregroundColor(.accentColor)
+                            }
+                        }
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                        .padding(.bottom, 8)
+                    }
+                    .background(Color(.systemBackground))
+                    .shadow(color: Color.black.opacity(0.05), radius: 2, y: 1)
+                }
             }
             
             // Search Results
