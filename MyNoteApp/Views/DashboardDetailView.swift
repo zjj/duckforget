@@ -71,16 +71,16 @@ struct DashboardDetailView: View {
         .listStyle(.plain)
         .environment(\.editMode, .constant(isEditing ? .active : .inactive))
         .toolbar {
-            ToolbarItemGroup(placement: .bottomBar) {
-                if isEditing {
+            if isEditing {
+                ToolbarItem(placement: .bottomBar) {
                     Menu {
                         // 按照指定顺序展示组件类型
                         let orderedTypes: [WidgetType] = [
-                            .trash,
-                            .recentNotes,
-                            .search,
                             .newNote,
                             .tag,
+                            .recentNotes,
+                            .search,
+                            .trash
                         ]
                         ForEach(orderedTypes, id: \.self) { type in
                             Button(action: {
@@ -106,7 +106,7 @@ struct DashboardDetailView: View {
                             .foregroundColor(.accentColor)
                             .shadow(radius: 2)
                     }
-                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isEditing)
+
                 }
             }
         }
