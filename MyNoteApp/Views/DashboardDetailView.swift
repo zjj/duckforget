@@ -283,8 +283,8 @@ struct InlineNewNoteWidget: View {
                     .foregroundColor(.accentColor)
 
                 Text("新建")
-                    .font(.headline)
-                    .foregroundColor(.secondary)
+                    .font(.subheadline)
+                    .foregroundColor(.primary)
                 Spacer()
             }
             .padding(.horizontal, 16)
