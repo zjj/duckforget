@@ -31,6 +31,10 @@ struct NoteSearchPage: View {
     @Environment(NoteStore.self) var noteStore
     @Environment(\.dismiss) private var dismiss
     
+    var pageTitle: String = "搜索" // 页面标题
+    var filterRecentDays: Int? = nil // 筛选最近几天的笔记（nil表示不筛选）
+    var hideSearchBar: Bool = false // 是否隐藏搜索栏
+    
     @State private var searchText = ""
     @State private var viewMode: ViewMode = .list
     @State private var sortMode: SortMode = .dateModified
@@ -39,6 +43,7 @@ struct NoteSearchPage: View {
     var body: some View {
         VStack(spacing: 0) {
             // Search Bar Area
+            if !hideSearchBar {
             VStack(spacing: 12) {
                 HStack(spacing: 12) {
                     HStack(spacing: 8) {
@@ -67,12 +72,24 @@ struct NoteSearchPage: View {
             }
             .background(Color(.systemBackground))
             .shadow(color: Color.black.opacity(0.05), radius: 2, y: 1)
+            }
             
             // Search Results
-            NoteListView(folder: nil, showAllNotes: true, initialSearchText: searchText, hideSearchBar: true, hideBottomBar: true, hideNavigationTitle: true, viewMode: viewMode, sortMode: sortMode)
+            NoteListView(
+                folder: nil, 
+                showAllNotes: true, 
+                initialSearchText: searchText, 
+                hideSearchBar: true, 
+                hideBottomBar: true, 
+                hideNavigationTitle: true, 
+                viewMode: viewMode, 
+                sortMode: sortMode,
+                filterRecentDays: filterRecentDays,
+                customTitle: pageTitle
+            )
                 .environment(noteStore)
         }
-        .navigationTitle("搜索")
+        .navigationTitle(pageTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

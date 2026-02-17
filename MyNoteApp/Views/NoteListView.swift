@@ -11,6 +11,8 @@ struct NoteListView: View {
     var hideNavigationTitle: Bool = false
     var viewMode: ViewMode = .list
     var sortMode: SortMode = .dateModified
+    var filterRecentDays: Int? = nil // 筛选最近几天的笔记（nil表示不筛选）
+    var customTitle: String? = nil // 自定义标题
 
     @Environment(NoteStore.self) var noteStore
     @Query(
@@ -26,10 +28,20 @@ struct NoteListView: View {
 
     /// 当前文件夹（或全部）的活跃备忘录
     private var scopedNotes: [NoteItem] {
+        var notes: [NoteItem]
         if showAllNotes {
-            return allActiveNotes
+            notes = allActiveNotes
+        } else {
+            notes = allActiveNotes.filter { $0.folder?.id == folder?.id }
         }
-        return allActiveNotes.filter { $0.folder?.id == folder?.id }
+        
+        // 如果设置了日期筛选，只显示最近N天的笔记
+        if let days = filterRecentDays {
+            let cutoffDate = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
+            notes = notes.filter { $0.updatedAt >= cutoffDate }
+        }
+        
+        return notes
     }
 
     /// 搜索过滤和排序
@@ -49,6 +61,10 @@ struct NoteListView: View {
     }
 
     private var navigationTitle: String {
+        // 如果有自定义标题，优先使用
+        if let title = customTitle {
+            return title
+        }
         if showAllNotes { return "所有备忘录" }
         return folder?.name ?? "备忘录"
     }
