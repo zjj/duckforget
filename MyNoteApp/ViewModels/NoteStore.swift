@@ -257,7 +257,7 @@ class NoteStore {
                 .font: titleFont,
                 .foregroundColor: UIColor.black,
             ]
-            let titleStr = note.title as NSString
+            let titleStr = note.preview as NSString
             let titleRect = CGRect(x: margin, y: margin, width: contentWidth, height: 40)
             titleStr.draw(in: titleRect, withAttributes: titleAttr)
 
@@ -292,8 +292,8 @@ class NoteStore {
 
     func indexNoteInSpotlight(_ note: NoteItem) {
         let attributeSet = CSSearchableItemAttributeSet(contentType: .text)
-        attributeSet.title = note.title
-        attributeSet.contentDescription = note.preview
+        attributeSet.title = note.preview
+        attributeSet.contentDescription = note.content
         attributeSet.contentModificationDate = note.updatedAt
 
         let item = CSSearchableItem(

@@ -6,21 +6,16 @@ struct NoteRowView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
-            // 标题
-            Text(note.title)
+            // 内容预览
+            Text(note.preview)
                 .font(.headline)
                 .lineLimit(1)
 
-            // 日期 + 预览
+            // 日期
             HStack(spacing: 8) {
                 Text(note.createdAt.formattedShort)
                     .font(.subheadline)
                     .foregroundColor(.secondary)
-
-                Text(note.preview)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
             }
 
             // 附件小图标预览

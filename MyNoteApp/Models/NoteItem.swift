@@ -14,23 +14,13 @@ final class NoteItem {
     @Relationship(deleteRule: .cascade, inverse: \AttachmentItem.note)
     var attachments: [AttachmentItem]
 
-    /// 标题：取内容的第一行非空文本
-    var title: String {
-        let lines = content.components(separatedBy: .newlines)
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-        return lines.first ?? "新建备忘录"
-    }
-
-    /// 预览：取第二行非空文本
+    /// 预览：取第一行非空文本
     var preview: String {
         let lines = content.components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
-        if lines.count > 1 {
-            return lines[1]
-        }
-        return "无其他文本"
+
+        return lines.first ?? "(仅附件)"
     }
 
     init(

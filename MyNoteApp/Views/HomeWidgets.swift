@@ -175,16 +175,11 @@ struct RecentNotesWidget: View {
                                 VStack(alignment: .leading, spacing: 6) {
                                     HStack(spacing: 12) {
                                         VStack(alignment: .leading, spacing: 4) {
-                                            Text(note.title)
+                                            Text(note.preview)
                                                 .font(.subheadline)
                                                 .fontWeight(.semibold)
-                                                .lineLimit(1)
-                                                .foregroundColor(.primary)
-                                            Text(note.preview)
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
                                                 .lineLimit(2)
-                                                .multilineTextAlignment(.leading)
+                                                .foregroundColor(.primary)
                                         }
                                         Spacer()
                                         Text(note.updatedAt.formatted(.relative(presentation: .named)))
@@ -213,17 +208,11 @@ struct RecentNotesWidget: View {
                         ForEach(displayedNotes) { note in
                             NavigationLink(destination: NoteEditorView(note: note).environment(noteStore)) {
                                 VStack(alignment: .leading, spacing: 6) {
-                                    Text(note.title)
+                                    Text(note.preview)
                                         .font(.subheadline)
                                         .fontWeight(.semibold)
-                                        .lineLimit(1)
-                                        .foregroundColor(.primary)
-                                    
-                                    Text(note.preview)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
                                         .lineLimit(2)
-                                        .multilineTextAlignment(.leading)
+                                        .foregroundColor(.primary)
                                     
                                     Spacer()
                                     

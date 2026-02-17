@@ -31,7 +31,7 @@ struct TrashView: View {
                 List {
                     ForEach(trashedNotes) { note in
                         VStack(alignment: .leading, spacing: 5) {
-                            Text(note.title)
+                            Text(note.preview)
                                 .font(.headline)
                                 .lineLimit(1)
                             HStack(spacing: 8) {
@@ -44,10 +44,6 @@ struct TrashView: View {
                                     .font(.caption)
                                     .foregroundColor(.orange)
                             }
-                            Text(note.preview)
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                                .lineLimit(1)
                         }
                         .padding(.vertical, 3)
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {

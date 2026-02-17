@@ -36,7 +36,7 @@ struct ExportSheet: View {
                     Button {
                         let pdfData = noteStore.exportAsPDF(note)
                         let tempURL = FileManager.default.temporaryDirectory
-                            .appendingPathComponent("\(note.title).pdf")
+                            .appendingPathComponent("\(note.preview).pdf")
                         try? pdfData.write(to: tempURL)
                         exportedItems = [tempURL]
                         showShareSheet = true
@@ -58,7 +58,7 @@ struct ExportSheet: View {
 
                 Section(header: Text("预览")) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(note.title)
+                        Text(note.preview)
                             .font(.headline)
                         Text(note.updatedAt.formattedFull)
                             .font(.caption)
