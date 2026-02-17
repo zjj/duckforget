@@ -260,24 +260,7 @@ struct DashboardRow: View {
                 case .fullPage: return 80
                 }
             }()
-            NavigationLink {
-                NewNoteEditorPage()
-            } label: {
-                VStack(spacing: 10) {
-                    Image(systemName: "square.and.pencil")
-                        .font(.system(size: 36))
-                        .foregroundColor(.accentColor)
-                    Text("新建备忘录")
-                        .font(.headline)
-                    Text("点击开始记录")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, verticalPadding)
-                .background(Color(.systemGray6))
-                .cornerRadius(16)
-            }
+            NewNoteButton(verticalPadding: verticalPadding)
         }
     }
 }
@@ -423,5 +406,36 @@ struct NewNoteEditorPage: View {
     private func createNewNote() {
         let note = noteStore.createNote(in: nil)
         currentNote = note
+    }
+}
+
+// MARK: - 新建备忘录按钮组件
+
+struct NewNoteButton: View {
+    @State private var showNewNote = false
+    let verticalPadding: CGFloat
+    
+    var body: some View {
+        Button {
+            showNewNote = true
+        } label: {
+            VStack(spacing: 10) {
+                Image(systemName: "square.and.pencil")
+                    .font(.system(size: 36))
+                    .foregroundColor(.accentColor)
+                Text("新建备忘录")
+                    .font(.headline)
+                Text("点击开始记录")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, verticalPadding)
+            .background(Color(.systemGray6))
+            .cornerRadius(16)
+        }
+        .navigationDestination(isPresented: $showNewNote) {
+            NewNoteEditorPage()
+        }
     }
 }

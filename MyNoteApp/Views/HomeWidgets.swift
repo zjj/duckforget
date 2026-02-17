@@ -4,6 +4,7 @@ import SwiftData
 struct SearchWidget: View {
     @Environment(NoteStore.self) var noteStore
     let size: WidgetSize
+    @State private var showSearch = false
     
     var body: some View {
         Group {
@@ -13,11 +14,14 @@ struct SearchWidget: View {
                 searchCard
             }
         }
+        .navigationDestination(isPresented: $showSearch) {
+            NoteSearchPage()
+        }
     }
     
     private var searchCard: some View {
-        NavigationLink {
-            NoteSearchPage()
+        Button {
+            showSearch = true
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: "magnifyingglass")
@@ -62,6 +66,7 @@ struct FolderListWidget: View {
                     Text("全部")
                         .font(.caption)
                 }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal)
             
@@ -123,6 +128,7 @@ struct FolderItemView: View {
             .background(Color(.systemGray6))
             .cornerRadius(12)
         }
+        .buttonStyle(.plain)
     }
 }
 
@@ -154,9 +160,6 @@ struct RecentNotesWidget: View {
                         .font(.headline)
                         .foregroundColor(.secondary)
                     Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
                 }
                 .padding(.horizontal)
             }
