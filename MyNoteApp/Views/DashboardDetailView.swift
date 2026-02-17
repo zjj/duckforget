@@ -143,6 +143,13 @@ struct DashboardRow: View {
             
             // Edit Overlays
             if isEditing {
+                // 点击遮罩：拦截点击事件，防止误触组件内部逻辑，或者误删除
+                Color.white.opacity(0.01)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        // 空操作：拦截点击
+                    }
+                
                 HStack(spacing: 8) {
                     // Resize Menu
                     Menu {
