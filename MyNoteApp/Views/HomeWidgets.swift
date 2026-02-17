@@ -145,13 +145,20 @@ struct RecentNotesWidget: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("最近笔记")
-                    .font(.headline)
-                    .foregroundColor(.secondary)
-                Spacer()
+            // 标题区域：点击跳转到完整列表
+            NavigationLink(destination: NoteListView(folder: nil, showAllNotes: true).environment(noteStore)) {
+                HStack {
+                    Text("最近笔记")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal)
             }
-            .padding(.horizontal)
+            .buttonStyle(.plain)
             
             if displayedNotes.isEmpty {
                 Text("暂无笔记")
@@ -160,31 +167,36 @@ struct RecentNotesWidget: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding()
             } else if size == .fullPage {
-                // 全屏模式：垂直列表展示
-                // 必须包裹在 ScrollView 中，以隔离 List Row 的点击手势，防止 NavigationLink 冲突
+                // 全屏模式：垂直列表展示，可点击进入编辑
                 ScrollView(.vertical, showsIndicators: false) {
                     LazyVStack(spacing: 8) {
                         ForEach(displayedNotes) { note in
                             NavigationLink(destination: NoteEditorView(note: note).environment(noteStore)) {
-                                HStack(spacing: 12) {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(note.title)
-                                            .font(.subheadline)
-                                            .fontWeight(.semibold)
-                                            .lineLimit(1)
-                                            .foregroundColor(.primary)
-                                        Text(note.preview)
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                            .lineLimit(2)
-                                            .multilineTextAlignment(.leading)
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack(spacing: 12) {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(note.title)
+                                                .font(.subheadline)
+                                                .fontWeight(.semibold)
+                                                .lineLimit(1)
+                                                .foregroundColor(.primary)
+                                            Text(note.preview)
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                                .lineLimit(2)
+                                                .multilineTextAlignment(.leading)
+                                        }
+                                        Spacer()
+                                        Text(note.updatedAt.formatted(.relative(presentation: .named)))
+                                            .font(.caption2)
+                                            .foregroundStyle(.tertiary)
                                     }
-                                    Spacer()
-                                    Text(note.updatedAt.formatted(.relative(presentation: .named)))
-                                        .font(.caption2)
-                                        .foregroundStyle(.tertiary)
+                                    
+                                    // 附件图标
+                                    if !note.attachments.isEmpty {
+                                        noteAttachmentIcons(note)
+                                    }
                                 }
-                                .contentShape(Rectangle()) // 确保点击区域完整
                                 .padding()
                                 .background(Color(.systemGray6))
                                 .cornerRadius(12)
@@ -195,11 +207,12 @@ struct RecentNotesWidget: View {
                     .padding(.horizontal)
                 } 
             } else {
+                // 小组件模式：水平滚动展示，可点击进入编辑
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(spacing: 12) {
                         ForEach(displayedNotes) { note in
                             NavigationLink(destination: NoteEditorView(note: note).environment(noteStore)) {
-                                VStack(alignment: .leading, spacing: 8) {
+                                VStack(alignment: .leading, spacing: 6) {
                                     Text(note.title)
                                         .font(.subheadline)
                                         .fontWeight(.semibold)
@@ -214,6 +227,11 @@ struct RecentNotesWidget: View {
                                     
                                     Spacer()
                                     
+                                    // 附件图标
+                                    if !note.attachments.isEmpty {
+                                        noteAttachmentIcons(note)
+                                    }
+                                    
                                     Text(note.updatedAt.formatted(.relative(presentation: .named)))
                                         .font(.caption2)
                                         .foregroundStyle(.tertiary)
@@ -225,6 +243,18 @@ struct RecentNotesWidget: View {
                             }
                             .buttonStyle(.plain)
                         }
+                        
+                        // “无其他内容”提示
+                        VStack {
+                            Spacer()
+                            Text("无其他内容")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                        }
+                        .frame(width: 140, height: 100)
+                        .background(Color(.systemGray6).opacity(0.5))
+                        .cornerRadius(12)
                     }
                     .padding(.horizontal)
                 }
@@ -234,5 +264,21 @@ struct RecentNotesWidget: View {
         .background(Color(.systemBackground))
         .cornerRadius(16)
         .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+    }
+    
+    // 附件图标展示（复用 NoteRowView 的逻辑）
+    @ViewBuilder
+    private func noteAttachmentIcons(_ note: NoteItem) -> some View {
+        let noteAttachments = note.attachments.sorted { $0.createdAt < $1.createdAt }
+        HStack(spacing: 6) {
+            ForEach(noteAttachments.prefix(6)) { att in
+                AttachmentMiniIcon(type: att.type)
+            }
+            if noteAttachments.count > 6 {
+                Text("+\(noteAttachments.count - 6)")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        }
     }
 }
