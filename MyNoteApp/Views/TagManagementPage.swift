@@ -52,7 +52,7 @@ struct TagManagementPage: View {
                                 Label("删除", systemImage: "trash")
                             }
                         } label: {
-                            Image(systemName: "ellipsis.circle")
+                            Image(systemName: "ellipsis")
                                 .font(.system(size: 20))
                                 .foregroundColor(.secondary)
                         }

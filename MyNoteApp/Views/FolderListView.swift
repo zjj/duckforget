@@ -204,8 +204,10 @@ struct FolderListView: View {
                 }
             } label: {
                 Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 20))
+                    .font(.system(size: 24))
                     .foregroundColor(.accentColor)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
         } else {
             Menu {
@@ -219,7 +221,11 @@ struct FolderListView: View {
                     Label("编辑", systemImage: "pencil.circle")
                 }
             } label: {
-                Image(systemName: "ellipsis.circle")
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 24))
+                    .foregroundColor(.primary)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
         }
     }

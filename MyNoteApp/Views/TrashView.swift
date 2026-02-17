@@ -95,7 +95,7 @@ struct TrashView: View {
                             Label("清空回收站", systemImage: "trash.slash")
                         }
                     } label: {
-                        Image(systemName: "ellipsis.circle")
+                        Image(systemName: "ellipsis")
                     }
                 }
             }

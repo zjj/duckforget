@@ -469,7 +469,7 @@ struct TrashDetailPage: View {
                             Label("清空回收站", systemImage: "trash.slash")
                         }
                     } label: {
-                        Image(systemName: "ellipsis.circle")
+                        Image(systemName: "ellipsis")
                     }
                 }
             }
@@ -573,7 +573,7 @@ struct TrashNoteDetailView: View {
                         Label("永久删除", systemImage: "trash.slash")
                     }
                 } label: {
-                    Image(systemName: "ellipsis.circle")
+                    Image(systemName: "ellipsis")
                 }
             }
         }
