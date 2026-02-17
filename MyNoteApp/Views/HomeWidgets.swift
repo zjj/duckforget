@@ -161,34 +161,39 @@ struct RecentNotesWidget: View {
                     .padding()
             } else if size == .fullPage {
                 // 全屏模式：垂直列表展示
-                LazyVStack(spacing: 8) {
-                    ForEach(displayedNotes) { note in
-                        NavigationLink(destination: NoteEditorView(note: note).environment(noteStore)) {
-                            HStack(spacing: 12) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(note.title)
-                                        .font(.subheadline)
-                                        .fontWeight(.semibold)
-                                        .lineLimit(1)
-                                        .foregroundColor(.primary)
-                                    Text(note.preview)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(2)
-                                        .multilineTextAlignment(.leading)
+                // 必须包裹在 ScrollView 中，以隔离 List Row 的点击手势，防止 NavigationLink 冲突
+                ScrollView(.vertical, showsIndicators: false) {
+                    LazyVStack(spacing: 8) {
+                        ForEach(displayedNotes) { note in
+                            NavigationLink(destination: NoteEditorView(note: note).environment(noteStore)) {
+                                HStack(spacing: 12) {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(note.title)
+                                            .font(.subheadline)
+                                            .fontWeight(.semibold)
+                                            .lineLimit(1)
+                                            .foregroundColor(.primary)
+                                        Text(note.preview)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                            .lineLimit(2)
+                                            .multilineTextAlignment(.leading)
+                                    }
+                                    Spacer()
+                                    Text(note.updatedAt.formatted(.relative(presentation: .named)))
+                                        .font(.caption2)
+                                        .foregroundStyle(.tertiary)
                                 }
-                                Spacer()
-                                Text(note.updatedAt.formatted(.relative(presentation: .named)))
-                                    .font(.caption2)
-                                    .foregroundStyle(.tertiary)
+                                .contentShape(Rectangle()) // 确保点击区域完整
+                                .padding()
+                                .background(Color(.systemGray6))
+                                .cornerRadius(12)
                             }
-                            .padding()
-                            .background(Color(.systemGray6))
-                            .cornerRadius(12)
+                            .buttonStyle(.plain)
                         }
                     }
-                }
-                .padding(.horizontal)
+                    .padding(.horizontal)
+                } 
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(spacing: 12) {
@@ -218,6 +223,7 @@ struct RecentNotesWidget: View {
                                 .background(Color(.systemGray6))
                                 .cornerRadius(12)
                             }
+                            .buttonStyle(.plain)
                         }
                     }
                     .padding(.horizontal)
