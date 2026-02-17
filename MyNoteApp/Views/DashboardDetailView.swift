@@ -9,8 +9,6 @@ struct DashboardDetailView: View {
     var availableHeight: CGFloat = 0
     
     @State private var showingAddTagWidget = false
-    @State private var newTagWidgetName = ""
-    @Query(sort: \TagItem.sortOrder) var allTags: [TagItem]
     
     var page: DashboardPage? {
         dashboardConfig.pages.first(where: { $0.id == pageId })
@@ -104,41 +102,19 @@ struct DashboardDetailView: View {
                 }
             }
         }
-        .alert("添加标签组件", isPresented: $showingAddTagWidget) {
-            TextField("标签名称", text: $newTagWidgetName)
-            Button("取消", role: .cancel) {
-                newTagWidgetName = ""
+        .sheet(isPresented: $showingAddTagWidget) {
+            AddTagWidgetSheet { tagName in
+                addTagWidget(tagName: tagName)
             }
-            Button("添加") {
-                addTagWidget()
-            }
-        } message: {
-            if allTags.isEmpty {
-                Text("输入要显示的标签名称")
-            } else {
-                Text("选择已有标签或输入新标签名称：\(allTags.map { $0.name }.joined(separator: ", "))")
-            }
+            .environment(noteStore)
         }
         } // ScrollViewReader
     }
     
-    private func addTagWidget() {
-        let trimmed = newTagWidgetName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            newTagWidgetName = ""
-            return
-        }
-        
-        // 如果标签不存在，自动创建
-        if !allTags.contains(where: { $0.name == trimmed }) {
-            noteStore.createTag(name: trimmed)
-        }
-        
+    private func addTagWidget(tagName: String) {
         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-            dashboardConfig.addItem(to: pageId, type: .tag, tagName: trimmed)
+            dashboardConfig.addItem(to: pageId, type: .tag, tagName: tagName)
         }
-        
-        newTagWidgetName = ""
     }
 }
 
