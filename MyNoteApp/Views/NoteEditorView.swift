@@ -412,7 +412,7 @@ struct NoteEditorView: View {
     private var bottomToolbar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 16) {
-                ForEach(toolbarSettings.items) { item in
+                ForEach(toolbarSettings.activeItems) { item in
                     toolButton(for: item)
                 }
             }

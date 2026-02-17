@@ -5,24 +5,35 @@ struct ToolbarSortView: View {
     
     var body: some View {
         List {
-            Section(footer: Text("拖动行可以调整笔记编辑器底部工具栏的按钮顺序")) {
-                ForEach(settings.items) { item in
+            Section(footer: Text("拖动行可以调整笔记编辑器底部工具栏的按钮顺序，使用开关控制按钮是否显示")) {
+                ForEach($settings.configs) { $config in
                     HStack {
-                        Image(systemName: item.icon)
-                            .font(.title3)
-                            .frame(width: 30)
-                            .foregroundColor(.accentColor)
-                        Text(item.title)
-                            .font(.body)
+                        // 图标和标题
+                        HStack(spacing: 12) {
+                            Image(systemName: config.type.icon)
+                                .font(.title3)
+                                .frame(width: 24)
+                                .foregroundColor(config.isEnabled ? .accentColor : .secondary)
+                            
+                            Text(config.type.title)
+                                .font(.body)
+                                .foregroundColor(config.isEnabled ? .primary : .secondary)
+                        }
+                        
                         Spacer()
-                        Image(systemName: "line.3.horizontal")
-                            .foregroundColor(.secondary)
+                        
+                        // 开关控制显示/隐藏
+                        Toggle("", isOn: $config.isEnabled)
+                            .labelsHidden()
+                            .toggleStyle(SwitchToggleStyle(tint: .accentColor))
+                        
+                        // EditMode automatically provides the drag handle here (on the far right)
                     }
                 }
                 .onMove(perform: settings.move)
             }
         }
-        .navigationTitle("工具栏排序")
+        .navigationTitle("工具栏排")
         .environment(\.editMode, .constant(.active)) // 始终处于编辑模式以允许拖拽
     }
 }
