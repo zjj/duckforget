@@ -108,11 +108,8 @@ struct FolderListView: View {
             Button("创建") {
                 let trimmed = newPageName.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !trimmed.isEmpty {
-                    let newPage = dashboardConfig.addPage(name: trimmed)
-                    // Optionally switch to new page
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                         selectedTab = newPage.id
-                    }
+                    let _ = dashboardConfig.addPage(name: trimmed)
+                    // 不自动跳转，保留在当前页面
                 }
             }
         }
