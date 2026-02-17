@@ -17,7 +17,7 @@ struct NoteSearchPage: View {
                         Image(systemName: "magnifyingglass")
                             .foregroundColor(.secondary)
                         
-                        TextField("搜索所有备忘录...", text: $searchText)
+                        TextField("输入进行搜索...", text: $searchText)
                             .focused($isSearchFocused)
                             .submitLabel(.search)
                     }
@@ -41,7 +41,7 @@ struct NoteSearchPage: View {
             .shadow(color: Color.black.opacity(0.05), radius: 2, y: 1)
             
             // Search Results
-            NoteListView(folder: nil, showAllNotes: true, initialSearchText: searchText, hideSearchBar: true, hideBottomBar: true)
+            NoteListView(folder: nil, showAllNotes: true, initialSearchText: searchText, hideSearchBar: true, hideBottomBar: true, hideNavigationTitle: true)
                 .environment(noteStore)
         }
         .navigationTitle("搜索")

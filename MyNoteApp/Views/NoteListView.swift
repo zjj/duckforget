@@ -8,6 +8,7 @@ struct NoteListView: View {
     var initialSearchText: String = ""
     var hideSearchBar: Bool = false
     var hideBottomBar: Bool = false
+    var hideNavigationTitle: Bool = false
 
     @Environment(NoteStore.self) var noteStore
     @Query(
@@ -59,7 +60,9 @@ struct NoteListView: View {
                 bottomBar
             }
         }
-        .navigationTitle(navigationTitle)
+        .if(!hideNavigationTitle) { view in
+            view.navigationTitle(navigationTitle)
+        }
         .onAppear {
             if !initialSearchText.isEmpty {
                 searchText = initialSearchText
@@ -284,7 +287,18 @@ struct MoveToFolderSheet: View {
     }
 }
 
-// MARK: - 新建备忘录包装器（NavigationLink 目标）
+// A helper to conditionally apply modifiers
+extension View {
+    @ViewBuilder
+    func `if`<Content: View>(_ condition: Bool, transform: (Self) -> Content) -> some View {
+        if condition {
+            transform(self)
+        } else {
+            self
+        }
+    }
+}
+
 
 /// 在 onAppear 时创建新备忘录，然后显示编辑器
 struct NewNoteEditorView: View {

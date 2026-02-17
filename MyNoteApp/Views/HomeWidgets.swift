@@ -25,14 +25,16 @@ struct SearchWidget: View {
                     .foregroundColor(.accentColor)
                 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("搜索备忘录")
+                    Text("搜索")
                         .font(.headline)
                         .foregroundColor(.primary)
-                    Text("点击开始搜索")
+                    Text("输入进行搜索...")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
+                Spacer() // 确保HStack填满宽度
             }
+            .frame(maxWidth: .infinity) // 关键：让HStack填满父容器宽度
             .padding(16)
             .background(Color(.systemBackground))
             .cornerRadius(16)
