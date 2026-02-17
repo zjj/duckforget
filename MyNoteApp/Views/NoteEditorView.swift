@@ -28,12 +28,11 @@ struct NoteEditorView: View {
     // 弹出控制
     @State private var showCamera = false
     @State private var showPhotoPicker = false
-    @State private var showDocumentScanner = false
+    @State private var activeScanMode: ScanMode?
     @State private var showAudioRecorder = false
     @State private var showPaintingCanvas = false
     @State private var showFilePicker = false
     @State private var showLocationPicker = false
-    @State private var scanMode = ScanMode.document
 
     // 附件查看
     @State private var selectedAttachment: AttachmentItem?
@@ -63,7 +62,11 @@ struct NoteEditorView: View {
     @State private var isVoiceButtonPressed = false
     @State private var shouldCancelVoiceInput = false
 
-    enum ScanMode { case text, document }
+    enum ScanMode: String, Identifiable {
+        case textExtraction // Renamed from text
+        case documentScan   // Renamed from document
+        var id: String { rawValue }
+    }
 
     /// 富文本格式类型
     enum TextFormat {
@@ -235,8 +238,8 @@ struct NoteEditorView: View {
                 onPickVideo: { url in saveVideo(url) }
             )
         }
-        .sheet(isPresented: $showDocumentScanner) {
-            DocumentScannerView { images in handleScannedImages(images) }
+        .sheet(item: $activeScanMode) { mode in
+            DocumentScannerView { images in handleScannedImages(images, mode: mode) }
         }
         .sheet(isPresented: $showAudioRecorder) {
             AudioRecorderSheet(note: note)
@@ -431,11 +434,9 @@ struct NoteEditorView: View {
             case .location: showLocationPicker = true
             case .drawing: showPaintingCanvas = true
             case .scanText:
-                scanMode = .text
-                showDocumentScanner = true
+                activeScanMode = .textExtraction
             case .scanDocument:
-                scanMode = .document
-                showDocumentScanner = true
+                activeScanMode = .documentScan
             }
         }
     }
@@ -744,14 +745,29 @@ struct NoteEditorView: View {
 
     // MARK: - 处理扫描结果
 
-    private func handleScannedImages(_ images: [UIImage]) {
-        if scanMode == .text {
+    private func handleScannedImages(_ images: [UIImage], mode: ScanMode) {
+        print("📷 Handling scanned images. Mode: \(mode)")
+        switch mode {
+        case .textExtraction:
+            print("📝 Starting text recognition for \(images.count) images...")
+            // ... (rest of logic)
             TextRecognizer.recognizeText(from: images) { text in
+                print("✅ Recognized text length: \(text.count)")
+                if text.isEmpty {
+                    print("⚠️ No text recognized")
+                }
                 guard !text.isEmpty else { return }
+                
+                // 确保在主线程更新 UI
                 if !content.isEmpty { content += "\n" }
                 content += text
+                
+                // 触发保存
+                wasEdited = true
             }
-        } else {
+            
+        case .documentScan:
+            print("📄 Saving \(images.count) document images...")
             for image in images {
                 saveImage(image, type: .scannedDocument)
             }
