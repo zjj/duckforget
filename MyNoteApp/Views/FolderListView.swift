@@ -391,12 +391,12 @@ struct DashboardManagementView: View {
             
             Section(header: Text("编辑器")) {
                 Toggle(isOn: $toolbarSettings.isVoiceInputEnabled) {
-                    Label("启用语音输入", systemImage: "mic.fill")
+                    Label("语音输入", systemImage: "mic.fill")
                 }
                 .toggleStyle(SwitchToggleStyle(tint: .accentColor))
                 
                 NavigationLink(destination: ToolbarSortView()) {
-                    Label("工具栏排序", systemImage: "arrow.left.arrow.right")
+                    Label("工具栏", systemImage: "arrow.left.arrow.right")
                 }
             }
         }
