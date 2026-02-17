@@ -4,7 +4,7 @@ import UIKit
 
 enum WidgetType: String, Codable, CaseIterable, Identifiable {
     case search
-    case folders
+    case tag
     case recentNotes
     case newNote
     case trash
@@ -14,7 +14,7 @@ enum WidgetType: String, Codable, CaseIterable, Identifiable {
     var displayName: String {
         switch self {
         case .search: return "搜索"
-        case .folders: return "文件夹"
+        case .tag: return "标签"
         case .recentNotes: return "最近笔记"
         case .newNote: return "新建备忘录"
         case .trash: return "回收站"
@@ -24,7 +24,7 @@ enum WidgetType: String, Codable, CaseIterable, Identifiable {
     var iconName: String {
         switch self {
         case .search: return "magnifyingglass"
-        case .folders: return "folder"
+        case .tag: return "tag"
         case .recentNotes: return "clock"
         case .newNote: return "square.and.pencil"
         case .trash: return "trash"
@@ -62,6 +62,7 @@ struct DashboardItem: Identifiable, Codable, Hashable {
     var type: WidgetType
     var size: WidgetSize
     var order: Int
+    var tagName: String? // 用于tag类型组件，存储要显示的标签名
 }
 
 struct DashboardPage: Identifiable, Codable, Hashable {

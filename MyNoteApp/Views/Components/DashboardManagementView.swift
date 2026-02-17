@@ -138,6 +138,12 @@ struct DashboardManagementView: View {
                 }
             }
             
+            Section(header: Text("标签")) {
+                NavigationLink(destination: TagManagementPage()) {
+                    Label("标签管理", systemImage: "tag")
+                }
+            }
+            
             Section {
                 HStack {
                     Label("保留天数", systemImage: "trash")

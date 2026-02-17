@@ -32,8 +32,7 @@ class DashboardConfig: ObservableObject {
             // Default Layout: Create a default "Home" page
             let defaultItems = [
                 DashboardItem(type: .search, size: .small, order: 0),
-                DashboardItem(type: .folders, size: .medium, order: 1),
-                DashboardItem(type: .recentNotes, size: .medium, order: 2)
+                DashboardItem(type: .recentNotes, size: .medium, order: 1)
             ]
             let homePage = DashboardPage(id: UUID(), name: "首页", items: defaultItems, creationDate: Date())
             self.pages = [homePage]
@@ -101,10 +100,11 @@ class DashboardConfig: ObservableObject {
     
     // MARK: - Item Management (Per Page)
     
-    func addItem(to pageId: UUID, type: WidgetType) {
+    func addItem(to pageId: UUID, type: WidgetType, tagName: String? = nil) {
         if let index = pages.firstIndex(where: { $0.id == pageId }) {
             let order = pages[index].items.count
-            let newItem = DashboardItem(type: type, size: .medium, order: order)
+            var newItem = DashboardItem(type: type, size: .medium, order: order)
+            newItem.tagName = tagName
             pages[index].items.append(newItem)
             saveConfig()
         }

@@ -8,7 +8,7 @@ struct MyNoteAppApp: App {
     @StateObject private var toolbarSettings = ToolbarSettings()
 
     init() {
-        let schema = Schema([NoteItem.self, AttachmentItem.self, FolderItem.self])
+        let schema = Schema([NoteItem.self, AttachmentItem.self, TagItem.self])
         let config = ModelConfiguration(schema: schema)
 
         do {

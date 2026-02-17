@@ -15,8 +15,6 @@ struct FolderListView: View {
     // Tab Selection
     @State private var selectedTab: UUID? = nil
     @State private var editingStates: [UUID: Bool] = [:]
-    @State private var showNewFolder = false
-    @State private var newFolderName = ""
     private let settingsTabID = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
 
     private var isAnyPageEditing: Bool {
@@ -120,16 +118,6 @@ struct FolderListView: View {
                 let trimmed = newPageName.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !trimmed.isEmpty, let page = pageToRename {
                     dashboardConfig.renamePage(page, newName: trimmed)
-                }
-            }
-        }
-        .alert("新建文件夹", isPresented: $showNewFolder) {
-            TextField("文件夹名称", text: $newFolderName)
-            Button("取消", role: .cancel) {}
-            Button("创建") {
-                let trimmed = newFolderName.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !trimmed.isEmpty {
-                    noteStore.createFolder(name: trimmed)
                 }
             }
         }

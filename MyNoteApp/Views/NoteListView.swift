@@ -3,7 +3,6 @@ import SwiftUI
 
 /// 备忘录列表主页 - 模仿 iOS 备忘录
 struct NoteListView: View {
-    let folder: FolderItem?
     let showAllNotes: Bool
     var initialSearchText: String = ""
     var hideSearchBar: Bool = false
@@ -22,18 +21,11 @@ struct NoteListView: View {
     ) var allActiveNotes: [NoteItem]
     @State private var searchText = ""
     @State private var isSearching = false
-    @State private var showMoveSheet = false
-    @State private var noteToMove: NoteItem?
     @FocusState private var searchFocused: Bool
 
-    /// 当前文件夹（或全部）的活跃备忘录
+    /// 当前显示的活跃备忘录
     private var scopedNotes: [NoteItem] {
-        var notes: [NoteItem]
-        if showAllNotes {
-            notes = allActiveNotes
-        } else {
-            notes = allActiveNotes.filter { $0.folder?.id == folder?.id }
-        }
+        var notes: [NoteItem] = allActiveNotes
         
         // 如果设置了日期筛选，只显示最近N天的笔记
         if let days = filterRecentDays {
@@ -72,8 +64,7 @@ struct NoteListView: View {
         if let title = customTitle {
             return title
         }
-        if showAllNotes { return "所有备忘录" }
-        return folder?.name ?? "备忘录"
+        return showAllNotes ? "所有备忘录" : "备忘录"
     }
 
     var body: some View {
@@ -107,12 +98,6 @@ struct NoteListView: View {
             searchText = newValue
             if !newValue.isEmpty {
                 isSearching = true
-            }
-        }
-        .sheet(isPresented: $showMoveSheet) {
-            if let note = noteToMove {
-                MoveToFolderSheet(note: note)
-                    .environment(noteStore)
             }
         }
     }
@@ -188,7 +173,7 @@ struct NoteListView: View {
                 Spacer()
 
                 NavigationLink {
-                    NewNoteEditorView(folder: showAllNotes ? nil : folder)
+                    NewNoteEditorView()
                         .environment(noteStore)
                 } label: {
                     Image(systemName: "square.and.pencil")
@@ -324,12 +309,6 @@ struct NoteListView: View {
             }
             .buttonStyle(.plain)
             .contextMenu {
-                Button {
-                    noteToMove = note
-                    showMoveSheet = true
-                } label: {
-                    Label("移动到文件夹", systemImage: "folder")
-                }
                 Button(role: .destructive) {
                     noteStore.softDeleteNote(note)
                 } label: {
@@ -352,73 +331,10 @@ struct NoteListView: View {
             }
             .buttonStyle(.plain)
             .contextMenu {
-                Button {
-                    noteToMove = note
-                    showMoveSheet = true
-                } label: {
-                    Label("移动到文件夹", systemImage: "folder")
-                }
                 Button(role: .destructive) {
                     noteStore.softDeleteNote(note)
                 } label: {
                     Label("删除", systemImage: "trash")
-                }
-            }
-        }
-    }
-}
-
-// MARK: - 移动到文件夹的 Sheet
-
-struct MoveToFolderSheet: View {
-    let note: NoteItem
-    @Environment(NoteStore.self) var noteStore
-    @Environment(\.dismiss) private var dismiss
-    @Query(sort: \FolderItem.sortOrder) var folders: [FolderItem]
-
-    var body: some View {
-        NavigationStack {
-            List {
-                // 无文件夹（根级）
-                Button {
-                    noteStore.moveNote(note, to: nil)
-                    dismiss()
-                } label: {
-                    Label {
-                        Text("所有备忘录")
-                            .foregroundColor(.primary)
-                    } icon: {
-                        Image(systemName: "note.text")
-                            .foregroundColor(.yellow)
-                    }
-                }
-
-                ForEach(folders) { folder in
-                    Button {
-                        noteStore.moveNote(note, to: folder)
-                        dismiss()
-                    } label: {
-                        Label {
-                            Text(folder.name)
-                                .foregroundColor(.primary)
-                        } icon: {
-                            Image(systemName: folder.iconName)
-                                .foregroundColor(.yellow)
-                        }
-                    }
-                }
-            }
-            .navigationTitle("移动到")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(role: .cancel) {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(.secondary)
-                    }
                 }
             }
         }
@@ -440,7 +356,6 @@ extension View {
 
 /// 在 onAppear 时创建新备忘录，然后显示编辑器
 struct NewNoteEditorView: View {
-    let folder: FolderItem?
     @Environment(NoteStore.self) var noteStore
     @State private var note: NoteItem?
 
@@ -454,7 +369,7 @@ struct NewNoteEditorView: View {
         }
         .onAppear {
             if note == nil {
-                note = noteStore.createNote(in: folder)
+                note = noteStore.createNote()
             }
         }
     }

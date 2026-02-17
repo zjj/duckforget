@@ -76,7 +76,6 @@ struct NoteSearchPage: View {
             
             // Search Results
             NoteListView(
-                folder: nil, 
                 showAllNotes: true, 
                 initialSearchText: searchText, 
                 hideSearchBar: true, 

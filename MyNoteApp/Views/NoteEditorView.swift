@@ -49,6 +49,9 @@ struct NoteEditorView: View {
 
     // 导出
     @State private var showExport = false
+    
+    // 标签管理
+    @State private var showTagManagement = false
 
     // 富文本工具栏
     @State private var showRichTextBar = false
@@ -198,6 +201,12 @@ struct NoteEditorView: View {
                     if onPublish == nil {
                         Menu {
                             Button {
+                                showTagManagement = true
+                            } label: {
+                                Label("管理标签", systemImage: "tag")
+                            }
+                            
+                            Button {
                                 showExport = true
                             } label: {
                                 Label("导出", systemImage: "square.and.arrow.up")
@@ -294,6 +303,10 @@ struct NoteEditorView: View {
         }
         .sheet(isPresented: $showExport) {
             ExportSheet(note: note)
+                .environment(noteStore)
+        }
+        .sheet(isPresented: $showTagManagement) {
+            TagManagementSheet(note: note)
                 .environment(noteStore)
         }
         .alert("确认删除", isPresented: $showDeleteConfirmation) {

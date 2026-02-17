@@ -9,10 +9,12 @@ final class NoteItem {
     var updatedAt: Date
     var isDeleted: Bool
     var deletedAt: Date?
-    var folder: FolderItem?
 
     @Relationship(deleteRule: .cascade, inverse: \AttachmentItem.note)
     var attachments: [AttachmentItem]
+    
+    @Relationship(deleteRule: .nullify, inverse: \TagItem.notes)
+    var tags: [TagItem]
 
     /// 预览：取第一行非空文本
     var preview: String {
@@ -30,8 +32,8 @@ final class NoteItem {
         updatedAt: Date = Date(),
         isDeleted: Bool = false,
         deletedAt: Date? = nil,
-        folder: FolderItem? = nil,
-        attachments: [AttachmentItem] = []
+        attachments: [AttachmentItem] = [],
+        tags: [TagItem] = []
     ) {
         self.id = id
         self.content = content
@@ -39,7 +41,7 @@ final class NoteItem {
         self.updatedAt = updatedAt
         self.isDeleted = isDeleted
         self.deletedAt = deletedAt
-        self.folder = folder
         self.attachments = attachments
+        self.tags = tags
     }
 }

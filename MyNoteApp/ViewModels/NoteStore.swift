@@ -26,41 +26,58 @@ class NoteStore {
         cleanupExpiredTrash()
     }
 
-    // MARK: - Folder CRUD
+    // MARK: - Tag CRUD
 
-    /// 创建文件夹
+    /// 创建标签
     @discardableResult
-    func createFolder(name: String, iconName: String = "folder") -> FolderItem {
-        let folder = FolderItem(name: name, iconName: iconName)
-        modelContext.insert(folder)
+    func createTag(name: String) -> TagItem {
+        let tag = TagItem(name: name)
+        modelContext.insert(tag)
         try? modelContext.save()
-        return folder
+        return tag
     }
 
-    /// 重命名文件夹
-    func renameFolder(_ folder: FolderItem, to newName: String) {
-        folder.name = newName
+    /// 重命名标签
+    func renameTag(_ tag: TagItem, to newName: String) {
+        tag.name = newName
         try? modelContext.save()
     }
 
-    /// 删除文件夹（其中的备忘录移到根级）
-    func deleteFolder(_ folder: FolderItem) {
-        for note in folder.notes {
-            note.folder = nil
+    /// 删除标签（解除所有笔记的关联，不删除笔记）
+    func deleteTag(_ tag: TagItem) {
+        // 解除所有笔记的关联
+        for note in tag.notes {
+            note.tags.removeAll { $0.id == tag.id }
         }
-        modelContext.delete(folder)
+        modelContext.delete(tag)
         try? modelContext.save()
     }
 
-    /// 获取所有文件夹
-    func fetchFolders() -> [FolderItem] {
-        let descriptor = FetchDescriptor<FolderItem>(sortBy: [SortDescriptor(\.sortOrder)])
+    /// 获取所有标签
+    func fetchTags() -> [TagItem] {
+        let descriptor = FetchDescriptor<TagItem>(sortBy: [SortDescriptor(\.sortOrder)])
         return (try? modelContext.fetch(descriptor)) ?? []
     }
 
-    /// 移动备忘录到文件夹
-    func moveNote(_ note: NoteItem, to folder: FolderItem?) {
-        note.folder = folder
+    /// 为笔记添加标签
+    func addTag(_ tag: TagItem, to note: NoteItem) {
+        if !note.tags.contains(where: { $0.id == tag.id }) {
+            note.tags.append(tag)
+            note.updatedAt = Date()
+            try? modelContext.save()
+        }
+    }
+
+    /// 从笔记移除标签
+    func removeTag(_ tag: TagItem, from note: NoteItem) {
+        note.tags.removeAll { $0.id == tag.id }
+        note.updatedAt = Date()
+        try? modelContext.save()
+    }
+    
+    /// 设置笔记的标签（替换所有标签）
+    func setTags(_ tags: [TagItem], for note: NoteItem) {
+        note.tags = tags
         note.updatedAt = Date()
         try? modelContext.save()
     }
@@ -69,8 +86,8 @@ class NoteStore {
 
     /// 创建新备忘录
     @discardableResult
-    func createNote(in folder: FolderItem? = nil) -> NoteItem {
-        let note = NoteItem(folder: folder)
+    func createNote(withTags tags: [TagItem] = []) -> NoteItem {
+        let note = NoteItem(tags: tags)
         modelContext.insert(note)
         try? modelContext.save()
         return note
@@ -87,16 +104,14 @@ class NoteStore {
     func softDeleteNote(_ note: NoteItem) {
         note.isDeleted = true
         note.deletedAt = Date()
-        note.folder = nil
         try? modelContext.save()
         deindexNoteFromSpotlight(note)
     }
 
     /// 恢复已删除备忘录
-    func restoreNote(_ note: NoteItem, to folder: FolderItem? = nil) {
+    func restoreNote(_ note: NoteItem) {
         note.isDeleted = false
         note.deletedAt = nil
-        note.folder = folder
         note.updatedAt = Date()
         try? modelContext.save()
         indexNoteInSpotlight(note)
