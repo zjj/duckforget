@@ -192,6 +192,7 @@ struct DashboardRow: View {
                                 .background(Circle().fill(Color.blue))
                                 .shadow(color: .blue.opacity(0.3), radius: 4, x: 0, y: 2)
                         }
+                        .menuStyle(.borderlessButton) // 修复 List 中 Menu 点击问题
                     }
                     
                     // Delete Button
@@ -209,6 +210,7 @@ struct DashboardRow: View {
                             .background(Circle().fill(Color.red))
                             .shadow(color: .red.opacity(0.3), radius: 4, x: 0, y: 2)
                     }
+                    .buttonStyle(.borderless) // 修复在 List 编辑模式下无法点击的问题
                 }
                 .padding(8)
                 // Offset slightly to avoid overlap with List reorder handles if they appear
