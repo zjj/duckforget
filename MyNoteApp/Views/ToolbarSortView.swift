@@ -33,7 +33,7 @@ struct ToolbarSortView: View {
                 .onMove(perform: settings.move)
             }
         }
-        .navigationTitle("工具栏排")
+        .navigationTitle("工具栏")
         .environment(\.editMode, .constant(.active)) // 始终处于编辑模式以允许拖拽
     }
 }
