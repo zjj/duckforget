@@ -80,6 +80,7 @@ struct DashboardDetailView: View {
                         let orderedTypes: [WidgetType] = [
                             .newNote,
                             .encouragement,
+                            .statistics,
                             .tag,
                             .recentNotes,
                             .search,
@@ -186,6 +187,8 @@ struct DashboardRow: View {
                     newNoteCard(size: item.size)
                 case .trash:
                     TrashWidget(size: item.size)
+                case .statistics:
+                    StatisticsWidget(size: item.size)
                 case .encouragement:
                     EncouragementWidget(content: item.content ?? DashboardItem.defaultEncouragement, size: item.size)
                 }
