@@ -174,7 +174,7 @@ struct DashboardManagementView: View {
 
             Section(header: Text("编辑器")) {
                 Toggle(isOn: $toolbarSettings.isVoiceInputEnabled) {
-                    Label("语音输入", systemImage: "mic.fill")
+                    Label("语音转文字", systemImage: "mic.fill")
                 }
                 .toggleStyle(SwitchToggleStyle(tint: .accentColor))
                 
