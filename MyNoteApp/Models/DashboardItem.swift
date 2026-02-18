@@ -8,6 +8,7 @@ enum WidgetType: String, Codable, CaseIterable, Identifiable {
     case recentNotes
     case newNote
     case trash
+    case encouragement
     
     var id: String { rawValue }
     
@@ -18,6 +19,7 @@ enum WidgetType: String, Codable, CaseIterable, Identifiable {
         case .recentNotes: return "最近记录"
         case .search: return "搜索"
         case .trash: return "回收站"
+        case .encouragement: return "鼓励语录"
         }
     }
     
@@ -28,6 +30,7 @@ enum WidgetType: String, Codable, CaseIterable, Identifiable {
         case .recentNotes: return "clock"
         case .newNote: return "text.pad.header.badge.plus"
         case .trash: return "trash"
+        case .encouragement: return "heart.text.square"
         }
     }
 }
@@ -62,7 +65,10 @@ struct DashboardItem: Identifiable, Codable, Hashable {
     var type: WidgetType
     var size: WidgetSize
     var order: Int
-    var tagName: String? // 用于tag类型组件，存储要显示的标签名
+    var tagName: String? = nil // 用于tag类型组件，存储要显示的标签名
+    var content: String? = nil // 用于鼓励组件，存储鼓励语
+    
+    static let defaultEncouragement = "记录不是任务，是温柔的坚持。"
 }
 
 struct DashboardPage: Identifiable, Codable, Hashable {

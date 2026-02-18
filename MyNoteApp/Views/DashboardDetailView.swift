@@ -9,6 +9,8 @@ struct DashboardDetailView: View {
     var availableHeight: CGFloat = 0
     
     @State private var showingAddTagWidget = false
+    @State private var showingAddEncouragementWidget = false
+    @State private var newEncouragementText = DashboardItem.defaultEncouragement
     
     var page: DashboardPage? {
         dashboardConfig.pages.first(where: { $0.id == pageId })
@@ -77,6 +79,7 @@ struct DashboardDetailView: View {
                         // 按照指定顺序展示组件类型
                         let orderedTypes: [WidgetType] = [
                             .newNote,
+                            .encouragement,
                             .tag,
                             .recentNotes,
                             .search,
@@ -90,6 +93,10 @@ struct DashboardDetailView: View {
                                 if type == .tag {
                                     // 标签类型需要输入标签名
                                     showingAddTagWidget = true
+                                } else if type == .encouragement {
+                                    // 鼓励组件带有默认文案，弹出输入框让用户确认或修改
+                                    newEncouragementText = DashboardItem.defaultEncouragement
+                                    showingAddEncouragementWidget = true
                                 } else {
                                     // 其他类型直接添加
                                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
@@ -116,6 +123,18 @@ struct DashboardDetailView: View {
             }
             .environment(noteStore)
         }
+        .alert("添加鼓励组件", isPresented: $showingAddEncouragementWidget) {
+            TextField("输入鼓励的话", text: $newEncouragementText)
+            Button("取消", role: .cancel) { }
+            Button("添加") {
+                let content = newEncouragementText.isEmpty ? DashboardItem.defaultEncouragement : String(newEncouragementText.prefix(200))
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    dashboardConfig.addItem(to: pageId, type: .encouragement, content: content)
+                }
+            }
+        } message: {
+            Text("请输入一句鼓励自己的话")
+        }
         } // ScrollViewReader
     }
     
@@ -139,6 +158,8 @@ struct DashboardRow: View {
     @State private var showTagDetail = false
     @State private var showRecentNotesDetail = false
     @State private var showDeleteConfirmation = false
+    @State private var showEncouragementEdit = false
+    @State private var encouragementTextTemp = ""
     
     /// Full page height: use available height from container, minus some padding for list insets
     private var fullPageHeight: CGFloat {
@@ -165,6 +186,8 @@ struct DashboardRow: View {
                     newNoteCard(size: item.size)
                 case .trash:
                     TrashWidget(size: item.size)
+                case .encouragement:
+                    EncouragementWidget(content: item.content ?? DashboardItem.defaultEncouragement, size: item.size)
                 }
             }
             .frame(minHeight: item.size == .fullPage ? fullPageHeight : nil)
@@ -189,6 +212,16 @@ struct DashboardRow: View {
                 )
                 .environment(noteStore)
             }
+            .alert("修改鼓励语", isPresented: $showEncouragementEdit) {
+                TextField("请输入鼓励的话", text: $encouragementTextTemp)
+                Button("取消", role: .cancel) { }
+                Button("确定") {
+                    let finalContent = String(encouragementTextTemp.prefix(200))
+                    dashboardConfig.updateContent(in: pageId, for: item.id, content: finalContent)
+                }
+            } message: {
+                Text("最多200字")
+            }
             
             // Edit Overlays
             if isEditing {
@@ -200,8 +233,24 @@ struct DashboardRow: View {
                     }
                 
                 HStack(spacing: 8) {
+                    // Edit Content Button for Encouragement Widget
+                    if item.type == .encouragement {
+                        Button {
+                            encouragementTextTemp = item.content ?? ""
+                            showEncouragementEdit = true
+                        } label: {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding(8)
+                                .background(Circle().fill(Color.orange))
+                                .shadow(color: .orange.opacity(0.3), radius: 4, x: 0, y: 2)
+                        }
+                        .buttonStyle(.borderless)
+                    }
+
                     // Resize Menu
-                    if item.type != .trash {
+                    if item.type != .trash && item.type != .encouragement {
                         Menu {
                             Button("小 (Compact)", systemImage: "rectangle.grid.1x2") {
                                 let generator = UISelectionFeedbackGenerator()

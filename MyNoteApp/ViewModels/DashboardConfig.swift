@@ -31,8 +31,9 @@ class DashboardConfig: ObservableObject {
         } else {
             // Default Layout: Create a default "Home" page
             let defaultItems = [
-                DashboardItem(type: .search, size: .small, order: 0),
-                DashboardItem(type: .recentNotes, size: .medium, order: 1)
+                DashboardItem(type: .encouragement, size: .small, order: 0, content: DashboardItem.defaultEncouragement),
+                DashboardItem(type: .search, size: .small, order: 1),
+                DashboardItem(type: .recentNotes, size: .medium, order: 2)
             ]
             let homePage = DashboardPage(id: UUID(), name: "首页", items: defaultItems, creationDate: Date())
             self.pages = [homePage]
@@ -100,11 +101,15 @@ class DashboardConfig: ObservableObject {
     
     // MARK: - Item Management (Per Page)
     
-    func addItem(to pageId: UUID, type: WidgetType, tagName: String? = nil) {
+    func addItem(to pageId: UUID, type: WidgetType, tagName: String? = nil, content: String? = nil) {
         if let index = pages.firstIndex(where: { $0.id == pageId }) {
             let order = pages[index].items.count
             var newItem = DashboardItem(type: type, size: .medium, order: order)
+            if type == .encouragement {
+                newItem.size = .small // Default size for encouragement is small
+            }
             newItem.tagName = tagName
+            newItem.content = content
             pages[index].items.append(newItem)
             saveConfig()
         }
@@ -144,6 +149,17 @@ class DashboardConfig: ObservableObject {
             if let itemIndex = pages[pageIndex].items.firstIndex(where: { $0.id == itemId }) {
                 var item = pages[pageIndex].items[itemIndex]
                 item.size = size
+                pages[pageIndex].items[itemIndex] = item
+                saveConfig()
+            }
+        }
+    }
+    
+    func updateContent(in pageId: UUID, for itemId: UUID, content: String) {
+        if let pageIndex = pages.firstIndex(where: { $0.id == pageId }) {
+            if let itemIndex = pages[pageIndex].items.firstIndex(where: { $0.id == itemId }) {
+                var item = pages[pageIndex].items[itemIndex]
+                item.content = content
                 pages[pageIndex].items[itemIndex] = item
                 saveConfig()
             }
