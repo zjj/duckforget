@@ -50,14 +50,16 @@ struct TagWidget: View {
     @Environment(NoteStore.self) var noteStore
     let tagName: String
     let size: WidgetSize
+    let isEditing: Bool
     @Binding var showTagDetail: Bool
     
     // 使用 Query 直接查询符合条件的 NoteItem，不仅能正确过滤已删除记录，还能实时响应 isDeleted 变化
     @Query var notes: [NoteItem]
     
-    init(tagName: String, size: WidgetSize, showTagDetail: Binding<Bool>) {
+    init(tagName: String, size: WidgetSize, isEditing: Bool = false, showTagDetail: Binding<Bool>) {
         self.tagName = tagName
         self.size = size
+        self.isEditing = isEditing
         self._showTagDetail = showTagDetail
         
         let filter = #Predicate<NoteItem> { note in
@@ -82,13 +84,11 @@ struct TagWidget: View {
     var body: some View {
         if size == .fullPage {
             // 全屏嵌入模式：显示记录列表预览（前100条），点击跳转到完整列表页
-            TagFullPagePreview(tagName: tagName, displayedNotes: displayedNotes, onTap: { showTagDetail = true })
+            TagFullPagePreview(tagName: tagName, displayedNotes: displayedNotes, isEditing: isEditing)
         } else {
             VStack(alignment: .leading, spacing: 12) {
                 // 标题区域：点击跳转到完整列表
-                Button {
-                    showTagDetail = true
-                } label: {
+                NavigationLink(destination: TagNotesListPage(tagName: tagName).environment(noteStore)) {
                     HStack {
                         Image(systemName: "tag.fill")
                             .foregroundColor(.accentColor)
@@ -101,6 +101,7 @@ struct TagWidget: View {
                     .padding(.horizontal)
                 }
                 .buttonStyle(.plain)
+                .disabled(isEditing)
                 
                 if displayedNotes.isEmpty {
                     Text("暂无记录")
@@ -138,6 +139,7 @@ struct TagWidget: View {
                                     .cornerRadius(12)
                                 }
                                 .buttonStyle(.plain)
+                                .disabled(isEditing)
                             }
                             
                             // "无其他内容"提示
@@ -189,6 +191,7 @@ struct RecentNotesWidget: View {
     ) var notes: [NoteItem]
     
     let size: WidgetSize
+    let isEditing: Bool
     @Binding var showRecentNotes: Bool
     
     var displayedNotes: [NoteItem] {
@@ -208,13 +211,15 @@ struct RecentNotesWidget: View {
     var body: some View {
         if size == .fullPage {
             // 全屏嵌入模式：显示预览界面，点击跳转到完整列表页
-            RecentNotesFullPagePreview(displayedNotes: displayedNotes, onTap: { showRecentNotes = true })
+            RecentNotesFullPagePreview(displayedNotes: displayedNotes, isEditing: isEditing)
         } else {
             VStack(alignment: .leading, spacing: 12) {
                 // 标题区域：点击跳转到完整列表
-                Button {
-                    showRecentNotes = true
-                } label: {
+                NavigationLink(destination: NoteSearchPage(
+                    pageTitle: "最近记录",
+                    filterRecentDays: 7,
+                    hideSearchBar: false // 显示顶部搜索栏
+                ).environment(noteStore)) {
                     HStack {
                         Image(systemName: "clock.fill")
                             .foregroundColor(.accentColor)
@@ -227,6 +232,7 @@ struct RecentNotesWidget: View {
                     .padding(.horizontal)
                 }
                 .buttonStyle(.plain)
+                .disabled(isEditing)
                 
                 if displayedNotes.isEmpty {
                     Text("暂无记录")
@@ -852,7 +858,7 @@ struct TagFullPagePreview: View {
     @Environment(NoteStore.self) var noteStore
     let tagName: String
     let displayedNotes: [NoteItem]
-    let onTap: () -> Void
+    var isEditing: Bool = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -870,8 +876,8 @@ struct TagFullPagePreview: View {
             .padding(.horizontal)
             .padding(.top, 16)
             
-            // 搜索框（伪）
-            Button(action: onTap) {
+            // 搜索框（伪）→ 直接 NavigationLink 跳转
+            NavigationLink(destination: TagNotesListPage(tagName: tagName).environment(noteStore)) {
                 HStack(spacing: 12) {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(.secondary)
@@ -886,6 +892,7 @@ struct TagFullPagePreview: View {
                 .padding(.horizontal)
             }
             .buttonStyle(.plain)
+            .disabled(isEditing)
             
             Divider()
                 .padding(.top, 8)
@@ -943,13 +950,14 @@ struct TagFullPagePreview: View {
                                 .padding()
                             }
                             .buttonStyle(.plain)
+                            .disabled(isEditing)
                             
                             Divider()
                                 .padding(.leading)
                         }
                         
                         if displayedNotes.count > 100 {
-                            Button(action: onTap) {
+                            NavigationLink(destination: TagNotesListPage(tagName: tagName).environment(noteStore)) {
                                 HStack {
                                     Spacer()
                                     Text("查看全部 \(displayedNotes.count) 条记录")
@@ -963,6 +971,7 @@ struct TagFullPagePreview: View {
                                 .padding()
                             }
                             .buttonStyle(.plain)
+                            .disabled(isEditing)
                         }
                     }
                 }
@@ -978,7 +987,7 @@ struct TagFullPagePreview: View {
 struct RecentNotesFullPagePreview: View {
     @Environment(NoteStore.self) var noteStore
     let displayedNotes: [NoteItem]
-    let onTap: () -> Void
+    var isEditing: Bool = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -996,8 +1005,12 @@ struct RecentNotesFullPagePreview: View {
             .padding(.horizontal)
             .padding(.top, 16)
             
-            // 搜索框（伪）
-            Button(action: onTap) {
+            // 搜索框（伪）→ 直接 NavigationLink 跳转
+            NavigationLink(destination: NoteSearchPage(
+                pageTitle: "最近记录",
+                filterRecentDays: 7,
+                hideSearchBar: false
+            ).environment(noteStore)) {
                 HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(.secondary)
@@ -1013,6 +1026,7 @@ struct RecentNotesFullPagePreview: View {
                 .padding(.horizontal)
             }
             .buttonStyle(.plain)
+            .disabled(isEditing)
             
             Divider()
                 .padding(.top, 8)
@@ -1070,13 +1084,18 @@ struct RecentNotesFullPagePreview: View {
                                 .padding()
                             }
                             .buttonStyle(.plain)
+                            .disabled(isEditing)
                             
                             Divider()
                                 .padding(.leading)
                         }
                         
                         if displayedNotes.count > 100 {
-                            Button(action: onTap) {
+                            NavigationLink(destination: NoteSearchPage(
+                                pageTitle: "最近记录",
+                                filterRecentDays: 7,
+                                hideSearchBar: false
+                            ).environment(noteStore)) {
                                 HStack {
                                     Spacer()
                                     Text("查看全部 \(displayedNotes.count) 条记录")
@@ -1090,6 +1109,7 @@ struct RecentNotesFullPagePreview: View {
                                 .padding()
                             }
                             .buttonStyle(.plain)
+                            .disabled(isEditing)
                         }
                     }
                 }
