@@ -7,27 +7,32 @@ struct TagNotesListPage: View {
     @Environment(\.dismiss) private var dismiss
     
     let tagName: String
-    var isEmbedded: Bool = false
-    var onSearchTap: (() -> Void)? = nil
+    var isEmbedded: Bool
+    var onSearchTap: (() -> Void)?
     
-    // 优化：使用反向查询，从 TagItem 获取记录列表，利用数据库索引
-    @Query(sort: \TagItem.sortOrder)
-    var allTags: [TagItem]
+    // 使用 Query 直接查询符合条件的 NoteItem，不仅能正确过滤已删除记录，还能实时响应 isDeleted 变化
+    @Query var notes: [NoteItem]
     
     @State private var searchText = ""
     @State private var selectedNote: NoteItem?
     @State private var viewMode: ViewMode = .list
     @State private var sortMode: SortMode = .dateModified
     
-    // 找到匹配的标签
-    var tag: TagItem? {
-        allTags.first { $0.name == tagName }
+    init(tagName: String, isEmbedded: Bool = false, onSearchTap: (() -> Void)? = nil) {
+        self.tagName = tagName
+        self.isEmbedded = isEmbedded
+        self.onSearchTap = onSearchTap
+        
+        let filter = #Predicate<NoteItem> { note in
+            !note.isDeleted && note.tags.contains { $0.name == tagName }
+        }
+        //此处默认按修改时间降序，后续在 tagNotes 中会重新排序
+        _notes = Query(filter: filter, sort: \.updatedAt, order: .reverse)
     }
     
-    // 通过标签的 notes 关系获取记录，过滤已删除的记录
+    // 通过直接查询获得记录列表
     var tagNotes: [NoteItem] {
-        guard let tag = tag else { return [] }
-        let filtered = tag.notes.filter { !$0.isDeleted }
+        let filtered = notes
         
         // 根据排序方式排序
         switch sortMode {

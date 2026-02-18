@@ -30,9 +30,7 @@ struct TagManagementPage: View {
                                 .font(.headline)
                                 .foregroundColor(.primary)
                             
-                            Text("\(tag.notes.filter { !$0.isDeleted }.count) 个记录")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                            TagNoteCountView(tagName: tag.name)
                         }
                         
                         Spacer()
@@ -146,5 +144,22 @@ struct TagManagementPage: View {
         noteStore.renameTag(tag, to: trimmed)
         editingTag = nil
         editingTagName = ""
+    }
+}
+
+struct TagNoteCountView: View {
+    @Query var notes: [NoteItem]
+    
+    init(tagName: String) {
+        let filter = #Predicate<NoteItem> { note in
+            !note.isDeleted && note.tags.contains { $0.name == tagName }
+        }
+        _notes = Query(filter: filter)
+    }
+    
+    var body: some View {
+        Text("\(notes.count) 个记录")
+            .font(.caption)
+            .foregroundColor(.secondary)
     }
 }

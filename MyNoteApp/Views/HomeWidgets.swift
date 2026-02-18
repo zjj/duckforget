@@ -52,21 +52,22 @@ struct TagWidget: View {
     let size: WidgetSize
     @Binding var showTagDetail: Bool
     
-    // 优化：使用反向查询，从 TagItem 获取记录列表，利用数据库索引
-    @Query(sort: \TagItem.sortOrder)
-    var allTags: [TagItem]
+    // 使用 Query 直接查询符合条件的 NoteItem，不仅能正确过滤已删除记录，还能实时响应 isDeleted 变化
+    @Query var notes: [NoteItem]
     
-    // 找到匹配的标签
-    var tag: TagItem? {
-        allTags.first { $0.name == tagName }
+    init(tagName: String, size: WidgetSize, showTagDetail: Binding<Bool>) {
+        self.tagName = tagName
+        self.size = size
+        self._showTagDetail = showTagDetail
+        
+        let filter = #Predicate<NoteItem> { note in
+            !note.isDeleted && note.tags.contains { $0.name == tagName }
+        }
+        _notes = Query(filter: filter, sort: \.updatedAt, order: .reverse)
     }
     
-    // 通过标签的 notes 关系获取记录，过滤已删除的记录
     var tagNotes: [NoteItem] {
-        guard let tag = tag else { return [] }
-        return tag.notes
-            .filter { !$0.isDeleted }
-            .sorted { $0.updatedAt > $1.updatedAt }
+        return notes
     }
     
     var displayedNotes: [NoteItem] {

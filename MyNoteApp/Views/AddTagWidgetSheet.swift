@@ -116,9 +116,7 @@ struct AddTagWidgetSheet: View {
                                                     .font(.headline)
                                                     .foregroundColor(.primary)
                                                 
-                                                Text("\(tag.notes.filter { !$0.isDeleted }.count) 个记录")
-                                                    .font(.caption)
-                                                    .foregroundColor(.secondary)
+                                                TagNoteCountView(tagName: tag.name)
                                             }
                                             
                                             Spacer()
