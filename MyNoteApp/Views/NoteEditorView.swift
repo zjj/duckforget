@@ -11,6 +11,7 @@ struct NoteEditorView: View {
     var onPublish: (() -> Void)? = nil
     @Environment(NoteStore.self) var noteStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var toolbarSettings: ToolbarSettings
 
     // 内容状态
@@ -261,9 +262,17 @@ struct NoteEditorView: View {
         }
         .onChange(of: isVoiceButtonPressed) {
             // 当按钮松开时，停止录音
-            if !isVoiceButtonPressed && speechRecognizer.isRecording {
+            // 注意：这里需要无条件停止，哪怕 speechRecognizer.isRecording 暂时为 false
+            // 因为如果是首次授权过程，isRecording 还没变成 true，但用户松手了，意图是停止
+            if !isVoiceButtonPressed {
                 speechRecognizer.stopRecording()
                 voiceDragOffset = 0
+            }
+        }
+        .onChange(of: scenePhase) { newPhase in
+            // 如果应用失去焦点（如弹出权限请求），且正在录音，则强制停止
+            if newPhase != .active && isVoiceButtonPressed {
+                isVoiceButtonPressed = false
             }
         }
         // 各类选择器
