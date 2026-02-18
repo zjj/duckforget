@@ -52,25 +52,67 @@ struct DashboardDetailView: View {
             
             // Empty state guidance
             if page.items.isEmpty {
-                VStack(spacing: 16) {
+                let emptyStateContent = VStack(spacing: 16) {
                     Image(systemName: isEditing ? "plus.square.dashed" : "rectangle.on.rectangle.angled")
                         .font(.system(size: 60))
-                        .foregroundColor(.secondary.opacity(0.5))
+                        .foregroundColor(isEditing ? .accentColor.opacity(0.6) : .secondary.opacity(0.5))
                     
-                    Text(isEditing ? "点击下方「添加组件」开始定制" : "这个仪表盘是空的")
+                    Text(isEditing ? "点击添加组件" : "这个仪表盘是空的")
                         .font(.headline)
-                        .foregroundColor(.secondary)
-                    
+                        .foregroundColor(isEditing ? .accentColor : .secondary)
+
                     if !isEditing {
-                        Text("点击「定制」开始添加组件")
+                        Text("点击这里开始定制")
                             .font(.subheadline)
-                            .foregroundColor(.secondary.opacity(0.8))
+                            .foregroundColor(.accentColor.opacity(0.8))
                     }
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 60)
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
+
+                if isEditing {
+                    let orderedTypes: [WidgetType] = [
+                        .newNote,
+                        .encouragement,
+                        .tag,
+                        .recentNotes,
+                        .search,
+                        .trash
+                    ]
+                    Menu {
+                        ForEach(orderedTypes, id: \.self) { type in
+                            Button(action: {
+                                let generator = UIImpactFeedbackGenerator(style: .light)
+                                generator.impactOccurred()
+                                if type == .tag {
+                                    showingAddTagWidget = true
+                                } else if type == .encouragement {
+                                    newEncouragementText = DashboardItem.defaultEncouragement
+                                    showingAddEncouragementWidget = true
+                                } else {
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                        dashboardConfig.addItem(to: pageId, type: type)
+                                    }
+                                }
+                            }) {
+                                Label("添加 \(type.displayName)", systemImage: type.iconName)
+                            }
+                        }
+                    } label: {
+                        emptyStateContent
+                    }
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                } else {
+                    emptyStateContent
+                        .onTapGesture {
+                            withAnimation {
+                                isEditing = true
+                            }
+                        }
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                }
             }
         }
         .listStyle(.plain)
