@@ -34,8 +34,8 @@ struct AboutView: View {
             Section(header: Text("功能特色")) {
                 FeatureRow(icon: "bolt.fill", title: "灵感速记", description: "支持文本、语音、拍照、扫描、手绘等多种记录方式，捕捉每一个灵感瞬间。")
                 FeatureRow(icon: "square.grid.2x2.fill", title: "个性化看板", description: "自由定制首页组件，鼓励语、统计数据、常用功能一触即达。")
-                FeatureRow(icon: "tag.fill", title: "高效管理", description: "强大的标签系统与文件夹分类，让您的笔记井井有条，检索更轻松。")
-                FeatureRow(icon: "lock.shield.fill", title: "隐私安全", description: "所有数据本地存储，无需联网，完全掌控您的个人隐私。")
+                FeatureRow(icon: "tag.fill", title: "高效管理", description: "强大的标签系统分类，让您的笔记井井有条，检索更轻松。")
+                FeatureRow(icon: "lock.shield.fill", title: "隐私安全", description: "所有数据本地存储，无需联网，您完全掌控个人隐私。")
             }
             
             // Legal & Agreements
