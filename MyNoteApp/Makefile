@@ -1,5 +1,5 @@
 APP_NAME = MyNoteApp
-BUNDLE_ID = net.zhong.MyNoteApp
+BUNDLE_ID = com.duckforget.MyNoteApp
 SDK = $(shell xcrun --sdk iphonesimulator --show-sdk-path)
 # 自动检测架构 (arm64 或 x86_64)
 ARCH = $(shell uname -m)

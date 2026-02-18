@@ -283,7 +283,7 @@ class NoteStore {
 
         let item = CSSearchableItem(
             uniqueIdentifier: note.id.uuidString,
-            domainIdentifier: "net.zhongjj.MyNoteApp.notes",
+            domainIdentifier: "com.duckforget.MyNoteApp.notes",
             attributeSet: attributeSet
         )
         item.expirationDate = Date.distantFuture

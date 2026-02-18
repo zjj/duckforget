@@ -174,6 +174,12 @@ struct DashboardManagementView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
+            
+            Section(header: Text("其它")) {
+                NavigationLink(destination: AboutView()) {
+                    Label("关于", systemImage: "info.circle")
+                }
+            }
         }
         .alert("确认删除", isPresented: $showDeleteConfirmation) {
             Button("取消", role: .cancel) { }
