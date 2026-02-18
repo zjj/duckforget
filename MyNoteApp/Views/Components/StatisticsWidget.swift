@@ -33,22 +33,28 @@ struct StatisticsWidget: View {
     // MARK: - Views
     
     var body: some View {
-        Group {
-            switch size {
-            case .small:
-                smallView
-            case .medium:
-                mediumView
-            case .large:
-                largeView
-            case .fullPage:
-                fullPageView
+        if size == .fullPage {
+            fullPageView
+                .navigationTitle("统计数据")
+                .background(Color(.systemGroupedBackground))
+        } else {
+            Group {
+                switch size {
+                case .small:
+                    smallView
+                case .medium:
+                    mediumView
+                case .large:
+                    largeView
+                default:
+                    EmptyView()
+                }
             }
+            .padding()
+            .background(Color(.systemBackground))
+            .cornerRadius(16)
+            .shadow(color: Color.black.opacity(0.05), radius: 6, x: 0, y: 3)
         }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.05), radius: 6, x: 0, y: 3)
     }
     
     // MARK: - Small View (Summary)
@@ -121,7 +127,6 @@ struct StatisticsWidget: View {
             
             // Contribution Graph
             // Last 12 weeks
-            let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 12)
             
             LazyHGrid(rows: Array(repeating: GridItem(.fixed(12), spacing: 4), count: 7), spacing: 4) {
                 ForEach(getContributionData(), id: \.date) { item in
@@ -162,18 +167,42 @@ struct StatisticsWidget: View {
                     summaryCard(title: "总附件", value: "\(totalAttachments)", icon: "paperclip", color: .orange)
                 }
                 
-                // Weekly Chart
+                // Contribution Heatmap (Calendar Style)
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("创作日历")
+                        .font(.headline)
+                    
+                    calendarContributionView
+                }
+                .padding()
+                .background(Color(.secondarySystemBackground))
+                .cornerRadius(12)
+                
+                // Recent Trend
                 VStack(alignment: .leading) {
                     Text("近期趋势")
                         .font(.headline)
                     
                     if #available(iOS 16.0, *) {
-                        Chart(getLast30DaysStats(), id: \.date) { item in
+                        Chart(getLast7DaysStats(), id: \.date) { item in
                             BarMark(
                                 x: .value("Date", item.date, unit: .day),
                                 y: .value("Count", item.count)
                             )
-                            .foregroundStyle(Color.accentColor)
+                            .foregroundStyle(Color.accentColor.gradient)
+                            .cornerRadius(4)
+                            .annotation(position: .top) {
+                                if item.count > 0 {
+                                    Text("\(item.count)")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                        .chartXAxis {
+                            AxisMarks(values: .stride(by: .day)) { value in
+                                AxisValueLabel(format: .dateTime.weekday(.abbreviated))
+                            }
                         }
                         .frame(height: 200)
                     }
@@ -201,8 +230,20 @@ struct StatisticsWidget: View {
                                     angularInset: 1.5
                                 )
                                 .foregroundStyle(by: .value("Tag", item.tagName))
+                                .annotation(position: .overlay) {
+                                    VStack(spacing: 0) {
+                                        Text(item.tagName)
+                                            .font(.caption2)
+                                            .headerProminence(.increased)
+                                        Text("\(item.count)")
+                                            .font(.caption)
+                                            .fontWeight(.bold)
+                                    }
+                                    .foregroundColor(.white)
+                                    .shadow(radius: 1)
+                                }
                             }
-                            .frame(height: 200)
+                            .frame(height: 250)
                         }
                     }
                 }
@@ -214,6 +255,41 @@ struct StatisticsWidget: View {
         }
     }
     
+    private var calendarContributionView: some View {
+        let calendar = Calendar.current
+        let today = Date()
+        
+        // 生成最近 6 个月
+        let months = (0..<6).compactMap { i in
+            calendar.date(byAdding: .month, value: -i, to: today)
+        }.reversed()
+        let monthArray = Array(months)
+        
+        return ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 16) {
+                    ForEach(monthArray, id: \.self) { month in
+                        MonthCalendarView(month: month, allNotes: allNotes)
+                            .frame(width: 300) // 设定固定宽度以确保日历显示正常
+                            .padding()
+                            .background(Color(.systemBackground))
+                            .cornerRadius(8)
+                            .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+                            .id(month)
+                    }
+                }
+                .padding(.horizontal, 4)
+                .padding(.bottom, 8) // 为阴影留出空间
+            }
+            .onAppear {
+                // 默认滚动到当前月份（最后一个）
+                if let lastMonth = monthArray.last {
+                    proxy.scrollTo(lastMonth, anchor: .trailing)
+                }
+            }
+        }
+    }
+
     private func summaryCard(title: String, value: String, icon: String, color: Color) -> some View {
         HStack {
             VStack(alignment: .leading) {
@@ -255,6 +331,20 @@ struct StatisticsWidget: View {
         return stats.reversed()
     }
     
+    private func getLast15DaysStats() -> [DateStat] {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        var stats: [DateStat] = []
+        
+        for i in 0..<15 {
+            if let date = calendar.date(byAdding: .day, value: -i, to: today) {
+                let count = allNotes.filter { !$0.isDeleted && calendar.isDate($0.createdAt, inSameDayAs: date) }.count
+                stats.append(DateStat(date: date, count: count))
+            }
+        }
+        return stats.reversed()
+    }
+
     private func getLast30DaysStats() -> [DateStat] {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
@@ -314,5 +404,105 @@ struct StatisticsWidget: View {
     
     private var mostActiveTag: String? {
         getTagStats().first?.tagName
+    }
+}
+
+struct MonthCalendarView: View {
+    let month: Date
+    let allNotes: [NoteItem]
+    private let calendar = Calendar.current
+    
+    // Grid Setup
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
+    
+    private var monthName: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy年 M月"
+        return formatter.string(from: month)
+    }
+    
+    private var days: [Date?] {
+        // Build the calendar grid
+        guard let monthInterval = calendar.dateInterval(of: .month, for: month) else { return [] }
+        let firstDay = monthInterval.start
+        
+        let range = calendar.range(of: .day, in: .month, for: firstDay)!
+        let numDays = range.count
+        
+        // Sunday=1, Monday=2...
+        let firstWeekday = calendar.component(.weekday, from: firstDay)
+        
+        var daysArray: [Date?] = []
+        
+        // Add placeholders for empty slots before the 1st of the month
+        for _ in 1..<firstWeekday {
+            daysArray.append(nil)
+        }
+        
+        for day in 1...numDays {
+            if let date = calendar.date(byAdding: .day, value: day - 1, to: firstDay) {
+                daysArray.append(date)
+            }
+        }
+        
+        // Pad to ensure 6 rows (42 days) for consistent height
+        while daysArray.count < 42 {
+            daysArray.append(nil)
+        }
+        
+        return daysArray
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(monthName)
+                .font(.headline)
+                .padding(.bottom, 4)
+            
+            // Weekday Headers
+            HStack {
+                ForEach(["日", "一", "二", "三", "四", "五", "六"], id: \.self) { day in
+                    Text(day)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            
+            // Days Grid
+            let gridDays = days
+            LazyVGrid(columns: columns, spacing: 4) {
+                ForEach(0..<gridDays.count, id: \.self) { index in
+                    if let date = gridDays[index] {
+                        let count = countForDate(date)
+                        let dayNum = calendar.component(.day, from: date)
+                        
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(colorForCount(count))
+                                .aspectRatio(1, contentMode: .fit)
+                            
+                            Text("\(dayNum)")
+                                .font(.caption2)
+                                .foregroundColor(count > 0 ? .white : .primary)
+                        }
+                    } else {
+                        Color.clear
+                            .aspectRatio(1, contentMode: .fit)
+                    }
+                }
+            }
+        }
+    }
+    
+    private func countForDate(_ date: Date) -> Int {
+        allNotes.filter { !$0.isDeleted && calendar.isDate($0.createdAt, inSameDayAs: date) }.count
+    }
+    
+    private func colorForCount(_ count: Int) -> Color {
+        if count == 0 { return Color(.secondarySystemFill) }
+        if count == 1 { return Color.accentColor.opacity(0.4) }
+        if count <= 3 { return Color.accentColor.opacity(0.7) }
+        return Color.accentColor
     }
 }

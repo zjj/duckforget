@@ -80,7 +80,7 @@ struct DashboardDetailView: View {
                         let orderedTypes: [WidgetType] = [
                             .newNote,
                             .encouragement,
-                            .statistics,
+                            //.statistics,
                             .tag,
                             .recentNotes,
                             .search,

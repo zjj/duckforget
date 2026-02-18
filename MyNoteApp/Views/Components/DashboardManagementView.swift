@@ -130,6 +130,20 @@ struct DashboardManagementView: View {
                 }
             }
             
+            Section(header: Text("数据统计")) {
+                NavigationLink {
+                    StatisticsWidget(size: .fullPage)
+                } label: {
+                    Label("查看统计数据", systemImage: "chart.bar.xaxis")
+                }
+            }
+            
+            Section(header: Text("标签")) {
+                NavigationLink(destination: TagManagementPage()) {
+                    Label("标签管理", systemImage: "tag")
+                }
+            }
+
             Section(header: Text("编辑器")) {
                 Toggle(isOn: $toolbarSettings.isVoiceInputEnabled) {
                     Label("语音输入", systemImage: "mic.fill")
@@ -140,13 +154,7 @@ struct DashboardManagementView: View {
                     Label("工具栏", systemImage: "arrow.left.arrow.right")
                 }
             }
-            
-            Section(header: Text("标签")) {
-                NavigationLink(destination: TagManagementPage()) {
-                    Label("标签管理", systemImage: "tag")
-                }
-            }
-            
+
             Section {
                 HStack {
                     Label("保留天数", systemImage: "trash")
