@@ -274,22 +274,53 @@ struct NoteListView: View {
                 NoteEditorView(note: note)
                     .environment(noteStore)
             } label: {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 12) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(note.preview)
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                                .lineLimit(2)
-                                .foregroundColor(.primary)
+                VStack(alignment: .leading, spacing: 8) {
+                    // 第一行：标签 + 时间（右对齐）
+                    HStack(spacing: 6) {
+                        if !note.tags.isEmpty {
+                            let maxTagsToShow = 5
+                            let displayTags = Array(note.tags.prefix(maxTagsToShow))
+                            let remainingCount = note.tags.count - maxTagsToShow
+                            
+                            HStack(spacing: 6) {
+                                ForEach(displayTags) { tag in
+                                    Text(tag.name)
+                                        .font(.caption2)
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 3)
+                                        .background(Color.accentColor)
+                                        .cornerRadius(4)
+                                }
+                                
+                                if remainingCount > 0 {
+                                    Text("+\(remainingCount)")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        } else {
+                            Spacer()
+                                .frame(height: 24)
                         }
+                        
                         Spacer()
+                        
                         Text(note.createdAt.formattedAbsolute)
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }
+                    .frame(height: 24)
                     
-                    // 附件图标
+                    // 第二行：文字
+                    Text(note.preview)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .lineLimit(2)
+                        .foregroundColor(.primary)
+                        .frame(height: 40, alignment: .leading)
+                    
+                    // 第三行：附件图标
                     if !note.attachments.isEmpty {
                         let noteAttachments = note.attachments.sorted { $0.createdAt < $1.createdAt }
                         HStack(spacing: 6) {
@@ -297,13 +328,18 @@ struct NoteListView: View {
                                 AttachmentMiniIcon(type: att.type)
                             }
                             if noteAttachments.count > 6 {
-                                Text("+\\(noteAttachments.count - 6)")
+                                Text("+\(noteAttachments.count - 6)")
                                     .font(.caption2)
                                     .foregroundColor(.secondary)
                             }
                         }
+                        .frame(height: 24)
+                    } else {
+                        Spacer()
+                            .frame(height: 24)
                     }
                 }
+                .frame(height: 100)
                 .padding(12)
                 .background(Color(.systemGray6))
                 .cornerRadius(12)
@@ -415,15 +451,47 @@ struct GridNoteCard: View {
             }
             
             // 文本内容
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
+                // 第一行：标签
+                if !note.tags.isEmpty {
+                    let maxTagsToShow = 3
+                    let displayTags = Array(note.tags.prefix(maxTagsToShow))
+                    let remainingCount = note.tags.count - maxTagsToShow
+                    
+                    HStack(spacing: 5) {
+                        ForEach(displayTags) { tag in
+                            Text(tag.name)
+                                .font(.caption)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 3)
+                                .background(Color.accentColor.opacity(0.85))
+                                .cornerRadius(4)
+                        }
+                        
+                        if remainingCount > 0 {
+                            Text("+\(remainingCount)")
+                                .font(.caption)
+                                .foregroundColor(thumbnailImage != nil ? .white.opacity(0.9) : .secondary)
+                        }
+                    }
+                    .frame(height: 20)
+                } else {
+                    Spacer()
+                        .frame(height: 20)
+                }
+                
+                // 第二行：标题
                 Text(note.preview)
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .lineLimit(2)
                     .foregroundColor(thumbnailImage != nil ? .white : .primary)
+                    .frame(height: 36)
                 
                 Spacer()
                 
+                // 第三行：附件数量+时间
                 HStack(alignment: .bottom) {
                     // 附件数量
                     if !note.attachments.isEmpty {
@@ -443,8 +511,9 @@ struct GridNoteCard: View {
                         .font(.caption2)
                         .foregroundColor(thumbnailImage != nil ? .white.opacity(0.9) : .secondary)
                 }
+                .frame(height: 20)
             }
-            .padding(10)
+            .padding(12)
         }
         .frame(height: 140)
         .frame(maxWidth: .infinity)
