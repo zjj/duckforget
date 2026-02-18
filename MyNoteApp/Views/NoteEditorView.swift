@@ -60,6 +60,7 @@ struct NoteEditorView: View {
     @State private var initialContent = "" // 初始内容，用于检测是否有变化
     @State private var initialAttachmentCount = 0 // 初始附件数量
     @State private var initialTagIDs: Set<UUID> = [] // 初始标签 ID 集合
+    @State private var deletedAttachmentIDs: Set<UUID> = [] // 临时删除的附件 ID，用于 UI 隐藏
 
     // 语音输入拖拽状态
     @State private var voiceDragOffset: CGFloat = 0
@@ -84,6 +85,7 @@ struct NoteEditorView: View {
 
     private var currentAttachments: [AttachmentItem] {
         noteStore.getAttachments(for: note)
+            .filter { !deletedAttachmentIDs.contains($0.id) }
     }
     
     // 检测是否有实际的内容或附件变化
@@ -438,7 +440,13 @@ struct NoteEditorView: View {
                 ForEach(currentAttachments) { attachment in
                     AttachmentThumbnailView(
                         attachment: attachment,
-                        shouldSaveOnDelete: false // 在编辑器中删除，只有点保存才执行
+                        shouldSaveOnDelete: false, // 在编辑器中删除，只有点保存才执行
+                        onDelete: {
+                            // 立即在 UI 上隐藏该附件
+                            withAnimation {
+                                _ = deletedAttachmentIDs.insert(attachment.id)
+                            }
+                        }
                     )
                     .frame(width: 100, height: 100)
                     .onTapGesture {
@@ -594,6 +602,9 @@ struct NoteEditorView: View {
         // 不再自动退出，而是保留在当前页面
         initialContent = note.content
         initialAttachmentCount = currentAttachments.count
+        
+        // 保存成功后，清理已删除ID集合
+        deletedAttachmentIDs.removeAll()
         
         // 更新标签基准状态
         initialTagIDs = Set(note.tags.map { $0.id })

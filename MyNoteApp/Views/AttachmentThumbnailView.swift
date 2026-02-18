@@ -4,6 +4,7 @@ import SwiftUI
 struct AttachmentThumbnailView: View {
     let attachment: AttachmentItem
     var shouldSaveOnDelete: Bool = true
+    var onDelete: (() -> Void)? = nil
     @Environment(NoteStore.self) var noteStore
     @State private var thumbnailImage: UIImage?
     @State private var showDeleteConfirmation = false
@@ -45,6 +46,7 @@ struct AttachmentThumbnailView: View {
             Button("删除", role: .destructive) {
                 withAnimation {
                     noteStore.deleteAttachment(attachment, shouldSave: shouldSaveOnDelete)
+                    onDelete?()
                 }
             }
         } message: {
