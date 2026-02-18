@@ -167,7 +167,7 @@ struct TagWidget: View {
         let noteAttachments = note.attachments.sorted { $0.createdAt < $1.createdAt }
         HStack(spacing: 6) {
             ForEach(noteAttachments.prefix(6)) { att in
-                AttachmentMiniIcon(type: att.type)
+                WidgetAttachmentThumbnail(attachment: att)
             }
             if noteAttachments.count > 6 {
                 Text("+\(noteAttachments.count - 6)")
@@ -295,7 +295,7 @@ struct RecentNotesWidget: View {
         let noteAttachments = note.attachments.sorted { $0.createdAt < $1.createdAt }
         HStack(spacing: 6) {
             ForEach(noteAttachments.prefix(6)) { att in
-                AttachmentMiniIcon(type: att.type)
+                WidgetAttachmentThumbnail(attachment: att)
             }
             if noteAttachments.count > 6 {
                 Text("+\(noteAttachments.count - 6)")
@@ -888,7 +888,7 @@ struct TagFullPagePreview: View {
                                         if !note.attachments.isEmpty {
                                             HStack(spacing: 4) {
                                                 ForEach(note.attachments.prefix(3)) { att in
-                                                    AttachmentMiniIcon(type: att.type)
+                                                    WidgetAttachmentThumbnail(attachment: att)
                                                 }
                                                 if note.attachments.count > 3 {
                                                     Text("+\(note.attachments.count - 3)")
@@ -1015,7 +1015,7 @@ struct RecentNotesFullPagePreview: View {
                                         if !note.attachments.isEmpty {
                                             HStack(spacing: 4) {
                                                 ForEach(note.attachments.prefix(3)) { att in
-                                                    AttachmentMiniIcon(type: att.type)
+                                                    WidgetAttachmentThumbnail(attachment: att)
                                                 }
                                                 if note.attachments.count > 3 {
                                                     Text("+\(note.attachments.count - 3)")
@@ -1127,3 +1127,57 @@ struct TagFullPagePreviewStatic: View {
         .onTapGesture(perform: onTap)
     }
 }
+
+// MARK: - 附件缩略图组件 (复用 NoteRowView 的逻辑)
+
+private struct WidgetAttachmentThumbnail: View {
+    let attachment: AttachmentItem
+    @Environment(NoteStore.self) var noteStore
+    @State private var image: UIImage?
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 22, height: 22)
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+            } else {
+                AttachmentMiniIcon(type: attachment.type)
+            }
+        }
+        .onAppear {
+            loadThumbnail()
+        }
+    }
+    
+    private func loadThumbnail() {
+        guard [.photo, .video, .scannedDocument, .scannedText, .drawing, .location].contains(attachment.type) else { return }
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            var loadedImage: UIImage?
+            
+            // 优先加载缩略图
+            if let thumbURL = noteStore.thumbnailURL(for: attachment),
+               let data = try? Data(contentsOf: thumbURL) {
+                loadedImage = UIImage(data: data)
+            }
+            
+            // 回退到原图
+            if loadedImage == nil {
+                let url = noteStore.attachmentURL(for: attachment)
+                if let data = try? Data(contentsOf: url) {
+                    loadedImage = UIImage(data: data)
+                }
+            }
+            
+            if let result = loadedImage {
+                DispatchQueue.main.async {
+                    self.image = result
+                }
+            }
+        }
+    }
+}
+
