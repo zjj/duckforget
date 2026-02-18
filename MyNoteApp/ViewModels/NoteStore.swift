@@ -253,66 +253,6 @@ class NoteStore {
         note.attachments.sorted { $0.createdAt < $1.createdAt }
     }
 
-    // MARK: - Export
-
-    /// 导出为纯文本
-    func exportAsText(_ note: NoteItem) -> String {
-        var result = note.content
-        if !note.attachments.isEmpty {
-            result += "\n\n---\n附件: \(note.attachments.count) 个"
-        }
-        return result
-    }
-
-    /// 导出为 PDF Data
-    func exportAsPDF(_ note: NoteItem) -> Data {
-        let pageWidth: CGFloat = 612
-        let pageHeight: CGFloat = 792
-        let margin: CGFloat = 50
-        let contentWidth = pageWidth - margin * 2
-
-        let renderer = UIGraphicsPDFRenderer(
-            bounds: CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight))
-
-        return renderer.pdfData { ctx in
-            ctx.beginPage()
-
-            // 标题
-            let titleFont = UIFont.boldSystemFont(ofSize: 24)
-            let titleAttr: [NSAttributedString.Key: Any] = [
-                .font: titleFont,
-                .foregroundColor: UIColor.black,
-            ]
-            let titleStr = note.preview as NSString
-            let titleRect = CGRect(x: margin, y: margin, width: contentWidth, height: 40)
-            titleStr.draw(in: titleRect, withAttributes: titleAttr)
-
-            // 日期
-            let dateFont = UIFont.systemFont(ofSize: 12)
-            let dateAttr: [NSAttributedString.Key: Any] = [
-                .font: dateFont,
-                .foregroundColor: UIColor.gray,
-            ]
-            let dateStr = note.updatedAt.formattedFull as NSString
-            let dateRect = CGRect(x: margin, y: margin + 45, width: contentWidth, height: 20)
-            dateStr.draw(in: dateRect, withAttributes: dateAttr)
-
-            // 正文
-            let bodyFont = UIFont.systemFont(ofSize: 14)
-            let paragraphStyle = NSMutableParagraphStyle()
-            paragraphStyle.lineSpacing = 6
-            let bodyAttr: [NSAttributedString.Key: Any] = [
-                .font: bodyFont,
-                .foregroundColor: UIColor.darkGray,
-                .paragraphStyle: paragraphStyle,
-            ]
-            let bodyStr = note.content as NSString
-            let bodyMaxRect = CGRect(
-                x: margin, y: margin + 75, width: contentWidth, height: pageHeight - margin * 2 - 75
-            )
-            bodyStr.draw(in: bodyMaxRect, withAttributes: bodyAttr)
-        }
-    }
 
     // MARK: - Spotlight
 

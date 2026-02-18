@@ -46,9 +46,6 @@ struct NoteEditorView: View {
     // 撤销/重做状态
     @State private var canUndo = false
     @State private var canRedo = false
-
-    // 导出
-    @State private var showExport = false
     
     // 标签管理
     @State private var showTagManagement = false
@@ -212,11 +209,6 @@ struct NoteEditorView: View {
                         
                         // 仅编辑模式或已发布过才显示导出/删除
                         if onPublish == nil || hasPublished {
-                            Button {
-                                showExport = true
-                            } label: {
-                                Label("导出", systemImage: "square.and.arrow.up")
-                            }
                             Button(role: .destructive) {
                                 showDeleteConfirmation = true
                             } label: {
@@ -307,10 +299,6 @@ struct NoteEditorView: View {
         }
         .sheet(item: $selectedAttachment) { att in
             AttachmentViewerSheet(attachment: att)
-                .environment(noteStore)
-        }
-        .sheet(isPresented: $showExport) {
-            ExportSheet(note: note)
                 .environment(noteStore)
         }
         .sheet(isPresented: $showTagManagement) {
