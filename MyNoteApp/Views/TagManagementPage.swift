@@ -10,6 +10,8 @@ struct TagManagementPage: View {
     @State private var newTagName = ""
     @State private var editingTag: TagItem?
     @State private var editingTagName = ""
+    @State private var tagToDelete: TagItem?
+    @State private var showDeleteConfirmation = false
     
     var body: some View {
         List {
@@ -45,7 +47,8 @@ struct TagManagementPage: View {
                             }
                             
                             Button(role: .destructive) {
-                                noteStore.deleteTag(tag)
+                                tagToDelete = tag
+                                showDeleteConfirmation = true
                             } label: {
                                 Label("删除", systemImage: "trash")
                             }
@@ -57,7 +60,8 @@ struct TagManagementPage: View {
                     }
                     .swipeActions(edge: .trailing) {
                         Button(role: .destructive) {
-                            noteStore.deleteTag(tag)
+                            tagToDelete = tag
+                            showDeleteConfirmation = true
                         } label: {
                             Label("删除", systemImage: "trash")
                         }
@@ -101,6 +105,19 @@ struct TagManagementPage: View {
             }
             Button("保存") {
                 renameTag()
+            }
+        }
+        .alert("确认删除", isPresented: $showDeleteConfirmation) {
+            Button("取消", role: .cancel) { }
+            Button("删除", role: .destructive) {
+                if let tag = tagToDelete {
+                    noteStore.deleteTag(tag)
+                    tagToDelete = nil
+                }
+            }
+        } message: {
+            if let tag = tagToDelete {
+                Text("确定要删除标签「\(tag.name)」吗？这不会删除笔记，只会移除标签关联。")
             }
         }
     }

@@ -13,6 +13,8 @@ struct DashboardManagementView: View {
     @Binding var editingStates: [UUID: Bool]
     
     @State private var trashRetentionDays: Int = AppSettings.shared.trashRetentionDays
+    @State private var pageToDelete: DashboardPage?
+    @State private var showDeleteConfirmation = false
 
     var body: some View {
         List {
@@ -87,7 +89,8 @@ struct DashboardManagementView: View {
                             }
                             
                             Button(role: .destructive) {
-                                dashboardConfig.removePage(page)
+                                pageToDelete = page
+                                showDeleteConfirmation = true
                             } label: {
                                 Label("删除", systemImage: "trash")
                             }
@@ -101,9 +104,8 @@ struct DashboardManagementView: View {
                     }
                     .swipeActions(edge: .trailing) {
                         Button(role: .destructive) {
-                            let generator = UIImpactFeedbackGenerator(style: .medium)
-                            generator.impactOccurred()
-                            dashboardConfig.removePage(page)
+                            pageToDelete = page
+                            showDeleteConfirmation = true
                         } label: {
                             Label("删除", systemImage: "trash")
                         }
@@ -163,6 +165,19 @@ struct DashboardManagementView: View {
                 Text("回收站中的记录将在删除后保留指定天数，超过时间后将被永久删除")
                     .font(.caption)
                     .foregroundColor(.secondary)
+            }
+        }
+        .alert("确认删除", isPresented: $showDeleteConfirmation) {
+            Button("取消", role: .cancel) { }
+            Button("删除", role: .destructive) {
+                if let page = pageToDelete {
+                    dashboardConfig.removePage(page)
+                    pageToDelete = nil
+                }
+            }
+        } message: {
+            if let page = pageToDelete {
+                Text("确定要删除页面「\(page.name)」吗？该页面的所有组件配置都将被清除。")
             }
         }
     }

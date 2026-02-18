@@ -138,6 +138,7 @@ struct DashboardRow: View {
     @State private var showSearchDetail = false
     @State private var showTagDetail = false
     @State private var showRecentNotesDetail = false
+    @State private var showDeleteConfirmation = false
     
     /// Full page height: use available height from container, minus some padding for list insets
     private var fullPageHeight: CGFloat {
@@ -243,11 +244,7 @@ struct DashboardRow: View {
                     
                     // Delete Button
                     Button {
-                        let generator = UINotificationFeedbackGenerator()
-                        generator.notificationOccurred(.warning)
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                            dashboardConfig.removeItem(from: pageId, itemId: item.id)
-                        }
+                        showDeleteConfirmation = true
                     } label: {
                         Image(systemName: "trash")
                             .font(.system(size: 14, weight: .bold))
@@ -257,6 +254,18 @@ struct DashboardRow: View {
                             .shadow(color: .red.opacity(0.3), radius: 4, x: 0, y: 2)
                     }
                     .buttonStyle(.borderless) // 修复在 List 编辑模式下无法点击的问题
+                    .alert("确认删除", isPresented: $showDeleteConfirmation) {
+                        Button("取消", role: .cancel) { }
+                        Button("删除", role: .destructive) {
+                            let generator = UINotificationFeedbackGenerator()
+                            generator.notificationOccurred(.warning)
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                dashboardConfig.removeItem(from: pageId, itemId: item.id)
+                            }
+                        }
+                    } message: {
+                        Text("确定要删除这个组件吗？")
+                    }
                 }
                 .padding(8)
                 // Offset slightly to avoid overlap with List reorder handles if they appear

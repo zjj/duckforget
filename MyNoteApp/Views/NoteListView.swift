@@ -22,6 +22,8 @@ struct NoteListView: View {
     @State private var searchText = ""
     @State private var isSearching = false
     @FocusState private var searchFocused: Bool
+    @State private var noteToDelete: NoteItem?
+    @State private var showDeleteConfirmation = false
 
     /// 当前显示的活跃记录
     private var scopedNotes: [NoteItem] {
@@ -347,11 +349,23 @@ struct NoteListView: View {
             .buttonStyle(.plain)
             .contextMenu {
                 Button(role: .destructive) {
-                    noteStore.softDeleteNote(note)
+                    noteToDelete = note
+                    showDeleteConfirmation = true
                 } label: {
                     Label("删除", systemImage: "trash")
                 }
             }
+        }
+        .alert("确认删除", isPresented: $showDeleteConfirmation) {
+            Button("取消", role: .cancel) { }
+            Button("删除", role: .destructive) {
+                if let note = noteToDelete {
+                    noteStore.softDeleteNote(note)
+                    noteToDelete = nil
+                }
+            }
+        } message: {
+            Text("确定要删除这条笔记吗？删除后将移至回收站。")
         }
     }
     
@@ -369,11 +383,23 @@ struct NoteListView: View {
             .buttonStyle(.plain)
             .contextMenu {
                 Button(role: .destructive) {
-                    noteStore.softDeleteNote(note)
+                    noteToDelete = note
+                    showDeleteConfirmation = true
                 } label: {
                     Label("删除", systemImage: "trash")
                 }
             }
+        }
+        .alert("确认删除", isPresented: $showDeleteConfirmation) {
+            Button("取消", role: .cancel) { }
+            Button("删除", role: .destructive) {
+                if let note = noteToDelete {
+                    noteStore.softDeleteNote(note)
+                    noteToDelete = nil
+                }
+            }
+        } message: {
+            Text("确定要删除这条笔记吗？删除后将移至回收站。")
         }
     }
 }

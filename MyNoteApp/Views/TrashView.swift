@@ -11,6 +11,10 @@ struct TrashView: View {
     ) var trashedNotes: [NoteItem]
     
     let appSettings = AppSettings.shared
+    
+    @State private var noteToDelete: NoteItem?
+    @State private var showDeleteConfirmation = false
+    @State private var showEmptyTrashConfirmation = false
 
     var body: some View {
         Group {
@@ -50,9 +54,8 @@ struct TrashView: View {
                         .padding(.vertical, 3)
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
-                                withAnimation {
-                                    noteStore.permanentlyDeleteNote(note)
-                                }
+                                noteToDelete = note
+                                showDeleteConfirmation = true
                             } label: {
                                 Label("永久删除", systemImage: "trash.slash")
                             }
@@ -88,9 +91,7 @@ struct TrashView: View {
                         }
 
                         Button(role: .destructive) {
-                            withAnimation {
-                                noteStore.emptyTrash()
-                            }
+                            showEmptyTrashConfirmation = true
                         } label: {
                             Label("清空回收站", systemImage: "trash.slash")
                         }
@@ -99,6 +100,29 @@ struct TrashView: View {
                     }
                 }
             }
+        }
+        .alert("确认永久删除", isPresented: $showDeleteConfirmation) {
+            Button("取消", role: .cancel) { }
+            Button("永久删除", role: .destructive) {
+                if let note = noteToDelete {
+                    withAnimation {
+                        noteStore.permanentlyDeleteNote(note)
+                    }
+                    noteToDelete = nil
+                }
+            }
+        } message: {
+            Text("确定要永久删除这条笔记吗？此操作无法撤销！")
+        }
+        .alert("确认清空回收站", isPresented: $showEmptyTrashConfirmation) {
+            Button("取消", role: .cancel) { }
+            Button("永久删除全部", role: .destructive) {
+                withAnimation {
+                    noteStore.emptyTrash()
+                }
+            }
+        } message: {
+            Text("确定要清空回收站吗？所有已删除的笔记将被永久删除，此操作无法撤销！")
         }
     }
 
