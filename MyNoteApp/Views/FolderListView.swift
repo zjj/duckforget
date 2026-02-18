@@ -5,6 +5,7 @@ import SwiftUI
 struct FolderListView: View {
     @Environment(NoteStore.self) var noteStore
     @StateObject private var dashboardConfig = DashboardConfig()
+    @EnvironmentObject var deepLinkHandler: DeepLinkHandler
     
     // Page Management State
     @State private var showingAddPageAlert = false
@@ -16,6 +17,10 @@ struct FolderListView: View {
     @State private var selectedTab: UUID? = nil
     @State private var editingStates: [UUID: Bool] = [:]
     private let settingsTabID = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
+    
+    // Deep link navigation
+    @State private var noteToNavigate: NoteItem?
+    @State private var showNoteEditor = false
 
     private var isAnyPageEditing: Bool {
         editingStates.values.contains(true)
@@ -118,6 +123,40 @@ struct FolderListView: View {
                 let trimmed = newPageName.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !trimmed.isEmpty, let page = pageToRename {
                     dashboardConfig.renamePage(page, newName: trimmed)
+                }
+            }
+        }
+        .onChange(of: deepLinkHandler.noteToOpen) { _, noteID in
+            guard let noteID = noteID else { return }
+            
+            // 查找笔记
+            let descriptor = FetchDescriptor<NoteItem>(
+                predicate: #Predicate { $0.id == noteID && !$0.isDeleted }
+            )
+            if let notes = try? noteStore.modelContext.fetch(descriptor),
+               let note = notes.first {
+                noteToNavigate = note
+                showNoteEditor = true
+                deepLinkHandler.reset()
+            }
+        }
+        .fullScreenCover(isPresented: $showNoteEditor) {
+            if let note = noteToNavigate {
+                NavigationStack {
+                    NoteEditorView(note: note)
+                        .environment(noteStore)
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .topBarLeading) {
+                                Button {
+                                    showNoteEditor = false
+                                    noteToNavigate = nil
+                                } label: {
+                                    Image(systemName: "xmark")
+                                        .font(.body.weight(.semibold))
+                                }
+                            }
+                        }
                 }
             }
         }

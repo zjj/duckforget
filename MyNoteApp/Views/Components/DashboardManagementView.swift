@@ -2,6 +2,7 @@ import SwiftUI
 
 /// The view for managing dashboards (Page 0)
 struct DashboardManagementView: View {
+    @Environment(NoteStore.self) var noteStore
     @ObservedObject var dashboardConfig: DashboardConfig
     @EnvironmentObject var toolbarSettings: ToolbarSettings
     @Binding var showingAddPageAlert: Bool

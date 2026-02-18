@@ -2,6 +2,7 @@ import CoreSpotlight
 import SwiftData
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 /// 记录数据管理 - 负责所有记录和附件的CRUD及持久化（SwiftData）
 @Observable
@@ -90,6 +91,8 @@ class NoteStore {
         let note = NoteItem(tags: tags)
         modelContext.insert(note)
         try? modelContext.save()
+        // 新创建的笔记通常是空的，不立即索引
+        // 当用户输入内容并保存时，updateNote 会触发索引
         return note
     }
 
@@ -314,39 +317,55 @@ class NoteStore {
     // MARK: - Spotlight
 
     func indexNoteInSpotlight(_ note: NoteItem) {
-        let attributeSet = CSSearchableItemAttributeSet(contentType: .text)
+        // 只索引非空的笔记
+        guard !note.content.isEmpty || !note.attachments.isEmpty else {
+            return
+        }
+        
+        let attributeSet = CSSearchableItemAttributeSet(contentType: UTType.text)
+        
+        // 标题和显示名称
         attributeSet.title = note.preview
+        attributeSet.displayName = note.preview
+        
+        // 内容 - 这是关键！
+        attributeSet.textContent = note.content
         attributeSet.contentDescription = note.content
+        
+        // 日期
         attributeSet.contentModificationDate = note.updatedAt
+        attributeSet.contentCreationDate = note.createdAt
+        
+        // 标签作为关键词
+        if !note.tags.isEmpty {
+            attributeSet.keywords = note.tags.map { $0.name }
+        }
 
         let item = CSSearchableItem(
             uniqueIdentifier: note.id.uuidString,
-            domainIdentifier: "com.mynoteapp.notes",
+            domainIdentifier: "net.zhongjj.MyNoteApp.notes",
             attributeSet: attributeSet
         )
         item.expirationDate = Date.distantFuture
 
-        CSSearchableIndex.default().indexSearchableItems([item]) { error in
-            if let error = error {
-                print("❌ Spotlight 索引失败: \(error)")
-            }
+        CSSearchableIndex.default().indexSearchableItems([item]) { _ in
+            // 静默索引，不输出日志
         }
     }
 
     func deindexNoteFromSpotlight(_ note: NoteItem) {
         CSSearchableIndex.default().deleteSearchableItems(
             withIdentifiers: [note.id.uuidString]
-        ) { error in
-            if let error = error {
-                print("❌ Spotlight 移除失败: \(error)")
-            }
-        }
+        ) { _ in }
     }
 
     /// 索引所有非删除的记录到 Spotlight
     func reindexAllNotes() {
+        CSSearchableIndex.default().deleteAllSearchableItems { _ in }
+        
         let descriptor = FetchDescriptor<NoteItem>(predicate: #Predicate { $0.isDeleted == false })
         guard let notes = try? modelContext.fetch(descriptor) else { return }
+        
         for note in notes {
             indexNoteInSpotlight(note)
         }
