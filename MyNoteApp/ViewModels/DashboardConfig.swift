@@ -33,9 +33,11 @@ class DashboardConfig: ObservableObject {
             let defaultItems = [
                 DashboardItem(type: .encouragement, size: .small, order: 0, content: DashboardItem.defaultEncouragement),
                 DashboardItem(type: .search, size: .small, order: 1),
-                DashboardItem(type: .recentNotes, size: .medium, order: 2)
+                DashboardItem(type: .recentNotes, size: .medium, order: 2),
+                DashboardItem(type: .trash, size: .small, order: 3),
+                DashboardItem(type: .newNote, size: .large, order: 4)
             ]
-            let homePage = DashboardPage(id: UUID(), name: "首页", items: defaultItems, creationDate: Date())
+            let homePage = DashboardPage(id: UUID(), name: "起点", items: defaultItems, creationDate: Date())
             self.pages = [homePage]
             self.selectedPageId = homePage.id
             saveConfig()
@@ -46,6 +48,20 @@ class DashboardConfig: ObservableObject {
         if let encoded = try? JSONEncoder().encode(pages) {
             UserDefaults.standard.set(encoded, forKey: pagesKey)
         }
+    }
+
+    func addDefaultLayoutPage() {
+        let defaultItems = [
+            DashboardItem(type: .encouragement, size: .small, order: 0, content: DashboardItem.defaultEncouragement),
+            DashboardItem(type: .search, size: .small, order: 1),
+            DashboardItem(type: .recentNotes, size: .medium, order: 2),
+            DashboardItem(type: .trash, size: .small, order: 3),
+            DashboardItem(type: .newNote, size: .large, order: 4)
+        ]
+        
+        let newPage = DashboardPage(id: UUID(), name: "起点", items: defaultItems, creationDate: Date())
+        pages.append(newPage)
+        saveConfig()
     }
     
     // MARK: - Page Management

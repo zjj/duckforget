@@ -22,6 +22,20 @@ struct DashboardManagementView: View {
                 HStack {
                     Text("页面定制")
                     Spacer()
+                    
+                    Menu {
+                        Button {
+                            dashboardConfig.addDefaultLayoutPage()
+                        } label: {
+                            Label("添加起点配置", systemImage: "plus.square.on.square")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.headline)
+                            .foregroundColor(.accentColor)
+                    }
+                    .padding(.trailing, 8)
+                    
                     Button {
                         newPageName = ""
                         showingAddPageAlert = true
@@ -30,7 +44,21 @@ struct DashboardManagementView: View {
                             .font(.headline)
                             .foregroundColor(.accentColor)
                     }
-                }
+                }, footer: 
+                    HStack(spacing: 2) {
+                        Text("您可以添加自定义页面，或点击")
+                        Menu {
+                            Button {
+                                dashboardConfig.addDefaultLayoutPage()
+                            } label: {
+                                Label("添加起点配置", systemImage: "plus.square.on.square")
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                                .foregroundColor(.accentColor)
+                        }
+                        Text("添加起点配置。")
+                    }
             ) {
                 ForEach(dashboardConfig.pages) { page in
                     HStack {
