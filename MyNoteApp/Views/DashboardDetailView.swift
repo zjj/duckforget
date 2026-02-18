@@ -42,6 +42,9 @@ struct DashboardDetailView: View {
                     } : nil
                 )
                 .id(item.id)
+                .onDrag {
+                    return NSItemProvider(object: item.id.uuidString as NSString)
+                }
             }
             .onMove { source, destination in
                 dashboardConfig.moveItem(in: pageId, from: source, to: destination)
@@ -71,7 +74,6 @@ struct DashboardDetailView: View {
             }
         }
         .listStyle(.plain)
-        .environment(\.editMode, .constant(isEditing ? .active : .inactive))
         .toolbar {
             if isEditing {
                 ToolbarItem(placement: .bottomBar) {
@@ -168,165 +170,127 @@ struct DashboardRow: View {
     }
     
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            // Widget Content
-            Group {
-                switch item.type {
-                case .search:
-                    SearchWidget(size: item.size, showSearch: $showSearchDetail)
-                case .tag:
-                    if let tagName = item.tagName {
-                        TagWidget(tagName: tagName, size: item.size, showTagDetail: $showTagDetail)
-                    } else {
-                        Text("标签未设置")
-                            .foregroundColor(.secondary)
-                    }
-                case .recentNotes:
-                    RecentNotesWidget(size: item.size, showRecentNotes: $showRecentNotesDetail)
-                case .newNote:
-                    newNoteCard(size: item.size)
-                case .trash:
-                    TrashWidget(size: item.size)
-                case .statistics:
-                    StatisticsWidget(size: item.size)
-                case .encouragement:
-                    EncouragementWidget(content: item.content ?? DashboardItem.defaultEncouragement, size: item.size)
-                }
-            }
-            .frame(minHeight: item.size == .fullPage ? fullPageHeight : nil)
-            .allowsHitTesting(!isEditing)
-            .opacity(isEditing ? 0.7 : 1.0)
-            .scaleEffect(isEditing ? 0.98 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isEditing)
-            .navigationDestination(isPresented: $showSearchDetail) {
-                NoteSearchPage(pageTitle: "搜索")
-            }
-            .navigationDestination(isPresented: $showTagDetail) {
+        // Widget Content
+        Group {
+            switch item.type {
+            case .search:
+                SearchWidget(size: item.size, showSearch: $showSearchDetail)
+            case .tag:
                 if let tagName = item.tagName {
-                    TagNotesListPage(tagName: tagName)
-                        .environment(noteStore)
+                    TagWidget(tagName: tagName, size: item.size, showTagDetail: $showTagDetail)
+                } else {
+                    Text("标签未设置")
+                        .foregroundColor(.secondary)
                 }
+            case .recentNotes:
+                RecentNotesWidget(size: item.size, showRecentNotes: $showRecentNotesDetail)
+            case .newNote:
+                newNoteCard(size: item.size)
+            case .trash:
+                TrashWidget(size: item.size)
+            case .statistics:
+                StatisticsWidget(size: item.size)
+            case .encouragement:
+                EncouragementWidget(content: item.content ?? DashboardItem.defaultEncouragement, size: item.size)
             }
-            .navigationDestination(isPresented: $showRecentNotesDetail) {
-                NoteSearchPage(
-                    pageTitle: "最近记录",
-                    filterRecentDays: 7,
-                    hideSearchBar: false
-                )
-                .environment(noteStore)
-            }
-            .alert("修改鼓励语", isPresented: $showEncouragementEdit) {
-                TextField("请输入鼓励的话", text: $encouragementTextTemp)
-                Button("取消", role: .cancel) { }
-                Button("确定") {
-                    let finalContent = String(encouragementTextTemp.prefix(200))
-                    dashboardConfig.updateContent(in: pageId, for: item.id, content: finalContent)
+        }
+        .frame(minHeight: item.size == .fullPage ? fullPageHeight : nil)
+        .allowsHitTesting(!isEditing)
+        // 编辑模式下高亮边框，提示可长按操作
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.accentColor.opacity(isEditing ? 0.5 : 0), lineWidth: 2)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        // 长按弹出上下文菜单（编辑模式下）
+        .contextMenu(isEditing ? ContextMenu {
+            // 调整大小
+            if item.type != .trash && item.type != .encouragement {
+                Menu {
+                    Button("小 (Compact)", systemImage: "rectangle.grid.1x2") {
+                        updateSize(.small)
+                    }
+                    Button("中 (Standard)", systemImage: "rectangle.grid.2x2") {
+                        updateSize(.medium)
+                    }
+                    Button("大 (Large)", systemImage: "rectangle.grid.3x2") {
+                        updateSize(.large)
+                    }
+                    Button("全屏 (Full Page)", systemImage: "rectangle.expand.vertical") {
+                        updateSize(.fullPage)
+                    }
+                } label: {
+                    Label("调整大小", systemImage: "arrow.up.left.and.arrow.down.right")
                 }
-            } message: {
-                Text("最多200字")
             }
             
-            // Edit Overlays
-            if isEditing {
-                // 点击遮罩：拦截点击事件，防止误触组件内部逻辑，或者误删除
-                Color.white.opacity(0.01)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        // 空操作：拦截点击
-                    }
-                
-                HStack(spacing: 8) {
-                    // Edit Content Button for Encouragement Widget
-                    if item.type == .encouragement {
-                        Button {
-                            encouragementTextTemp = item.content ?? ""
-                            showEncouragementEdit = true
-                        } label: {
-                            Image(systemName: "pencil")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(.white)
-                                .padding(8)
-                                .background(Circle().fill(Color.orange))
-                                .shadow(color: .orange.opacity(0.3), radius: 4, x: 0, y: 2)
-                        }
-                        .buttonStyle(.borderless)
-                    }
-
-                    // Resize Menu
-                    if item.type != .trash && item.type != .encouragement {
-                        Menu {
-                            Button("小 (Compact)", systemImage: "rectangle.grid.1x2") {
-                                let generator = UISelectionFeedbackGenerator()
-                                generator.selectionChanged()
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { 
-                                    dashboardConfig.updateSize(in: pageId, for: item.id, size: .small) 
-                                }
-                            }
-                            Button("中 (Standard)", systemImage: "rectangle.grid.2x2") {
-                                let generator = UISelectionFeedbackGenerator()
-                                generator.selectionChanged()
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { 
-                                    dashboardConfig.updateSize(in: pageId, for: item.id, size: .medium) 
-                                }
-                            }
-                            Button("大 (Large)", systemImage: "rectangle.grid.3x2") {
-                                let generator = UISelectionFeedbackGenerator()
-                                generator.selectionChanged()
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { 
-                                    dashboardConfig.updateSize(in: pageId, for: item.id, size: .large) 
-                                }
-                            }
-                            Button("全屏 (Full Page)", systemImage: "rectangle.expand.vertical") {
-                                let generator = UISelectionFeedbackGenerator()
-                                generator.selectionChanged()
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { 
-                                    dashboardConfig.updateSize(in: pageId, for: item.id, size: .fullPage) 
-                                }
-                            }
-                        } label: {
-                            Image(systemName: "arrow.up.left.and.arrow.down.right")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(.white)
-                                .padding(8)
-                                .background(Circle().fill(Color.blue))
-                                .shadow(color: .blue.opacity(0.3), radius: 4, x: 0, y: 2)
-                        }
-                        .menuStyle(.borderlessButton) // 修复 List 中 Menu 点击问题
-                    }
-                    
-                    // Delete Button
-                    Button {
-                        showDeleteConfirmation = true
-                    } label: {
-                        Image(systemName: "trash")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(8)
-                            .background(Circle().fill(Color.red))
-                            .shadow(color: .red.opacity(0.3), radius: 4, x: 0, y: 2)
-                    }
-                    .buttonStyle(.borderless) // 修复在 List 编辑模式下无法点击的问题
-                    .alert("确认删除", isPresented: $showDeleteConfirmation) {
-                        Button("取消", role: .cancel) { }
-                        Button("删除", role: .destructive) {
-                            let generator = UINotificationFeedbackGenerator()
-                            generator.notificationOccurred(.warning)
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                                dashboardConfig.removeItem(from: pageId, itemId: item.id)
-                            }
-                        }
-                    } message: {
-                        Text("确定要删除这个组件吗？")
-                    }
+            // 编辑内容（仅鼓励组件）
+            if item.type == .encouragement {
+                Button {
+                    encouragementTextTemp = item.content ?? ""
+                    showEncouragementEdit = true
+                } label: {
+                    Label("编辑内容", systemImage: "pencil")
                 }
-                .padding(8)
-                // Offset slightly to avoid overlap with List reorder handles if they appear
-                .padding(.trailing, 30)
-                .transition(.scale.combined(with: .opacity))
             }
+            
+            // 删除
+            Button(role: .destructive) {
+                showDeleteConfirmation = true
+            } label: {
+                Label("删除", systemImage: "trash")
+            }
+        } : nil)
+        .navigationDestination(isPresented: $showSearchDetail) {
+            NoteSearchPage(pageTitle: "搜索")
+        }
+        .navigationDestination(isPresented: $showTagDetail) {
+            if let tagName = item.tagName {
+                TagNotesListPage(tagName: tagName)
+                    .environment(noteStore)
+            }
+        }
+        .navigationDestination(isPresented: $showRecentNotesDetail) {
+            NoteSearchPage(
+                pageTitle: "最近记录",
+                filterRecentDays: 7,
+                hideSearchBar: false
+            )
+            .environment(noteStore)
+        }
+        .alert("修改鼓励语", isPresented: $showEncouragementEdit) {
+            TextField("请输入鼓励的话", text: $encouragementTextTemp)
+            Button("取消", role: .cancel) { }
+            Button("确定") {
+                let finalContent = String(encouragementTextTemp.prefix(200))
+                dashboardConfig.updateContent(in: pageId, for: item.id, content: finalContent)
+            }
+        } message: {
+            Text("最多200字")
+        }
+        .alert("确认删除", isPresented: $showDeleteConfirmation) {
+            Button("取消", role: .cancel) { }
+            Button("删除", role: .destructive) {
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.warning)
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                    dashboardConfig.removeItem(from: pageId, itemId: item.id)
+                }
+            }
+        } message: {
+            Text("确定要删除这个组件吗？")
         }
         .listRowSeparator(.hidden)
         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+        .listRowBackground(Color.clear)
+    }
+    
+    private func updateSize(_ size: WidgetSize) {
+        let generator = UISelectionFeedbackGenerator()
+        generator.selectionChanged()
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            dashboardConfig.updateSize(in: pageId, for: item.id, size: size)
+        }
     }
     
     // MARK: - 新建记录卡片
@@ -403,11 +367,12 @@ struct InlineNewNoteWidget: View {
                 Image(systemName: "text.pad.header.badge.plus")
                     .font(.headline)
                     .foregroundColor(.accentColor)
-                    .fontWeight(.bold)
 
-                Text("新建记录")
-                    .font(.headline)
-                    .foregroundColor(.primary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("新建记录")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                }
                 Spacer()
             }
             .padding(.horizontal, 16)
@@ -533,16 +498,16 @@ struct NewNoteEditorPage: View {
 struct NewNoteButton: View {
     let verticalPadding: CGFloat
     var iconSize: CGFloat = 36 // Default size
+    @State private var showEditor = false
     
     var body: some View {
-        NavigationLink {
-            NewNoteEditorPage()
+        Button {
+            showEditor = true
         } label: {
             VStack(spacing: 12) {
                 Image(systemName: "text.pad.header.badge.plus")
                     .font(.system(size: iconSize))
                     .foregroundColor(.accentColor)
-                    // Make it more eye-catching with a symbol effect (iOS 17+) or just bold
                     .symbolRenderingMode(.hierarchical)
                     .fontWeight(.bold)
                 
@@ -554,6 +519,10 @@ struct NewNoteButton: View {
             .padding(.vertical, verticalPadding)
             .background(Color(.systemGray6))
             .cornerRadius(16)
+        }
+        .buttonStyle(.plain)
+        .navigationDestination(isPresented: $showEditor) {
+            NewNoteEditorPage()
         }
     }
 }

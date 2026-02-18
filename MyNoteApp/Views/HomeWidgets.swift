@@ -29,7 +29,7 @@ struct SearchWidget: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("搜索")
                         .font(.headline)
-                        .foregroundColor(.primary)
+                        .foregroundColor(.secondary)
                     Text("输入进行搜索...")
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -86,7 +86,9 @@ struct TagWidget: View {
         } else {
             VStack(alignment: .leading, spacing: 12) {
                 // 标题区域：点击跳转到完整列表
-                NavigationLink(destination: TagNotesListPage(tagName: tagName).environment(noteStore)) {
+                Button {
+                    showTagDetail = true
+                } label: {
                     HStack {
                         Image(systemName: "tag.fill")
                             .foregroundColor(.accentColor)
@@ -210,11 +212,9 @@ struct RecentNotesWidget: View {
         } else {
             VStack(alignment: .leading, spacing: 12) {
                 // 标题区域：点击跳转到完整列表
-                NavigationLink(destination: NoteSearchPage(
-                    pageTitle: "最近记录",
-                    filterRecentDays: 7,
-                    hideSearchBar: false // 显示顶部搜索栏
-                ).environment(noteStore)) {
+                Button {
+                    showRecentNotes = true
+                } label: {
                     HStack {
                         Image(systemName: "clock.fill")
                             .foregroundColor(.accentColor)
@@ -343,7 +343,7 @@ struct TrashWidget: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("回收站")
                             .font(.headline)
-                            .foregroundColor(.primary)
+                            .foregroundColor(.secondary)
                         Text("回收站（\(trashedNotes.count)条）")
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -369,6 +369,41 @@ struct TrashWidget: View {
             return "即将删除"
         }
         return "剩余 \(remaining) 天"
+    }
+}
+
+// MARK: - 回收站卡片按钮（无 chevron）
+
+struct TrashCardButton: View {
+    let trashedCount: Int
+    @Binding var showTrashDetail: Bool
+    
+    var body: some View {
+        Button {
+            showTrashDetail = true
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "trash")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(.orange)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("回收站")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                    Text("回收站（\(trashedCount)条）")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+            }
+            .frame(maxWidth: .infinity)
+            .padding(16)
+            .background(Color(.systemBackground))
+            .cornerRadius(16)
+            .shadow(color: Color.black.opacity(0.05), radius: 6, x: 0, y: 3)
+        }
+        .buttonStyle(.plain)
     }
 }
 
