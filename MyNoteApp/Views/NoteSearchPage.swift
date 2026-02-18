@@ -84,27 +84,27 @@ struct NoteSearchPage: View {
                 } else {
                     // 正常模式下的真搜索框
                     VStack(spacing: 12) {
-                        HStack(spacing: 12) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "magnifyingglass")
-                                    .foregroundColor(.secondary)
-                                
-                                TextField("输入进行搜索...", text: $searchText)
-                                    .focused($isSearchFocused)
-                                    .submitLabel(.search)
-                            }
-                            .padding(10)
-                            .background(Color(.systemGray6))
-                            .cornerRadius(10)
+                        HStack(spacing: 8) {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundColor(.secondary)
+                            
+                            TextField("输入进行搜索...", text: $searchText)
+                                .focused($isSearchFocused)
+                                .submitLabel(.search)
                             
                             if !searchText.isEmpty {
-                                Button("取消") {
+                                Button {
                                     searchText = ""
                                     isSearchFocused = false
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.secondary)
                                 }
-                                .foregroundColor(.accentColor)
                             }
                         }
+                        .padding(10)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(10)
                         .padding(.horizontal)
                         .padding(.top, 8)
                         .padding(.bottom, 8)

@@ -26,7 +26,7 @@ struct AddTagWidgetSheet: View {
         NavigationStack {
             VStack(spacing: 0) {
                 // 搜索栏
-                HStack(spacing: 12) {
+                HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(.secondary)
                     
@@ -42,10 +42,11 @@ struct AddTagWidgetSheet: View {
                         }
                     }
                 }
-                .padding(12)
+                .padding(10)
                 .background(Color(.systemGray6))
-                .cornerRadius(12)
-                .padding()
+                .cornerRadius(10)
+                .padding(.horizontal)
+                .padding(.vertical, 8)
                 
                 Divider()
                 
