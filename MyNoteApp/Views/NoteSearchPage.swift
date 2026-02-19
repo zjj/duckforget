@@ -86,7 +86,7 @@ struct NoteSearchPage: View {
                     .buttonStyle(.plain)
                 } else {
                     // 正常模式下的真搜索框
-                    VStack(spacing: 12) {
+                    HStack(spacing: 8) {
                         HStack(spacing: 8) {
                             Image(systemName: "magnifyingglass")
                                 .foregroundColor(.secondary)
@@ -142,7 +142,6 @@ struct NoteSearchPage: View {
                             if !searchText.isEmpty {
                                 Button {
                                     searchText = ""
-                                    isSearchFocused = false
                                 } label: {
                                     Image(systemName: "xmark.circle.fill")
                                         .foregroundColor(.secondary)
@@ -152,10 +151,19 @@ struct NoteSearchPage: View {
                         .padding(10)
                         .background(Color(.systemGray6))
                         .cornerRadius(10)
-                        .padding(.horizontal)
-                        .padding(.top, 8)
-                        .padding(.bottom, 8)
+                        
+                        if isSearchFocused {
+                            Button("取消") {
+                                isSearchFocused = false
+                            }
+                            .font(.subheadline)
+                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                        }
                     }
+                    .animation(.easeInOut(duration: 0.2), value: isSearchFocused)
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                    .padding(.bottom, 8)
                     .background(Color(.systemBackground))
                     .shadow(color: Color.black.opacity(0.05), radius: 2, y: 1)
                 }
@@ -175,6 +183,10 @@ struct NoteSearchPage: View {
                 initialSelectedTag: selectedTag
             )
                 .environment(noteStore)
+                .scrollDismissesKeyboard(.interactively)
+        }
+        .onTapGesture {
+            isSearchFocused = false
         }
         .navigationTitle(pageTitle)
         .navigationBarTitleDisplayMode(.inline)

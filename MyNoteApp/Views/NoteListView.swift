@@ -277,6 +277,7 @@ struct NoteListView: View {
 
     private var notesListView: some View {
         ScrollView {
+
             if viewMode == .list {
                 LazyVStack(spacing: 8) {
                     // 按日期分组显示（仅在按日期排序时）
@@ -303,6 +304,7 @@ struct NoteListView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
             } else {
+
                 let columns = [
                     GridItem(.flexible(), spacing: 12),
                     GridItem(.flexible(), spacing: 12)
