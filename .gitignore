@@ -1,2 +1,38 @@
 .DS_Store
 MyNoteApp.app
+
+# Xcode 缓存 / 自动生成
+build/
+DerivedData/
+*.hmap
+*.ipa
+*.xcarchive
+
+# 用户个人配置（千万不要提交）
+xcuserdata/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.xccheckout
+*.moved-aside
+
+# 模拟器/运行时缓存
+*.playgroundlog
+*.playgrounddevice
+*.simdevicelog
+
+# CocoaPods（用了 Pod 就加上）
+Pods/
+Podfile.lock
+*.xcworkspace
+
+# 系统文件
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 日志
+*.log
