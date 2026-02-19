@@ -9,7 +9,7 @@ struct PrivacyPolicyView: View {
                         .font(.title)
                         .fontWeight(.bold)
                     
-                    Text("更新日期：2026年2月18日")
+                    Text("更新日期：2026年2月19日")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     
@@ -31,7 +31,7 @@ struct PrivacyPolicyView: View {
                     
                     Text("4. 第三方服务")
                         .font(.headline)
-                    Text("本应用可能包含第三方SDK（如用于崩溃分析），这些服务可能会收集您的设备信息，但在未获得您授权的情况下，不会收集您的个人敏感信息。")
+                    Text("本应用在开发过程中，仅使用苹果官方提供的iOS SDK进行开发与功能实现，未集成、未使用任何第三方SDK、第三方插件、第三方统计、第三方广告、第三方分享及其他第三方代码库。\n\n应用运行过程中，不会通过第三方SDK收集、上传、共享您的任何个人信息。")
                     
                     Text("5. 变更通知")
                         .font(.headline)
