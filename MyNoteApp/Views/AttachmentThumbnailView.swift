@@ -4,10 +4,10 @@ import SwiftUI
 struct AttachmentThumbnailView: View {
     let attachment: AttachmentItem
     var shouldSaveOnDelete: Bool = true
+    var showDeleteButton: Bool = true
     var onDelete: (() -> Void)? = nil
     @Environment(NoteStore.self) var noteStore
     @State private var thumbnailImage: UIImage?
-    @State private var showDeleteConfirmation = false
 
     var body: some View {
         ZStack {
@@ -31,26 +31,20 @@ struct AttachmentThumbnailView: View {
 
     @ViewBuilder
     private var deleteButton: some View {
-        Button {
-            showDeleteConfirmation = true
-        } label: {
-            Image(systemName: "xmark.circle.fill")
-                .font(.system(size: 22))
-                .foregroundColor(.red)
-                .background(Circle().fill(Color.white))
-                .shadow(color: .black.opacity(0.1), radius: 2)
-        }
-        .padding(4)
-        .alert("确认删除", isPresented: $showDeleteConfirmation) {
-            Button("取消", role: .cancel) { }
-            Button("删除", role: .destructive) {
+        if showDeleteButton {
+            Button {
                 withAnimation {
                     noteStore.deleteAttachment(attachment, shouldSave: shouldSaveOnDelete)
                     onDelete?()
                 }
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 22))
+                    .foregroundColor(.red)
+                    .background(Circle().fill(Color.white))
+                    .shadow(color: .black.opacity(0.1), radius: 2)
             }
-        } message: {
-            Text("确定要删除这个附件吗？")
+            .padding(4)
         }
     }
 

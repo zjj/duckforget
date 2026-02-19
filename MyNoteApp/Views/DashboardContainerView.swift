@@ -2,7 +2,7 @@ import SwiftData
 import SwiftUI
 
 /// 主页容器：使用 TabView 分页，Page 0 是设置/管理页，后续是 dashboard 页
-struct FolderListView: View {
+struct DashboardContainerView: View {
     @Environment(NoteStore.self) var noteStore
     @StateObject private var dashboardConfig = DashboardConfig()
     @EnvironmentObject var deepLinkHandler: DeepLinkHandler
@@ -21,6 +21,7 @@ struct FolderListView: View {
     // Deep link navigation
     @State private var noteToNavigate: NoteItem?
     @State private var showNoteEditor = false
+    @State private var openInEditMode = false
 
     private var isAnyPageEditing: Bool {
         editingStates.values.contains(true)
@@ -136,6 +137,7 @@ struct FolderListView: View {
             if let notes = try? noteStore.modelContext.fetch(descriptor),
                let note = notes.first {
                 noteToNavigate = note
+                openInEditMode = deepLinkHandler.openInEditMode
                 showNoteEditor = true
                 deepLinkHandler.reset()
             }
@@ -143,6 +145,7 @@ struct FolderListView: View {
         .onChange(of: deepLinkHandler.shouldCreateNewNote) { _, shouldCreate in
             if shouldCreate {
                 noteToNavigate = noteStore.createNote()
+                openInEditMode = true
                 showNoteEditor = true
                 deepLinkHandler.reset()
             }
@@ -150,20 +153,21 @@ struct FolderListView: View {
         .fullScreenCover(isPresented: $showNoteEditor) {
             if let note = noteToNavigate {
                 NavigationStack {
-                    NoteEditorView(note: note)
+                    NoteView(note: note, startInEditMode: openInEditMode)
                         .environment(noteStore)
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .topBarLeading) {
-                                Button {
-                                    showNoteEditor = false
-                                    noteToNavigate = nil
-                                } label: {
-                                    Image(systemName: "xmark")
-                                        .font(.body.weight(.semibold))
-                                }
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button {
+                                showNoteEditor = false
+                                noteToNavigate = nil
+                                openInEditMode = false
+                            } label: {
+                                Image(systemName: "xmark")
+                                    .font(.body.weight(.semibold))
                             }
                         }
+                    }
                 }
             }
         }

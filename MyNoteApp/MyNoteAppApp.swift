@@ -41,7 +41,7 @@ struct MyNoteAppApp: App {
 
     var body: some Scene {
         WindowGroup {
-            FolderListView()
+            DashboardContainerView()
                 .modelContainer(container)
                 .environment(noteStore)
                 .environmentObject(toolbarSettings)
@@ -54,7 +54,7 @@ struct MyNoteAppApp: App {
                 .onContinueUserActivity(CSSearchableItemActionType) { userActivity in
                     if let uniqueIdentifier = userActivity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
                        let noteID = UUID(uuidString: uniqueIdentifier) {
-                        deepLinkHandler.openNote(id: noteID)
+                        deepLinkHandler.openNote(id: noteID, autoEdit: false)
                     }
                 }
                 .onAppear {

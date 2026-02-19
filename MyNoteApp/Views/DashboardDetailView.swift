@@ -456,7 +456,7 @@ struct NewNoteModalView: View {
         NavigationStack {
             Group {
                 if let note = currentNote {
-                    NoteEditorView(
+                    NoteView(
                         note: note,
                         onPublish: {
                             // 发布成功，关闭页面
@@ -475,7 +475,7 @@ struct NewNoteModalView: View {
              
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
-                        // 手动取消，触发清理逻辑（需确保 NoteEditorView 的 onDisappear 能处理）
+                        // 手动取消，触发清理逻辑（需确保 NoteView 的 onDisappear 能处理）
                         // 或者在这里手动删除空记录
                         if let note = currentNote,
                            note.content.isEmpty && note.attachments.isEmpty {
@@ -510,7 +510,7 @@ struct NewNoteEditorPage: View {
     var body: some View {
         Group {
             if let note = currentNote {
-                NoteEditorView(note: note, onPublish: publishAndReset)
+                NoteView(note: note, onPublish: publishAndReset)
                     .id(note.id) // 强制重建视图
             } else {
                 ProgressView()
@@ -524,7 +524,7 @@ struct NewNoteEditorPage: View {
     }
     
     private func publishAndReset() {
-        // 当前记录已通过 NoteEditorView 自动保存
+        // 当前记录已通过 NoteView 自动保存
         // 创建新记录并重置编辑器
         createNewNote()
     }

@@ -3,10 +3,10 @@ import SwiftUI
 import CoreLocation
 import SwiftData
 
-/// 记录编辑器 - 支持文字输入、语音转文字、附件管理
-struct NoteEditorView: View {
+/// 记录视图 - 支持预览/编辑模式切换，文字输入、语音转文字、附件管理
+struct NoteView: View {
     let note: NoteItem
-    var isEmbedded: Bool = false
+    var startInEditMode: Bool = false
     var onFocusChange: ((Bool) -> Void)? = nil
     var onPublish: (() -> Void)? = nil
     @Environment(NoteStore.self) var noteStore
@@ -14,6 +14,9 @@ struct NoteEditorView: View {
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var toolbarSettings: ToolbarSettings
 
+    // 编辑模式状态
+    @State private var isEditMode = false
+    
     // 内容状态
     @State private var content = ""
     @State private var hasLoaded = false
@@ -44,9 +47,14 @@ struct NoteEditorView: View {
     // 文本视图 coordinator 引用
     @State private var textViewCoordinator: CursorTrackingTextView.Coordinator?
 
-    // 撤销/重做状态
-    @State private var canUndo = false
-    @State private var canRedo = false
+    // 撤销/重做管理器
+    @StateObject private var undoRedoManager = UndoRedoManager()
+    
+    // 编辑内容追踪
+    @State private var previousContent = "" // 用于记录文本变化
+    @State private var saveTask: Task<Void, Never>? // 用于延迟保存
+    @State private var previousAttachmentIDs: Set<UUID> = [] // 用于跟踪附件变化
+    @State private var isPerformingUndoRedo = false // 标记是否正在执行撤销/重做操作
     
     // 标签管理
     @State private var showTagManagement = false
@@ -56,8 +64,6 @@ struct NoteEditorView: View {
 
     // 编辑状态追踪
     @State private var wasEdited = false
-    @State private var hasPublished = false // 标记是否已点击发布按钮保存
-    @State private var editedContent = "" // 临时编辑内容，只有点击发布才会真正保存
     @State private var initialContent = "" // 初始内容，用于检测是否有变化
     @State private var initialAttachmentCount = 0 // 初始附件数量
     @State private var initialTagIDs: Set<UUID> = [] // 初始标签 ID 集合
@@ -70,6 +76,9 @@ struct NoteEditorView: View {
     
     // 删除确认
     @State private var showDeleteConfirmation = false
+    
+    // 删除中标记（防止 cleanupOnExit 干扰）
+    @State private var isDeleting = false
 
     enum ScanMode: String, Identifiable {
         case textExtraction // Renamed from text
@@ -88,36 +97,21 @@ struct NoteEditorView: View {
         noteStore.getAttachments(for: note)
             .filter { !deletedAttachmentIDs.contains($0.id) }
     }
-    
-    // 检测是否有实际的内容或附件变化
-    private var hasActualChanges: Bool {
-        let contentChanged = content != initialContent
-        let attachmentsChanged = currentAttachments.count != initialAttachmentCount
-        // 标签变化（集合比较）
-        let currentTagIDs = Set(note.tags.map { $0.id })
-        let tagsChanged = currentTagIDs != initialTagIDs
-        
-        return contentChanged || attachmentsChanged || tagsChanged
-    }
 
     // MARK: - Body
-
-    /// 是否使用内嵌工具栏（嵌入 dashboard 且有 onPublish 时，nav bar 不可见）
-    private var useInlineToolbar: Bool {
-        isEmbedded && onPublish != nil
-    }
 
     var body: some View {
         ZStack {
             // 主内容
             VStack(spacing: 0) {
-                // 文本编辑区
-                textEditorSection
-
-                // 时间信息（仅编辑模式显示，且如果内容不为空）
-                if onPublish == nil {
-                    timeInfoSection
+                // 标签区域（仅预览模式显示）
+                if !isEditMode && !note.tags.isEmpty {
+                    tagSection
+                    Divider()
                 }
+                
+                // 文本编辑/预览区
+                textEditorSection
 
                 // 附件缩略图区域
                 if !currentAttachments.isEmpty {
@@ -125,8 +119,13 @@ struct NoteEditorView: View {
                     attachmentStripSection
                 }
 
-                // 富文本工具栏
-                if showRichTextBar && isEditorFocused {
+                // 时间信息
+                if onPublish == nil {
+                    timeInfoSection
+                }
+
+                // 富文本工具栏（仅编辑模式 + 键盘聚焦时显示）
+                if isEditMode && showRichTextBar && isEditorFocused {
                     Divider()
                     RichTextToolbar(
                         onBold: { applyTextFormat(.bold) },
@@ -139,117 +138,148 @@ struct NoteEditorView: View {
                     )
                 }
                 
-                Divider()
-
-                // 底部工具栏
-                bottomToolbar
-            }
-            .safeAreaInset(edge: .top) {
-                // 内嵌工具栏（fullPage newNote 组件使用，作为 safeAreaInset 确保不被键盘遮挡，且悬停在顶部）
-                if useInlineToolbar {
-                    VStack(spacing: 0) {
-                        embeddedToolbar
-                        Divider()
-                    }
+                // 底部工具栏（仅编辑模式显示）
+                if isEditMode {
+                    Divider()
+                    bottomToolbar
                 }
             }
             
-            // 悬浮语音按钮（底部中央）
-            ZStack(alignment: .bottom) {
-                if toolbarSettings.isVoiceInputEnabled {
-                    // 语音输入悬浮窗口（录音时显示）
-                    VoiceInputOverlay(
-                        transcript: speechRecognizer.currentTranscript,
-                        isRecording: speechRecognizer.isRecording,
-                        dragOffset: 0, // 内部不移动，改为由外部控制整体Offset
-                        shouldCancel: voiceDragOffset < -80
-                    )
-                    .offset(y: voiceDragOffset) // 跟随拖拽
-                    .padding(.bottom, 80)
-                    .opacity(speechRecognizer.isRecording ? 1 : 0)
-                    .scaleEffect(speechRecognizer.isRecording ? 1 : 0.5, anchor: .bottom)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: speechRecognizer.isRecording)
-                    
-                    // 麦克风按钮（始终存在以接收手势，录音时变透明）
-                    floatingVoiceButton
+            // 悬浮语音按钮（底部中央）- 只在编辑模式显示
+            if isEditMode {
+                ZStack(alignment: .bottom) {
+                    if toolbarSettings.isVoiceInputEnabled {
+                        // 语音输入悬浮窗口（录音时显示）
+                        VoiceInputOverlay(
+                            transcript: speechRecognizer.currentTranscript,
+                            isRecording: speechRecognizer.isRecording,
+                            dragOffset: 0, // 内部不移动，改为由外部控制整体Offset
+                            shouldCancel: voiceDragOffset < -80
+                        )
+                        .offset(y: voiceDragOffset) // 跟随拖拽
                         .padding(.bottom, 80)
-                        .opacity(speechRecognizer.isRecording ? 0 : 1)
+                        .opacity(speechRecognizer.isRecording ? 1 : 0)
+                        .scaleEffect(speechRecognizer.isRecording ? 1 : 0.5, anchor: .bottom)
+                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: speechRecognizer.isRecording)
+                        
+                        // 麦克风按钮（始终存在以接收手势，录音时变透明）
+                        floatingVoiceButton
+                            .padding(.bottom, 80)
+                            .opacity(speechRecognizer.isRecording ? 0 : 1)
+                    }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                .allowsHitTesting(true)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-            // .ignoresSafeArea(.keyboard) // 移除此行，让悬浮按钮跟随键盘上移
-            .allowsHitTesting(true)
         }
-        .navigationBarTitleDisplayMode(isEmbedded ? .automatic : .inline)
-        .toolbar(isEmbedded ? .hidden : .visible, for: .navigationBar)
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            // 如果是嵌入模式，不再向导航栏添加按钮（使用自定义嵌入式工具栏）
-            if !isEmbedded {
-                ToolbarItemGroup(placement: .navigationBarTrailing) {
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+                if isEditMode {
+                    // 编辑模式：undo + redo + ... + 完成
                     Button {
-                        textViewCoordinator?.undo()
+                        performUndo()
                     } label: {
                         Image(systemName: "arrow.uturn.backward")
                             .font(.system(size: 16))
                     }
-                    .disabled(!canUndo)
+                    .disabled(!undoRedoManager.canUndo)
 
                     Button {
-                        textViewCoordinator?.redo()
+                        performRedo()
                     } label: {
                         Image(systemName: "arrow.uturn.forward")
                             .font(.system(size: 16))
                     }
-                    .disabled(!canRedo)
-                    
-                    // 菜单 - 新建和编辑都显示
+                    .disabled(!undoRedoManager.canRedo)
+
                     Menu {
                         Button {
                             showTagManagement = true
                         } label: {
                             Label("管理标签", systemImage: "tag")
                         }
-                        
-                        // 仅编辑模式或已发布过才显示导出/删除
-                        if onPublish == nil || hasPublished {
-                            Button(role: .destructive) {
-                                showDeleteConfirmation = true
-                            } label: {
-                                Label("删除", systemImage: "trash")
-                            }
+
+                        Button(role: .destructive) {
+                            showDeleteConfirmation = true
+                        } label: {
+                            Label("删除", systemImage: "trash")
                         }
                     } label: {
-                        Image(systemName: "ellipsis") // 不带圆圈
+                        Image(systemName: "ellipsis")
                             .font(.system(size: 16))
                     }
-                    
-                    // 发布按钮 - 新建和编辑都显示
+
                     Button {
-                        performPublish()
+                        exitEditMode()
                     } label: {
                         Image(systemName: "checkmark")
                             .fontWeight(.semibold)
+                            .foregroundColor(undoRedoManager.canUndo || undoRedoManager.canRedo ? .orange : .secondary)
                     }
-                    .disabled(!hasActualChanges)
+                    .disabled(!undoRedoManager.canUndo && !undoRedoManager.canRedo)
+                } else {
+                    // 预览模式：... + pencil
+                    Menu {
+                        Button(role: .destructive) {
+                            showDeleteConfirmation = true
+                        } label: {
+                            Label("删除", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 16))
+                    }
+
+                    Button {
+                        enterEditMode()
+                    } label: {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 16))
+                    }
                 }
             }
         }
         .onAppear { loadContent() }
         .onDisappear { 
-            // 无论嵌入与否，都需要清理逻辑（特别是针对 temporary note 的删除）
             cleanupOnExit() 
         }
         .onChange(of: content) { 
+            // 仅在编辑模式下记录和保存
+            guard isEditMode else { return }
+            
             // 标记已编辑
-            wasEdited = true 
+            wasEdited = true
+            
+            // 记录文本变化到undo管理器（排除undo/redo操作本身，避免循环）
+            if content != previousContent && !isPerformingUndoRedo {
+                undoRedoManager.recordAction(.textChange(previousText: previousContent, newText: content))
+                previousContent = content
+                
+                // 延迟实时保存（防抖：1秒后保存）
+                saveTask?.cancel()
+                saveTask = Task {
+                    try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+                    if !Task.isCancelled {
+                        await MainActor.run {
+                            saveContentInEditMode()
+                        }
+                    }
+                }
+            }
         }
         .onChange(of: currentAttachments.count) {
-            // 标记已编辑，确保删除或添加附件都能触发 rollback/publish 逻辑
+            // 仅在编辑模式下标记已编辑
+            guard isEditMode else { return }
             wasEdited = true
         }
         .onChange(of: note.tags) {
-             // 标签发生变化（如从Sheet返回），标记已编辑
-             wasEdited = true
+            // 仅在编辑模式下标记已编辑
+            guard isEditMode else { return }
+            wasEdited = true
+        }
+        .onChange(of: note.isDeleted) { _, deleted in
+            if deleted { dismiss() }
         }
         .onChange(of: isEditorFocused) { onFocusChange?(isEditorFocused) }
         //.onChange(of: speechRecognizer.currentTranscript) {
@@ -294,6 +324,19 @@ struct NoteEditorView: View {
         .sheet(isPresented: $showAudioRecorder) {
             AudioRecorderSheet(note: note)
                 .environment(noteStore)
+                .onDisappear {
+                    // 检测音频附件的添加
+                    let currentIDs = Set(currentAttachments.map { $0.id })
+                    let newIDs = currentIDs.subtracting(previousAttachmentIDs)
+                    for id in newIDs {
+                        undoRedoManager.recordAction(.attachmentAdded(attachmentID: id))
+                    }
+                    previousAttachmentIDs = currentIDs
+                    
+                    if !newIDs.isEmpty {
+                        saveContentInEditMode()
+                    }
+                }
         }
         .sheet(isPresented: $showFilePicker) {
             FilePickerView { urls in handlePickedFiles(urls) }
@@ -319,6 +362,13 @@ struct NoteEditorView: View {
         .alert("确认删除", isPresented: $showDeleteConfirmation) {
             Button("取消", role: .cancel) { }
             Button("删除", role: .destructive) {
+                // 标记正在删除，防止 cleanupOnExit 干扰
+                isDeleting = true
+                
+                // 清空undo/redo历史
+                undoRedoManager.clear()
+                note.undoRedoHistoryData = nil
+                
                 noteStore.softDeleteNote(note)
                 dismiss()
             }
@@ -327,41 +377,24 @@ struct NoteEditorView: View {
         }
     }
 
-    // MARK: - 内嵌工具栏（fullPage 组件顶部）
-
-    /// 当 NoteEditorView 嵌入 dashboard 且 nav bar 不可见时，
-    /// 在视图内部顶端渲染 undo/redo/发布 按钮
-    private var embeddedToolbar: some View {
-        HStack(spacing: 16) {
-            Button {
-                textViewCoordinator?.undo()
-            } label: {
-                Image(systemName: "arrow.uturn.backward")
-                    .font(.system(size: 16))
-            }
-            .disabled(!canUndo)
-            
-            Button {
-                textViewCoordinator?.redo()
-            } label: {
-                Image(systemName: "arrow.uturn.forward")
-                    .font(.system(size: 16))
-            }
-            .disabled(!canRedo)
-            
-            if onPublish != nil {
-                Button {
-                    performPublish()
-                } label: {
-                    Image(systemName: "checkmark")
-                        .fontWeight(.semibold)
+    // MARK: - 标签区域（预览模式）
+    
+    private var tagSection: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(note.tags) { tag in
+                    Text(tag.name)
+                        .font(.caption)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color.accentColor.opacity(0.15))
+                        .foregroundColor(.accentColor)
+                        .cornerRadius(12)
                 }
-                .disabled(content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && note.attachments.isEmpty)
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(Color(.systemBackground))
     }
 
     // MARK: - 文本编辑区
@@ -371,21 +404,19 @@ struct NoteEditorView: View {
             CursorTrackingTextView(
                 text: $content,
                 cursorPosition: $cursorPosition,
+                isEditable: isEditMode,
                 onFocusChange: { focused in
                     isEditorFocused = focused
                 },
                 onUndoStateChange: { undo, redo in
-                    canUndo = undo
-                    canRedo = redo
+                    // UITextView 的 undo/redo 状态已不再使用，改用 UndoRedoManager
                 },
                 onCoordinatorReady: { coordinator in
                     textViewCoordinator = coordinator
-                    // 如果是新建/编辑页面，自动聚焦
-                    // 延迟一点点以确保视图完全准备好
-                    if onPublish != nil {
+                    // 自动聚焦（编辑模式时）
+                    if isEditMode {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                             coordinator.focus()
-                            // 确保光标在最后（loadContent 中已经设置了 cursorPosition，这里再次确保一下同步）
                             let len = (self.content as NSString).length
                             if len > 0 {
                                 coordinator.setCursor(to: len)
@@ -396,7 +427,7 @@ struct NoteEditorView: View {
             )
 
             if content.isEmpty && !speechRecognizer.isRecording {
-                Text("开始输入...")
+                Text(isEditMode ? "开始输入..." : "暂无内容")
                     .foregroundColor(Color(.placeholderText))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 8)
@@ -440,7 +471,6 @@ struct NoteEditorView: View {
     }
 
 
-
     // MARK: - 附件缩略图条
 
     private var attachmentStripSection: some View {
@@ -449,19 +479,20 @@ struct NoteEditorView: View {
                 ForEach(currentAttachments) { attachment in
                     AttachmentThumbnailView(
                         attachment: attachment,
-                        shouldSaveOnDelete: false, // 在编辑器中删除，只有点保存才执行
+                        shouldSaveOnDelete: false,
+                        showDeleteButton: isEditMode,
                         onDelete: {
-                            // 立即在 UI 上隐藏该附件
                             withAnimation {
                                 _ = deletedAttachmentIDs.insert(attachment.id)
                             }
+                            undoRedoManager.recordAction(.attachmentDeleted(attachmentID: attachment.id))
+                            saveContentInEditMode()
                         }
                     )
                     .frame(width: 100, height: 100)
                     .onTapGesture {
                         selectedAttachment = attachment
                     }
-/* Lines 390-399 omitted */
                 }
             }
             .padding(.horizontal, 16)
@@ -536,103 +567,201 @@ struct NoteEditorView: View {
     }
 
     // MARK: - Actions
+    
+    /// 进入编辑模式
+    private func enterEditMode() {
+        isEditMode = true
+        
+        // 聚焦光标到末尾
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            textViewCoordinator?.focus()
+            let len = (content as NSString).length
+            if len > 0 {
+                textViewCoordinator?.setCursor(to: len)
+            }
+        }
+    }
+    
+    /// 退出编辑模式（完成编辑）
+    private func exitEditMode() {
+        // 取消延迟保存任务
+        saveTask?.cancel()
+        
+        // 执行实际的附件删除（只在完成时删除）
+        for attachmentID in deletedAttachmentIDs {
+            if let attachment = noteStore.getAttachments(for: note).first(where: { $0.id == attachmentID }) {
+                noteStore.deleteAttachment(attachment, shouldSave: true)
+            }
+        }
+        deletedAttachmentIDs.removeAll()
+        
+        // 清空待删除列表
+        note.pendingDeletedAttachmentIDs = []
+        
+        // 清空undo/redo历史（完成编辑后清空）
+        undoRedoManager.clear()
+        note.undoRedoHistoryData = nil
+        
+        // 取消键盘焦点
+        textViewCoordinator?.blur()
+        
+        // 震动反馈
+        let generator = UINotificationFeedbackGenerator()
+        generator.notificationOccurred(.success)
+        
+        // 切换到预览模式
+        isEditMode = false
+    }
+    
+    /// 执行撤销操作
+    private func performUndo() {
+        guard let action = undoRedoManager.undo() else { return }
+        
+        // 标记正在执行undo操作，避免触发onChange记录
+        isPerformingUndoRedo = true
+        
+        switch action {
+        case .textChange(let previousText, _):
+            // 恢复之前的文本
+            content = previousText
+            // 更新previousContent以保持同步
+            previousContent = previousText
+            
+        case .attachmentAdded(let attachmentID):
+            // 撤销添加 = 删除附件（添加到删除列表）
+            deletedAttachmentIDs.insert(attachmentID)
+            
+        case .attachmentDeleted(let attachmentID):
+            // 撤销删除 = 恢复附件（从删除列表移除）
+            deletedAttachmentIDs.remove(attachmentID)
+        }
+        
+        // 清除标记
+        isPerformingUndoRedo = false
+        
+        // 实时保存
+        saveContentInEditMode()
+    }
+    
+    /// 执行重做操作
+    private func performRedo() {
+        guard let action = undoRedoManager.redo() else { return }
+        
+        // 标记正在执行redo操作，避免触发onChange记录
+        isPerformingUndoRedo = true
+        
+        switch action {
+        case .textChange(_, let newText):
+            // 应用新文本
+            content = newText
+            // 更新previousContent以保持同步
+            previousContent = newText
+            
+        case .attachmentAdded(let attachmentID):
+            // 重做添加 = 恢复附件（从删除列表移除）
+            deletedAttachmentIDs.remove(attachmentID)
+            
+        case .attachmentDeleted(let attachmentID):
+            // 重做删除 = 删除附件（添加到删除列表）
+            deletedAttachmentIDs.insert(attachmentID)
+        }
+        
+        // 清除标记
+        isPerformingUndoRedo = false
+        
+        // 实时保存
+        saveContentInEditMode()
+    }
+    
+    /// 编辑模式下的实时保存
+    private func saveContentInEditMode() {
+        // 更新笔记内容
+        if let latestText = textViewCoordinator?.getText() {
+            note.content = latestText
+        } else {
+            note.content = content
+        }
+        
+        // 注意：不在编辑模式时删除附件，只是在 UI 中隐藏
+        // 实际删除只在点击"完成"或退出时进行
+        
+        // 保存待删除的附件ID列表
+        note.pendingDeletedAttachmentIDs = Array(deletedAttachmentIDs)
+        
+        // 保存undo/redo历史到数据库
+        note.undoRedoHistoryData = undoRedoManager.serializeHistory()
+        
+        // 保存到数据库
+        noteStore.updateNote(note)
+        try? noteStore.modelContext.save()
+        
+        // 更新基准状态
+        initialContent = note.content
+        initialAttachmentCount = currentAttachments.count
+        // 注意：不清空 deletedAttachmentIDs，保持删除状态直到完成编辑
+        initialTagIDs = Set(note.tags.map { $0.id })
+        wasEdited = false
+    }
 
     private func loadContent() {
         guard !hasLoaded else { return }
         content = note.content
+        previousContent = note.content // 初始化 previousContent
         initialContent = note.content // 保存初始内容
         initialAttachmentCount = currentAttachments.count // 保存初始附件数量
         
         // 载入标签状态
         initialTagIDs = Set(note.tags.map { $0.id })
         
+        // 初始化附件ID集合
+        previousAttachmentIDs = Set(currentAttachments.map { $0.id })
+        
+        // 加载待删除的附件ID列表
+        deletedAttachmentIDs = Set(note.pendingDeletedAttachmentIDs ?? [])
+        
         cursorPosition = (content as NSString).length
 
-        // 清除初始加载产生的 undo 栈，确保新记录无法 undo
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            textViewCoordinator?.clearUndoStack()
+        // 加载undo/redo历史（如果存在）
+        if let historyData = note.undoRedoHistoryData {
+            undoRedoManager.loadHistory(from: historyData)
+        } else {
+            // 新笔记或没有历史，清空管理器
+            undoRedoManager.clear()
         }
+        
+        // 初始化编辑模式
+        isEditMode = startInEditMode || onPublish != nil
 
         hasLoaded = true
     }
 
     private func cleanupOnExit() {
-        // 如果是新建记录模式（onPublish != nil）
-        if onPublish != nil {
-            // 如果从未发布过，直接删
-            if !hasPublished {
-                noteStore.permanentlyDeleteNote(note)
-                return
-            }
-            // 如果发布过，但后续有未保存的修改，且用户希望不自动保存
-            // 则应当回滚这些修改（恢复到上次发布的状态）
-            if hasPublished && hasActualChanges {
-                 noteStore.modelContext.rollback()
-            }
-            return
-        }
-
+        // 如果正在删除，跳过清理（避免覆盖删除状态）
+        guard !isDeleting else { return }
+        
         // 停止语音输入
         if speechRecognizer.isRecording {
             speechRecognizer.stopRecording()
         }
         
-        // 编辑模式：如果有任何未发布的改动（内容或附件），执行回滚
-        // 这样可以丢弃那些虽然已 inserted 到 context 但尚未 checked (save) 的附件
-        if !hasPublished && hasActualChanges {
-            // 注意：rollback 只能撤销内存中的 SwiftData 对象
-            // 附件对应的物理文件如果没被 cleanup，会暂时滞留在磁盘
-            noteStore.modelContext.rollback()
-        }
-    }
-
-    private func performPublish() {
-        // 1. 标记已发布
-        hasPublished = true
+        // 取消任何待处理的保存任务
+        saveTask?.cancel()
         
-        // 2. 从 UITextView 获取最新文本以避免 State 延迟
-        if let latestText = textViewCoordinator?.getText() {
-             note.content = latestText
-        } else {
-             note.content = content
+        // 获取最新文本内容
+        let latestText = textViewCoordinator?.getText() ?? content
+        
+        // 最终保存（确保所有内容都持久化）
+        if latestText != note.content {
+            note.content = latestText
+            note.updatedAt = Date()
         }
         
-        // 3. 确保内容被保存到数据库
-        if !note.content.isEmpty || !note.attachments.isEmpty {
-            noteStore.updateNote(note)
-            try? noteStore.modelContext.save()
-        }
+        // 保存编辑状态（保留undo/redo历史，下次可继续使用）
+        note.pendingDeletedAttachmentIDs = Array(deletedAttachmentIDs)
+        note.undoRedoHistoryData = undoRedoManager.serializeHistory()
         
-        // 4. 反馈
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.success)
-        
-        // 5. 更新基准状态以便用户继续编辑
-        // 不再自动退出，而是保留在当前页面
-        initialContent = note.content
-        initialAttachmentCount = currentAttachments.count
-        
-        // 保存成功后，清理已删除ID集合
-        deletedAttachmentIDs.removeAll()
-        
-        // 更新标签基准状态
-        initialTagIDs = Set(note.tags.map { $0.id })
-        
-        wasEdited = false
-        
-        // 如果是新建模式（onPublish != nil），标记 hasPublished = true，防止退出时整条删除
-        if onPublish != nil {
-            hasPublished = true
-        } else {
-            // 如果是编辑模式，重置 hasPublished = false
-            // 这样后续若有修改但未再次点击保存，退出时可以正确触发 rollback
-            hasPublished = false
-        }
-    }
-
-    private func saveContent() {
-        // 已废弃自动保存功能
-        // 现在所有保存操作都通过 performPublish 手动触发
+        // 统一保存
+        try? noteStore.modelContext.save()
     }
 
     // MARK: - 语音输入
@@ -857,13 +986,20 @@ struct NoteEditorView: View {
     private func handlePickedFiles(_ urls: [URL]) {
         for url in urls {
             guard let data = try? Data(contentsOf: url) else { continue }
-            noteStore.addAttachment(
+            let attachment = noteStore.addAttachment(
                 to: note,
                 type: .file,
                 data: data,
                 fileExtension: url.pathExtension,
                 shouldSave: false // 手动发布前不持久化到数据库
             )
+            
+            // 记录到undo管理器
+            if let attachmentID = attachment?.id {
+                undoRedoManager.recordAction(.attachmentAdded(attachmentID: attachmentID))
+                previousAttachmentIDs.insert(attachmentID)
+                saveContentInEditMode()
+            }
         }
         wasEdited = true
     }
@@ -879,11 +1015,7 @@ struct NoteEditorView: View {
         guard let jsonData = try? JSONSerialization.data(withJSONObject: locationData),
               let snapshotData = snapshot.jpegData(compressionQuality: 0.8) else { return }
         
-        // 使用 addAttachmentWithThumbnail 存储
-        // thumbnailData: snapshot
-        // data: json string
-        // fileExtension: json
-        noteStore.addAttachmentWithThumbnail(
+        let attachment = noteStore.addAttachmentWithThumbnail(
             to: note,
             type: .location,
             data: jsonData,
@@ -891,6 +1023,14 @@ struct NoteEditorView: View {
             fileExtension: "json",
             shouldSave: false // 确保不自动触发 context save
         )
+        
+        // 记录到undo管理器
+        if let attachmentID = attachment?.id {
+            undoRedoManager.recordAction(.attachmentAdded(attachmentID: attachmentID))
+            previousAttachmentIDs.insert(attachmentID)
+            saveContentInEditMode()
+        }
+        
         wasEdited = true
     }
 
@@ -907,7 +1047,7 @@ struct NoteEditorView: View {
         }
         let thumbnailData = thumbImage.jpegData(compressionQuality: 0.6)
 
-        noteStore.addAttachmentWithThumbnail(
+        let attachment = noteStore.addAttachmentWithThumbnail(
             to: note,
             type: type,
             data: imageData,
@@ -915,6 +1055,14 @@ struct NoteEditorView: View {
             fileExtension: "jpg",
             shouldSave: false // 确保不自动触发 context save
         )
+        
+        // 记録到undo管理器
+        if let attachmentID = attachment?.id {
+            undoRedoManager.recordAction(.attachmentAdded(attachmentID: attachmentID))
+            previousAttachmentIDs.insert(attachmentID)
+            saveContentInEditMode()
+        }
+        
         wasEdited = true
     }
 
@@ -926,7 +1074,7 @@ struct NoteEditorView: View {
         let thumbnailData = Self.generateVideoThumbnail(from: url)
         let ext = url.pathExtension.isEmpty ? "mp4" : url.pathExtension
 
-        noteStore.addAttachmentWithThumbnail(
+        let attachment = noteStore.addAttachmentWithThumbnail(
             to: note,
             type: .video,
             data: videoData,
@@ -934,6 +1082,14 @@ struct NoteEditorView: View {
             fileExtension: ext,
             shouldSave: false // 确保不自动触发 context save
         )
+        
+        // 记录到undo管理器
+        if let attachmentID = attachment?.id {
+            undoRedoManager.recordAction(.attachmentAdded(attachmentID: attachmentID))
+            previousAttachmentIDs.insert(attachmentID)
+            saveContentInEditMode()
+        }
+        
         wasEdited = true
     }
 

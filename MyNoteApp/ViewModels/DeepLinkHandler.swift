@@ -6,9 +6,11 @@ import Combine
 class DeepLinkHandler: ObservableObject {
     @Published var noteToOpen: UUID?
     @Published var shouldCreateNewNote: Bool = false
+    @Published var openInEditMode: Bool = false
     
-    func openNote(id: UUID) {
+    func openNote(id: UUID, autoEdit: Bool = true) {
         noteToOpen = id
+        openInEditMode = autoEdit
     }
     
     func createNewNote() {
@@ -18,5 +20,6 @@ class DeepLinkHandler: ObservableObject {
     func reset() {
         noteToOpen = nil
         shouldCreateNewNote = false
+        openInEditMode = false
     }
 }

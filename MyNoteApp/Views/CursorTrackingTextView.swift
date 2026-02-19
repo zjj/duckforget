@@ -5,6 +5,7 @@ import UIKit
 struct CursorTrackingTextView: UIViewRepresentable {
     @Binding var text: String
     @Binding var cursorPosition: Int
+    var isEditable: Bool = true
     var onFocusChange: ((Bool) -> Void)?
     var onUndoStateChange: ((Bool, Bool) -> Void)?
     var onCoordinatorReady: ((Coordinator) -> Void)?
@@ -23,6 +24,7 @@ struct CursorTrackingTextView: UIViewRepresentable {
         textView.isScrollEnabled = true
         textView.alwaysBounceVertical = true
         textView.keyboardDismissMode = .interactive
+        textView.isEditable = isEditable
         // 确保 allowsUndo 开启
         textView.allowsEditingTextAttributes = false
         context.coordinator.textView = textView
@@ -35,6 +37,11 @@ struct CursorTrackingTextView: UIViewRepresentable {
 
     func updateUIView(_ uiView: UITextView, context: Context) {
         context.coordinator.parent = self
+        
+        // 更新可编辑状态
+        if uiView.isEditable != isEditable {
+            uiView.isEditable = isEditable
+        }
 
         // 仅在外部修改时更新（避免循环）
         guard uiView.text != text else {

@@ -145,7 +145,7 @@ struct AudioRecorderSheet: View {
             type: .audio,
             data: data,
             fileExtension: "m4a",
-            shouldSave: false // 由父容器 NoteEditorView 的 Checkmark 统一保存
+            shouldSave: false // 由父容器 NoteView 的 Checkmark 统一保存
         )
 
         // 清理临时文件

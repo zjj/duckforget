@@ -338,7 +338,7 @@ struct NoteListView: View {
     private func noteRows(_ notes: [NoteItem]) -> some View {
         ForEach(notes) { note in
             NavigationLink {
-                NoteEditorView(note: note)
+                NoteView(note: note, startInEditMode: false)
                     .environment(noteStore)
             } label: {
                 VStack(alignment: .leading, spacing: 8) {
@@ -440,7 +440,7 @@ struct NoteListView: View {
     private func noteGridItems(_ notes: [NoteItem]) -> some View {
         ForEach(notes) { note in
             NavigationLink {
-                NoteEditorView(note: note)
+                NoteView(note: note, startInEditMode: false)
                     .environment(noteStore)
             } label: {
                 GridNoteCard(note: note)
@@ -543,7 +543,7 @@ struct NewNoteEditorView: View {
     var body: some View {
         Group {
             if let note {
-                NoteEditorView(note: note)
+                NoteView(note: note, startInEditMode: true)
             } else {
                 ProgressView()
             }

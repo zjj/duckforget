@@ -15,6 +15,12 @@ final class NoteItem {
     
     @Relationship(deleteRule: .nullify, inverse: \TagItem.notes)
     var tags: [TagItem]
+    
+    /// 存储undo/redo历史的JSON数据
+    var undoRedoHistoryData: Data?
+    
+    /// 存储待删除的附件ID（仅在UI中隐藏，点击完成后才真正删除）
+    var pendingDeletedAttachmentIDs: [UUID]? = []
 
     /// 预览：取第一行非空文本
     var preview: String {

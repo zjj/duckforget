@@ -114,7 +114,7 @@ struct TagWidget: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         LazyHStack(spacing: 12) {
                             ForEach(displayedNotes) { note in
-                                NavigationLink(destination: NoteEditorView(note: note).environment(noteStore)) {
+                                NavigationLink(destination: NoteView(note: note, startInEditMode: false).environment(noteStore)) {
                                     VStack(alignment: .leading, spacing: 6) {
                                         Text(note.preview)
                                             .font(.subheadline)
@@ -241,11 +241,11 @@ struct RecentNotesWidget: View {
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding()
                 } else {
-                    // 小组件模式：水平滚动展示，可点击进入编辑
+                    // 小组件模式：水平滚动展示，可点击进如只读预览，进一步点击进入编辑页
                     ScrollView(.horizontal, showsIndicators: false) {
                         LazyHStack(spacing: 12) {
                             ForEach(displayedNotes) { note in
-                            NavigationLink(destination: NoteEditorView(note: note).environment(noteStore)) {
+                            NavigationLink(destination: NoteView(note: note, startInEditMode: false).environment(noteStore)) {
                                 VStack(alignment: .leading, spacing: 6) {
                                     Text(note.preview)
                                         .font(.subheadline)
@@ -918,7 +918,7 @@ struct TagFullPagePreview: View {
                 ScrollView {
                     VStack(spacing: 0) {
                         ForEach(displayedNotes.prefix(100)) { note in
-                            NavigationLink(destination: NoteEditorView(note: note).environment(noteStore)) {
+                            NavigationLink(destination: NoteView(note: note, startInEditMode: false).environment(noteStore)) {
                                 VStack(alignment: .leading, spacing: 6) {
                                     Text(note.preview)
                                         .font(.subheadline)
@@ -1052,7 +1052,7 @@ struct RecentNotesFullPagePreview: View {
                 ScrollView {
                     VStack(spacing: 0) {
                         ForEach(displayedNotes.prefix(100)) { note in
-                            NavigationLink(destination: NoteEditorView(note: note).environment(noteStore)) {
+                            NavigationLink(destination: NoteView(note: note, startInEditMode: false).environment(noteStore)) {
                                 VStack(alignment: .leading, spacing: 6) {
                                     Text(note.preview)
                                         .font(.subheadline)
