@@ -130,7 +130,7 @@ class NoteStore {
         try? modelContext.save()
     }
 
-    /// 清空回收站
+    /// 清空废纸篓
     func emptyTrash() {
         let descriptor = FetchDescriptor<NoteItem>(predicate: #Predicate { $0.isDeleted == true })
         guard let trashed = try? modelContext.fetch(descriptor) else { return }
@@ -139,7 +139,7 @@ class NoteStore {
         }
     }
 
-    /// 清理超过配置天数的回收站记录
+    /// 清理超过配置天数的废纸篓记录
     func cleanupExpiredTrash() {
         let retentionDays = AppSettings.shared.trashRetentionDays
         let cutoff = Calendar.current.date(byAdding: .day, value: -retentionDays, to: Date()) ?? Date()
@@ -155,7 +155,7 @@ class NoteStore {
         }
     }
 
-    /// 获取回收站中的记录
+    /// 获取废纸篓中的记录
     func fetchTrashedNotes() -> [NoteItem] {
         let descriptor = FetchDescriptor<NoteItem>(
             predicate: #Predicate { $0.isDeleted == true },

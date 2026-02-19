@@ -311,7 +311,7 @@ struct RecentNotesWidget: View {
         }
     }
 }
-// MARK: - 回收站组件
+// MARK: - 废纸篓组件
 
 struct TrashWidget: View {
     @Environment(NoteStore.self) var noteStore
@@ -335,7 +335,7 @@ struct TrashWidget: View {
     
     var body: some View {
         if size == .fullPage {
-            // 全屏模式显示完整的回收站页面
+            // 全屏模式显示完整的废纸篓页面
             TrashDetailPage()
                 .environment(noteStore)
         } else {
@@ -347,10 +347,10 @@ struct TrashWidget: View {
                         .foregroundColor(.orange)
                     
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("回收站")
+                        Text("废纸篓")
                             .font(.headline)
                             .foregroundColor(.secondary)
-                        Text("回收站（\(trashedNotes.count)条）")
+                        Text("废纸篓（\(trashedNotes.count)条）")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -378,7 +378,7 @@ struct TrashWidget: View {
     }
 }
 
-// MARK: - 回收站卡片按钮（无 chevron）
+// MARK: - 废纸篓卡片按钮（无 chevron）
 
 struct TrashCardButton: View {
     let trashedCount: Int
@@ -394,10 +394,10 @@ struct TrashCardButton: View {
                     .foregroundColor(.orange)
                 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("回收站")
+                    Text("废纸篓")
                         .font(.headline)
                         .foregroundColor(.secondary)
-                    Text("回收站（\(trashedCount)条）")
+                    Text("废纸篓（\(trashedCount)条）")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -413,7 +413,7 @@ struct TrashCardButton: View {
     }
 }
 
-// MARK: - 回收站详情页面（只读查看）
+// MARK: - 废纸篓详情页面（只读查看）
 
 struct TrashDetailPage: View {
     @Environment(NoteStore.self) var noteStore
@@ -437,7 +437,7 @@ struct TrashDetailPage: View {
                     Image(systemName: "trash")
                         .font(.system(size: 64))
                         .foregroundColor(.secondary.opacity(0.6))
-                    Text("回收站是空的")
+                    Text("废纸篓是空的")
                         .font(.title2)
                         .foregroundColor(.secondary)
                     Text("删除的记录将保留 \(appSettings.trashRetentionDays) 天")
@@ -490,7 +490,7 @@ struct TrashDetailPage: View {
                 .listStyle(.plain)
             }
         }
-        .navigationTitle("回收站")
+        .navigationTitle("废纸篓")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if !trashedNotes.isEmpty {
@@ -509,7 +509,7 @@ struct TrashDetailPage: View {
                         Button(role: .destructive) {
                             showEmptyTrashConfirmation = true
                         } label: {
-                            Label("清空回收站", systemImage: "trash.slash")
+                            Label("清空废纸篓", systemImage: "trash.slash")
                         }
                     } label: {
                         Image(systemName: "ellipsis")
@@ -530,7 +530,7 @@ struct TrashDetailPage: View {
         } message: {
             Text("确定要永久删除这条笔记吗？此操作无法撤销！")
         }
-        .alert("确认清空回收站", isPresented: $showEmptyTrashConfirmation) {
+        .alert("确认清空废纸篓", isPresented: $showEmptyTrashConfirmation) {
             Button("取消", role: .cancel) { }
             Button("永久删除全部", role: .destructive) {
                 withAnimation {
@@ -538,7 +538,7 @@ struct TrashDetailPage: View {
                 }
             }
         } message: {
-            Text("确定要清空回收站吗？所有已删除的笔记将被永久删除，此操作无法撤销！")
+            Text("确定要清空废纸篓吗？所有已删除的笔记将被永久删除，此操作无法撤销！")
         }
     }
     
@@ -554,7 +554,7 @@ struct TrashDetailPage: View {
     }
 }
 
-// MARK: - 回收站记录只读查看页面
+// MARK: - 废纸篓记录只读查看页面
 
 struct TrashNoteDetailView: View {
     @Environment(NoteStore.self) var noteStore
@@ -670,7 +670,7 @@ struct TrashNoteDetailView: View {
 
 // MARK: - 只读附件视图
 
-/// 用于回收站的只读附件展示（不显示删除按钮）
+/// 用于废纸篓的只读附件展示（不显示删除按钮）
 struct ReadOnlyAttachmentView: View {
     let attachment: AttachmentItem
     @State private var thumbnailImage: UIImage?

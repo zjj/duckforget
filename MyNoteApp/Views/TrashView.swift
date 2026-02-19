@@ -1,7 +1,7 @@
 import SwiftData
 import SwiftUI
 
-/// 回收站视图 - 显示最近删除的记录
+/// 废纸篓视图 - 显示最近删除的记录
 struct TrashView: View {
     @Environment(NoteStore.self) var noteStore
     @Query(
@@ -24,7 +24,7 @@ struct TrashView: View {
                     Image(systemName: "trash")
                         .font(.system(size: 64))
                         .foregroundColor(.secondary.opacity(0.6))
-                    Text("回收站是空的")
+                    Text("废纸篓是空的")
                         .font(.title2)
                         .foregroundColor(.secondary)
                     Text("删除的记录将保留 \(appSettings.trashRetentionDays) 天")
@@ -93,7 +93,7 @@ struct TrashView: View {
                         Button(role: .destructive) {
                             showEmptyTrashConfirmation = true
                         } label: {
-                            Label("清空回收站", systemImage: "trash.slash")
+                            Label("清空废纸篓", systemImage: "trash.slash")
                         }
                     } label: {
                         Image(systemName: "ellipsis")
@@ -114,7 +114,7 @@ struct TrashView: View {
         } message: {
             Text("确定要永久删除这条笔记吗？此操作无法撤销！")
         }
-        .alert("确认清空回收站", isPresented: $showEmptyTrashConfirmation) {
+        .alert("确认清空废纸篓", isPresented: $showEmptyTrashConfirmation) {
             Button("取消", role: .cancel) { }
             Button("永久删除全部", role: .destructive) {
                 withAnimation {
@@ -122,7 +122,7 @@ struct TrashView: View {
                 }
             }
         } message: {
-            Text("确定要清空回收站吗？所有已删除的笔记将被永久删除，此操作无法撤销！")
+            Text("确定要清空废纸篓吗？所有已删除的笔记将被永久删除，此操作无法撤销！")
         }
     }
 

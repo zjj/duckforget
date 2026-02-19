@@ -19,7 +19,7 @@ enum WidgetType: String, Codable, CaseIterable, Identifiable {
         case .tag: return "xx标签"
         case .recentNotes: return "最近记录"
         case .search: return "搜索"
-        case .trash: return "回收站"
+        case .trash: return "废纸篓"
         case .encouragement: return "鼓励语录"
         case .statistics: return "统计"
         }

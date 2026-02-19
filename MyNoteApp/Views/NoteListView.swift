@@ -365,7 +365,7 @@ struct NoteListView: View {
                 }
             }
         } message: {
-            Text("确定要删除这条笔记吗？删除后将移至回收站。")
+            Text("确定要删除这条笔记吗？删除后将移至废纸篓。")
         }
     }
     
@@ -399,7 +399,7 @@ struct NoteListView: View {
                 }
             }
         } message: {
-            Text("确定要删除这条笔记吗？删除后将移至回收站。")
+            Text("确定要删除这条笔记吗？删除后将移至废纸篓。")
         }
     }
 

@@ -196,9 +196,9 @@ struct DashboardManagementView: View {
                     }
                 }
             } header: {
-                Text("回收站")
+                Text("废纸篓")
             } footer: {
-                Text("回收站中的记录将在删除后保留指定天数，超过时间后将被永久删除")
+                Text("废纸篓中的记录将在删除后保留指定天数，超过时间后将被永久删除")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }

@@ -8,7 +8,7 @@ class AppSettings {
     
     private let trashRetentionDaysKey = "TrashRetentionDays"
     
-    /// 回收站保留天数，默认30天
+    /// 废纸篓保留天数，默认30天
     var trashRetentionDays: Int {
         didSet {
             UserDefaults.standard.set(trashRetentionDays, forKey: trashRetentionDaysKey)
