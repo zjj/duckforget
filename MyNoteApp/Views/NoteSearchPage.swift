@@ -40,7 +40,10 @@ struct NoteSearchPage: View {
     @State private var searchText = ""
     @State private var viewMode: ViewMode = .list
     @State private var sortMode: SortMode = .dateModified
+    @State private var selectedTag: TagItem? = nil // 新增：当前选中的标签
     @FocusState private var isSearchFocused: Bool
+    
+    @Query(sort: \TagItem.sortOrder) private var allTags: [TagItem]
     
     var body: some View {
         VStack(spacing: 0) {
@@ -92,6 +95,50 @@ struct NoteSearchPage: View {
                                 .focused($isSearchFocused)
                                 .submitLabel(.search)
                             
+                            // 标签选择
+                            if let tag = selectedTag {
+                                // 已选中状态：显示带右上角红色小x的标签，直接点击清空
+                                Button {
+                                    selectedTag = nil
+                                } label: {
+                                    HStack(spacing: 2) {
+                                        Image(systemName: "tag.fill")
+                                            .font(.system(size: 10))
+                                        Text(tag.name)
+                                            .font(.system(size: 10))
+                                            .fontWeight(.medium)
+                                            .lineLimit(1)
+                                    }
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.accentColor.opacity(0.15))
+                                    .cornerRadius(6)
+                                    .foregroundColor(.accentColor)
+                                    .overlay(alignment: .topTrailing) {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .font(.system(size: 10))
+                                            .foregroundColor(.red)
+                                            .offset(x: 4, y: -4)
+                                    }
+                                }
+                                .padding(.horizontal, 4)
+                            } else {
+                                // 未选中状态：只显示标签图标，点击选择
+                                Menu {
+                                    ForEach(allTags) { tag in
+                                        Button {
+                                            selectedTag = tag
+                                        } label: {
+                                            Text(tag.name)
+                                        }
+                                    }
+                                } label: {
+                                    Image(systemName: allTags.isEmpty ? "tag.slash" : "tag")
+                                        .foregroundColor(.secondary)
+                                        .padding(.horizontal, 4)
+                                }
+                            }
+                            
                             if !searchText.isEmpty {
                                 Button {
                                     searchText = ""
@@ -124,7 +171,8 @@ struct NoteSearchPage: View {
                 viewMode: viewMode, 
                 sortMode: sortMode,
                 filterRecentDays: filterRecentDays,
-                customTitle: pageTitle
+                customTitle: pageTitle,
+                initialSelectedTag: selectedTag
             )
                 .environment(noteStore)
         }

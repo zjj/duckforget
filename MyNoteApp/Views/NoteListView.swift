@@ -12,6 +12,7 @@ struct NoteListView: View {
     var sortMode: SortMode = .dateModified
     var filterRecentDays: Int? = nil // 筛选最近几天的记录（nil表示不筛选）
     var customTitle: String? = nil // 自定义标题
+    var initialSelectedTag: TagItem? = nil // 新增：初始选中的标签
 
     @Environment(NoteStore.self) var noteStore
     @Query(
@@ -19,7 +20,11 @@ struct NoteListView: View {
         sort: \NoteItem.updatedAt,
         order: .reverse
     ) var allActiveNotes: [NoteItem]
+    
+    @Query(sort: \TagItem.sortOrder) private var allTags: [TagItem]
+    
     @State private var searchText = ""
+    @State private var selectedTag: TagItem? = nil // 新增：当前选中的标签
     @State private var isSearching = false
     @FocusState private var searchFocused: Bool
     @State private var noteToDelete: NoteItem?
@@ -40,10 +45,19 @@ struct NoteListView: View {
 
     /// 搜索过滤和排序
     private var filteredNotes: [NoteItem] {
-        let base = scopedNotes
-        let filtered = searchText.isEmpty ? base : base.filter { $0.content.localizedCaseInsensitiveContains(searchText) }
+        var notes = scopedNotes
         
-        // 应用排序
+        // 1. 标签过滤
+        if let tag = selectedTag {
+            notes = notes.filter { note in
+                note.tags.contains { $0.id == tag.id }
+            }
+        }
+        
+        // 2. 文本过滤
+        let filtered = searchText.isEmpty ? notes : notes.filter { $0.content.localizedCaseInsensitiveContains(searchText) }
+        
+        // 3. 应用排序
         switch sortMode {
         case .dateModified:
             return filtered.sorted { $0.updatedAt > $1.updatedAt }
@@ -95,12 +109,18 @@ struct NoteListView: View {
                 searchText = initialSearchText
                 isSearching = true
             }
+            if let tag = initialSelectedTag {
+                selectedTag = tag
+            }
         }
         .onChange(of: initialSearchText) { _, newValue in
             searchText = newValue
             if !newValue.isEmpty {
                 isSearching = true
             }
+        }
+        .onChange(of: initialSelectedTag) { _, newValue in
+            selectedTag = newValue
         }
     }
 
@@ -119,6 +139,50 @@ struct NoteListView: View {
                         TextField("搜索", text: $searchText)
                             .focused($searchFocused)
                             .font(.subheadline)
+                        
+                        // 标签选择
+                        if let tag = selectedTag {
+                            // 已选中状态：显示带右上角红色小x的标签，直接点击清空
+                            Button {
+                                selectedTag = nil
+                            } label: {
+                                HStack(spacing: 2) {
+                                    Image(systemName: "tag.fill")
+                                        .font(.system(size: 9))
+                                    Text(tag.name)
+                                        .font(.system(size: 9))
+                                        .fontWeight(.medium)
+                                        .lineLimit(1)
+                                }
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 3)
+                                .background(Color.accentColor.opacity(0.15))
+                                .cornerRadius(5)
+                                .foregroundColor(.accentColor)
+                                .overlay(alignment: .topTrailing) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.system(size: 8))
+                                        .foregroundColor(.red)
+                                        .offset(x: 3, y: -3)
+                                }
+                            }
+                        } else {
+                            // 未选中状态：只显示标签图标，点击选择
+                            Menu {
+                                ForEach(allTags) { tag in
+                                    Button {
+                                        selectedTag = tag
+                                    } label: {
+                                        Text(tag.name)
+                                    }
+                                }
+                            } label: {
+                                Image(systemName: allTags.isEmpty ? "tag.slash" : "tag")
+                                    .foregroundColor(.secondary)
+                                    .font(.subheadline)
+                                    .padding(.horizontal, 4)
+                            }
+                        }
 
                         if !searchText.isEmpty {
                             Button {
@@ -137,6 +201,7 @@ struct NoteListView: View {
                     Button("取消") {
                         withAnimation(.easeInOut(duration: 0.25)) {
                             searchText = ""
+                            selectedTag = nil
                             isSearching = false
                             searchFocused = false
                         }
