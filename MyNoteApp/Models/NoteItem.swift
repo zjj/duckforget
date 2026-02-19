@@ -28,7 +28,7 @@ final class NoteItem {
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
 
-        return lines.first ?? "(仅附件)"
+        return lines.first ?? ""
     }
 
     init(
