@@ -31,9 +31,6 @@ struct MyNoteAppWidgetEntryView : View {
         // Link wraps the entire content to make it tappable
         Link(destination: URL(string: "mynoteapp://create-note")!) {
             ZStack {
-                ContainerRelativeShape()
-                    .fill(Color(UIColor.systemBackground)) // 使用系统背景色
-                
                 // 主要内容：SF Symbol
                 VStack {
                     // 使用 note.text.badge.plus 作为接近 "text.pad.header.badge.plus" 的图标
@@ -72,11 +69,11 @@ struct MyNoteAppWidget: Widget {
         StaticConfiguration(kind: kind, provider: Provider()) { entry in
             if #available(iOS 17.0, *) {
                 MyNoteAppWidgetEntryView(entry: entry)
-                    .containerBackground(.fill.tertiary, for: .widget)
+                    .containerBackground(Color(UIColor.secondarySystemBackground), for: .widget)
             } else {
                 MyNoteAppWidgetEntryView(entry: entry)
                     .padding()
-                    .background()
+                    .background(Color(UIColor.secondarySystemBackground))
             }
         }
         .configurationDisplayName("快速记录")
