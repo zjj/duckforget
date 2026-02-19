@@ -46,6 +46,11 @@ struct MyNoteAppApp: App {
                 .environment(noteStore)
                 .environmentObject(toolbarSettings)
                 .environmentObject(deepLinkHandler)
+                .onOpenURL { url in
+                    if url.scheme == "mynoteapp" && url.host == "create-note" {
+                        deepLinkHandler.createNewNote()
+                    }
+                }
                 .onContinueUserActivity(CSSearchableItemActionType) { userActivity in
                     if let uniqueIdentifier = userActivity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
                        let noteID = UUID(uuidString: uniqueIdentifier) {

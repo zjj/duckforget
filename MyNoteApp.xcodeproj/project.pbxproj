@@ -6,11 +6,51 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		288894EE2F46A37A00249CE1 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 288894CF2F4610E200249CE1 /* WidgetKit.framework */; };
+		288894EF2F46A37A00249CE1 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 288894D12F4610E200249CE1 /* SwiftUI.framework */; };
+		288894FE2F46A37B00249CE1 /* MyNoteAppWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 288894ED2F46A37A00249CE1 /* MyNoteAppWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		288894FC2F46A37B00249CE1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 28B8B64F2F4195CE00820D6B /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 288894EC2F46A37A00249CE1;
+			remoteInfo = MyNoteAppWidgetExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		288894E32F4610E400249CE1 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				288894FE2F46A37B00249CE1 /* MyNoteAppWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		288894CF2F4610E200249CE1 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		288894D12F4610E200249CE1 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		288894ED2F46A37A00249CE1 /* MyNoteAppWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MyNoteAppWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		28B8B6572F4195CE00820D6B /* MyNoteApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MyNoteApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		288895022F46A37B00249CE1 /* Exceptions for "MyNoteAppWidget" folder in "MyNoteAppWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 288894EC2F46A37A00249CE1 /* MyNoteAppWidgetExtension */;
+		};
 		28B8B9682F41CC2000820D6B /* Exceptions for "MyNoteApp" folder in "MyNoteApp" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -21,6 +61,14 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		288894F02F46A37A00249CE1 /* MyNoteAppWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				288895022F46A37B00249CE1 /* Exceptions for "MyNoteAppWidget" folder in "MyNoteAppWidgetExtension" target */,
+			);
+			path = MyNoteAppWidget;
+			sourceTree = "<group>";
+		};
 		28B8B6592F4195CE00820D6B /* MyNoteApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -32,6 +80,15 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		288894EA2F46A37A00249CE1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				288894EF2F46A37A00249CE1 /* SwiftUI.framework in Frameworks */,
+				288894EE2F46A37A00249CE1 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		28B8B6542F4195CE00820D6B /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -42,10 +99,21 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		288894CE2F4610E200249CE1 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				288894CF2F4610E200249CE1 /* WidgetKit.framework */,
+				288894D12F4610E200249CE1 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		28B8B64E2F4195CE00820D6B = {
 			isa = PBXGroup;
 			children = (
 				28B8B6592F4195CE00820D6B /* MyNoteApp */,
+				288894F02F46A37A00249CE1 /* MyNoteAppWidget */,
+				288894CE2F4610E200249CE1 /* Frameworks */,
 				28B8B6582F4195CE00820D6B /* Products */,
 			);
 			sourceTree = "<group>";
@@ -54,6 +122,7 @@
 			isa = PBXGroup;
 			children = (
 				28B8B6572F4195CE00820D6B /* MyNoteApp.app */,
+				288894ED2F46A37A00249CE1 /* MyNoteAppWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -61,6 +130,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		288894EC2F46A37A00249CE1 /* MyNoteAppWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 288894FF2F46A37B00249CE1 /* Build configuration list for PBXNativeTarget "MyNoteAppWidgetExtension" */;
+			buildPhases = (
+				288894E92F46A37A00249CE1 /* Sources */,
+				288894EA2F46A37A00249CE1 /* Frameworks */,
+				288894EB2F46A37A00249CE1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				288894F02F46A37A00249CE1 /* MyNoteAppWidget */,
+			);
+			name = MyNoteAppWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = MyNoteAppWidgetExtension;
+			productReference = 288894ED2F46A37A00249CE1 /* MyNoteAppWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		28B8B6562F4195CE00820D6B /* MyNoteApp */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 28B8B6642F4195CF00820D6B /* Build configuration list for PBXNativeTarget "MyNoteApp" */;
@@ -68,10 +159,12 @@
 				28B8B6532F4195CE00820D6B /* Sources */,
 				28B8B6542F4195CE00820D6B /* Frameworks */,
 				28B8B6552F4195CE00820D6B /* Resources */,
+				288894E32F4610E400249CE1 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				288894FD2F46A37B00249CE1 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				28B8B6592F4195CE00820D6B /* MyNoteApp */,
@@ -93,6 +186,9 @@
 				LastSwiftUpdateCheck = 2620;
 				LastUpgradeCheck = 2620;
 				TargetAttributes = {
+					288894EC2F46A37A00249CE1 = {
+						CreatedOnToolsVersion = 26.2;
+					};
 					28B8B6562F4195CE00820D6B = {
 						CreatedOnToolsVersion = 26.2;
 					};
@@ -113,11 +209,19 @@
 			projectRoot = "";
 			targets = (
 				28B8B6562F4195CE00820D6B /* MyNoteApp */,
+				288894EC2F46A37A00249CE1 /* MyNoteAppWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		288894EB2F46A37A00249CE1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		28B8B6552F4195CE00820D6B /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -128,6 +232,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		288894E92F46A37A00249CE1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		28B8B6532F4195CE00820D6B /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -137,7 +248,75 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		288894FD2F46A37B00249CE1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 288894EC2F46A37A00249CE1 /* MyNoteAppWidgetExtension */;
+			targetProxy = 288894FC2F46A37B00249CE1 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		288895002F46A37B00249CE1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 78PKJ7CTTT;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MyNoteAppWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = MyNoteAppWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.duckforget.MyNoteApp.MyNoteAppWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		288895012F46A37B00249CE1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 78PKJ7CTTT;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MyNoteAppWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = MyNoteAppWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.duckforget.MyNoteApp.MyNoteAppWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		28B8B6622F4195CF00820D6B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -330,6 +509,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		288894FF2F46A37B00249CE1 /* Build configuration list for PBXNativeTarget "MyNoteAppWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				288895002F46A37B00249CE1 /* Debug */,
+				288895012F46A37B00249CE1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		28B8B6522F4195CE00820D6B /* Build configuration list for PBXProject "MyNoteApp" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

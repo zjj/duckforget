@@ -140,6 +140,13 @@ struct FolderListView: View {
                 deepLinkHandler.reset()
             }
         }
+        .onChange(of: deepLinkHandler.shouldCreateNewNote) { _, shouldCreate in
+            if shouldCreate {
+                noteToNavigate = noteStore.createNote()
+                showNoteEditor = true
+                deepLinkHandler.reset()
+            }
+        }
         .fullScreenCover(isPresented: $showNoteEditor) {
             if let note = noteToNavigate {
                 NavigationStack {
