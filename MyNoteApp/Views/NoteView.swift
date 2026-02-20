@@ -215,6 +215,8 @@ struct NoteView: View {
                     } label: {
                         Image(systemName: "checkmark")
                             .font(.system(size: 16))
+                            .scaleEffect((undoRedoManager.canUndo || undoRedoManager.canRedo) ? 1.0 : 0.8)
+                            .animation(.spring(response: 0.3, dampingFraction: 0.5), value: (undoRedoManager.canUndo || undoRedoManager.canRedo))
                     }
                     .disabled(!undoRedoManager.canUndo && !undoRedoManager.canRedo)
                 } else {
