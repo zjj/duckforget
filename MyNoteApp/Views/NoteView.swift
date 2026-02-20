@@ -197,7 +197,7 @@ struct NoteView: View {
                         Button {
                             showTagManagement = true
                         } label: {
-                            Label("管理标签", systemImage: "tag")
+                            Label("标签", systemImage: "tag")
                         }
 
                         Button(role: .destructive) {

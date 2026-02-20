@@ -79,7 +79,7 @@ struct TagManagementSheet: View {
                 }
                 .listStyle(.plain)
             }
-            .navigationTitle("管理标签")
+            .navigationTitle("整理")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
