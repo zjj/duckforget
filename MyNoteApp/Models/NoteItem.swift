@@ -22,13 +22,13 @@ final class NoteItem {
     /// 存储待删除的附件ID（仅在UI中隐藏，点击完成后才真正删除）
     var pendingDeletedAttachmentIDs: [UUID]? = []
 
-    /// 预览：取第一行非空文本
+    /// 预览：取前50个字符
     var preview: String {
-        let lines = content.components(separatedBy: .newlines)
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-
-        return lines.first ?? ""
+        let text = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        if text.count > 50 {
+            return String(text.prefix(50))
+        }
+        return text
     }
 
     init(

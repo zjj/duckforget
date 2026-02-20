@@ -1,3 +1,4 @@
+import NaturalLanguage
 import SwiftData
 import SwiftUI
 
@@ -54,8 +55,8 @@ struct NoteListView: View {
             }
         }
         
-        // 2. 文本过滤
-        let filtered = searchText.isEmpty ? notes : notes.filter { $0.content.localizedCaseInsensitiveContains(searchText) }
+        // 2. 文本过滤（Token Match：对查询分词后，要求所有词元均出现在笔记内容中）
+        let filtered = searchText.isEmpty ? notes : notes.filter { noteMatchesQuery($0, query: searchText) }
         
         // 3. 应用排序
         switch sortMode {
@@ -73,6 +74,25 @@ struct NoteListView: View {
         // 根据排序模式选择日期字段
         let dateKeyPath: KeyPath<NoteItem, Date> = sortMode == .dateCreated ? \.createdAt : \.updatedAt
         return groupNotesByDate(filteredNotes, dateKeyPath: dateKeyPath)
+    }
+
+    /// Token Match：对查询字符串分词，要求所有词元均出现在笔记内容中
+    /// 标题（第一行）包含在 content 中，与正文等权
+    private func noteMatchesQuery(_ note: NoteItem, query: String) -> Bool {
+        guard !query.isEmpty else { return true }
+        let tokenizer = NLTokenizer(unit: .word)
+        tokenizer.string = query
+        var tokens: [String] = []
+        tokenizer.enumerateTokens(in: query.startIndex..<query.endIndex) { range, _ in
+            tokens.append(String(query[range]))
+            return true
+        }
+        // 分词失败时退化为整串匹配
+        guard !tokens.isEmpty else {
+            return note.content.localizedCaseInsensitiveContains(query)
+        }
+        // 所有词元都必须出现在内容中（标题是第一行，已包含在 content 内）
+        return tokens.allSatisfy { note.content.localizedCaseInsensitiveContains($0) }
     }
 
     private var navigationTitle: String {

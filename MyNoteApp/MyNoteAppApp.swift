@@ -57,12 +57,12 @@ struct MyNoteAppApp: App {
                         deepLinkHandler.openNote(id: noteID, autoEdit: false)
                     }
                 }
-                .onAppear {
-                    // 应用启动时重新索引所有笔记
-                    DispatchQueue.global(qos: .utility).async {
-                        noteStore.reindexAllNotes()
-                    }
-                }
+                //.onAppear {
+                //    // 应用启动时重新索引所有笔记
+                //    DispatchQueue.global(qos: .utility).async {
+                //        noteStore.reindexAllNotes()
+                //    }
+                //}
         }
     }
 }

@@ -1,4 +1,5 @@
 import CoreSpotlight
+import NaturalLanguage
 import SwiftData
 import SwiftUI
 import UIKit
@@ -257,59 +258,90 @@ class NoteStore {
     // MARK: - Spotlight
 
     func indexNoteInSpotlight(_ note: NoteItem) {
+        // 1. 提前捕获元数据，避免在回调中跨线程访问 SwiftData 对象
+        let noteID = note.id.uuidString
+        let noteTitle = note.preview
+        let noteContent = note.content
+        let noteUpdatedAt = note.updatedAt
+        let noteCreatedAt = note.createdAt
+        let noteTags = note.tags.map { $0.name }
+
         // 只索引非空的笔记
-        guard !note.content.isEmpty || !note.attachments.isEmpty else {
-            return
-        }
-        
-        let attributeSet = CSSearchableItemAttributeSet(contentType: UTType.text)
-        
+        guard !noteContent.isEmpty || !note.attachments.isEmpty else { return }
+
+        let attributeSet = CSSearchableItemAttributeSet(contentType: .text)
+
         // 标题和显示名称
-        attributeSet.title = note.preview
-        attributeSet.displayName = note.preview
-        
-        // 内容 - 这是关键！
-        attributeSet.textContent = note.content
-        attributeSet.contentDescription = note.content
-        
+        attributeSet.title = noteTitle
+        attributeSet.displayName = noteTitle
+        attributeSet.contentDescription = noteContent
+        attributeSet.textContent = noteContent // 恢复 textContent 以支持系统原生全文索引作为兜底
+
         // 日期
-        attributeSet.contentModificationDate = note.updatedAt
-        attributeSet.contentCreationDate = note.createdAt
-        
-        // 标签作为关键词
-        if !note.tags.isEmpty {
-            attributeSet.keywords = note.tags.map { $0.name }
+        attributeSet.contentModificationDate = noteUpdatedAt
+        attributeSet.contentCreationDate = noteCreatedAt
+
+        // 分词增强：提取正文中的关键词
+        let bodyTokens = tokenize(noteContent)
+        var keywords = noteTags
+        var seen = Set<String>(keywords)
+        for token in bodyTokens {
+            if seen.insert(token).inserted {
+                keywords.append(token)
+            }
         }
+        attributeSet.keywords = keywords
 
         let item = CSSearchableItem(
-            uniqueIdentifier: note.id.uuidString,
+            uniqueIdentifier: noteID,
             domainIdentifier: "com.duckforget.MyNoteApp.notes",
             attributeSet: attributeSet
         )
         item.expirationDate = Date.distantFuture
 
         CSSearchableIndex.default().indexSearchableItems([item]) { _ in
-            // 静默索引，不输出日志
         }
     }
 
     func deindexNoteFromSpotlight(_ note: NoteItem) {
         CSSearchableIndex.default().deleteSearchableItems(
             withIdentifiers: [note.id.uuidString]
-        ) { _ in }
+        ) { _ in
+        }
+    }
+
+    // MARK: - NL Tokenization Helper
+
+    /// 使用 NLTokenizer 对文本进行分词，返回去重后的词元列表
+    private func tokenize(_ text: String) -> [String] {
+        guard !text.isEmpty else { return [] }
+        let tokenizer = NLTokenizer(unit: .word)
+        tokenizer.string = text
+        tokenizer.setLanguage(.simplifiedChinese) // 设置中文分词
+        var tokens: [String] = []
+        tokenizer.enumerateTokens(in: text.startIndex..<text.endIndex) { range, _ in
+            let token = String(text[range]).lowercased()
+            if !token.isEmpty && token.count > 1 { // 过滤掉单字符词元
+                tokens.append(token)
+            }
+            return true
+        }
+        // 去重，保留顺序
+        var seen = Set<String>()
+        return tokens.filter { seen.insert($0).inserted }
     }
 
     /// 索引所有非删除的记录到 Spotlight
-    func reindexAllNotes() {
-        CSSearchableIndex.default().deleteAllSearchableItems { _ in }
-        
-        let descriptor = FetchDescriptor<NoteItem>(predicate: #Predicate { $0.isDeleted == false })
-        guard let notes = try? modelContext.fetch(descriptor) else { return }
-        
-        for note in notes {
-            indexNoteInSpotlight(note)
-        }
-    }
+    //func reindexAllNotes() {
+    //    CSSearchableIndex.default().deleteAllSearchableItems { _ in }
+    //    
+    //    let descriptor = FetchDescriptor<NoteItem>(predicate: #Predicate { $0.isDeleted == false })
+    //    guard let notes = try? modelContext.fetch(descriptor) else { return }
+    //    
+    //    for note in notes {
+    //        indexNoteInSpotlight(note)
+    //    }
+    //}
 
     // MARK: - Private Helpers
 
