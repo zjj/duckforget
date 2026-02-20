@@ -40,6 +40,15 @@ struct NoteView: View {
 
     // 附件查看
     @State private var selectedAttachment: AttachmentItem?
+    @State private var showAttachmentViewer = false
+    @State private var selectedAttachmentIndex: Int = 0
+    
+    // 附件显示模式
+    enum AttachmentDisplayMode {
+        case grid      // 网格模式
+        case fullSize  // 原图模式
+    }
+    @State private var attachmentDisplayMode: AttachmentDisplayMode = .grid
 
     // 语音输入
     @StateObject private var speechRecognizer = SpeechRecognizer()
@@ -103,45 +112,19 @@ struct NoteView: View {
     var body: some View {
         ZStack {
             // 主内容
-            VStack(spacing: 0) {
-                // 标签区域（仅预览模式显示）
-                if !isEditMode && !note.tags.isEmpty {
-                    tagSection
-                    Divider()
-                }
-                
-                // 文本编辑/预览区
-                textEditorSection
-
-                // 附件缩略图区域
-                if !currentAttachments.isEmpty {
-                    Divider()
-                    attachmentStripSection
-                }
-
-                // 时间信息
-                if onPublish == nil {
-                    timeInfoSection
-                }
-
-                // 富文本工具栏（仅编辑模式 + 键盘聚焦时显示）
-                if isEditMode && showRichTextBar && isEditorFocused {
-                    Divider()
-                    RichTextToolbar(
-                        onBold: { applyTextFormat(.bold) },
-                        onItalic: { applyTextFormat(.italic) },
-                        onBulletList: { insertPrefix("• ") },
-                        onNumberedList: { insertPrefix("1. ") },
-                        onDismissKeyboard: {
-                            textViewCoordinator?.blur()
+            Group {
+                if !isEditMode && attachmentDisplayMode == .fullSize && !currentAttachments.isEmpty {
+                    // 原图模式：整个页面可滚动
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            mainContentView
                         }
-                    )
-                }
-                
-                // 底部工具栏（仅编辑模式显示）
-                if isEditMode {
-                    Divider()
-                    bottomToolbar
+                    }
+                } else {
+                    // 其他模式：正常布局
+                    VStack(spacing: 0) {
+                        mainContentView
+                    }
                 }
             }
             
@@ -300,7 +283,7 @@ struct NoteView: View {
                 voiceDragOffset = 0
             }
         }
-        .onChange(of: scenePhase) { newPhase in
+        .onChange(of: scenePhase) { _, newPhase in
             // 如果应用失去焦点（如弹出权限请求），且正在录音，则强制停止
             if newPhase != .active && isVoiceButtonPressed {
                 isVoiceButtonPressed = false
@@ -352,9 +335,14 @@ struct NoteView: View {
                 saveImage(UIImage(data: imageData)!, type: .drawing)
             }
         }
-        .sheet(item: $selectedAttachment) { att in
-            AttachmentViewerSheet(attachment: att)
-                .environment(noteStore)
+        .sheet(isPresented: $showAttachmentViewer) {
+            NavigableAttachmentViewerSheet(
+                attachments: currentAttachments,
+                currentIndex: $selectedAttachmentIndex
+            )
+            .environment(noteStore)
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(20)
         }
         .sheet(isPresented: $showTagManagement) {
             TagManagementSheet(note: note)
@@ -378,19 +366,75 @@ struct NoteView: View {
         }
     }
 
+    // MARK: - 主内容视图
+    
+    private var mainContentView: some View {
+        Group {
+            // 标签区域（仅预览模式显示）
+            if !isEditMode && !note.tags.isEmpty {
+                tagSection
+                Divider()
+            }
+            
+            // 文本编辑/预览区
+            textEditorSection
+            
+            // 文本和附件之间的分隔
+            if !currentAttachments.isEmpty {
+                Spacer()
+                    .frame(height: 16)
+            }
+
+            // 附件缩略图区域
+            if !currentAttachments.isEmpty {
+                Divider()
+                attachmentStripSection
+            }
+
+            // 时间信息
+            if onPublish == nil {
+                timeInfoSection
+            }
+
+            // 富文本工具栏（仅编辑模式 + 键盘聚焦时显示）
+            if isEditMode && showRichTextBar && isEditorFocused {
+                Divider()
+                RichTextToolbar(
+                    onBold: { applyTextFormat(.bold) },
+                    onItalic: { applyTextFormat(.italic) },
+                    onBulletList: { insertPrefix("• ") },
+                    onNumberedList: { insertPrefix("1. ") },
+                    onDismissKeyboard: {
+                        textViewCoordinator?.blur()
+                    }
+                )
+            }
+            
+            // 底部工具栏（仅编辑模式显示）
+            if isEditMode {
+                Divider()
+                bottomToolbar
+            }
+        }
+    }
+    
     // MARK: - 标签区域（预览模式）
     
     private var tagSection: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(note.tags) { tag in
-                    Text(tag.name)
-                        .font(.caption)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(Color.accentColor.opacity(0.15))
-                        .foregroundColor(.accentColor)
-                        .cornerRadius(12)
+                    HStack(spacing: 4) {
+                        Image(systemName: "tag.fill")
+                            .font(.system(size: 10))
+                        Text(tag.name)
+                            .font(.caption)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Color.accentColor.opacity(0.15))
+                    .foregroundColor(.accentColor)
+                    .cornerRadius(12)
                 }
             }
             .padding(.horizontal, 16)
@@ -401,38 +445,57 @@ struct NoteView: View {
     // MARK: - 文本编辑区
 
     private var textEditorSection: some View {
-        ZStack(alignment: .topLeading) {
-            CursorTrackingTextView(
-                text: $content,
-                cursorPosition: $cursorPosition,
-                isEditable: isEditMode,
-                onFocusChange: { focused in
-                    isEditorFocused = focused
-                },
-                onUndoStateChange: { undo, redo in
-                    // UITextView 的 undo/redo 状态已不再使用，改用 UndoRedoManager
-                },
-                onCoordinatorReady: { coordinator in
-                    textViewCoordinator = coordinator
-                    // 自动聚焦（编辑模式时）
-                    if isEditMode {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            coordinator.focus()
-                            let len = (self.content as NSString).length
-                            if len > 0 {
-                                coordinator.setCursor(to: len)
+        Group {
+            if isEditMode {
+                // 编辑模式：使用 CursorTrackingTextView
+                ZStack(alignment: .topLeading) {
+                    CursorTrackingTextView(
+                        text: $content,
+                        cursorPosition: $cursorPosition,
+                        isEditable: isEditMode,
+                        onFocusChange: { focused in
+                            isEditorFocused = focused
+                        },
+                        onUndoStateChange: { undo, redo in
+                            // UITextView 的 undo/redo 状态已不再使用，改用 UndoRedoManager
+                        },
+                        onCoordinatorReady: { coordinator in
+                            textViewCoordinator = coordinator
+                            // 自动聚焦（编辑模式时）
+                            if isEditMode {
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                    coordinator.focus()
+                                    let len = (self.content as NSString).length
+                                    if len > 0 {
+                                        coordinator.setCursor(to: len)
+                                    }
+                                }
                             }
                         }
+                    )
+
+                    if content.isEmpty && !speechRecognizer.isRecording {
+                        Text("开始输入...")
+                            .foregroundColor(Color(.placeholderText))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 8)
+                            .allowsHitTesting(false)
                     }
                 }
-            )
-
-            if content.isEmpty && !speechRecognizer.isRecording {
-                Text(isEditMode ? "开始输入..." : "暂无内容")
-                    .foregroundColor(Color(.placeholderText))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 8)
-                    .allowsHitTesting(false)
+            } else {
+                // 预览模式：使用 Text 显示
+                if content.isEmpty {
+                    Text("暂无内容")
+                        .foregroundColor(Color(.placeholderText))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                } else {
+                    Text(content)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                }
             }
         }
     }
@@ -475,9 +538,102 @@ struct NoteView: View {
     // MARK: - 附件缩略图条
 
     private var attachmentStripSection: some View {
+        VStack(spacing: 0) {
+            // 顶部模式切换按钮（仅预览模式显示）
+            if !isEditMode && currentAttachments.count > 0 {
+                HStack {
+                    Text("附件")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+                    
+                    Spacer()
+                    
+                    Button {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            toggleAttachmentDisplayMode()
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: attachmentDisplayMode == .grid ? "square.grid.2x2" : "photo.on.rectangle")
+                                .font(.system(size: 16))
+                        }
+                        .foregroundColor(.accentColor)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.accentColor.opacity(0.1))
+                        .cornerRadius(8)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+            }
+            
+            // 附件显示区域
+            if !isEditMode {
+                // 预览模式：根据模式显示
+                if attachmentDisplayMode == .grid {
+                    // 网格布局
+                    gridAttachmentView
+                } else {
+                    // 原图模式
+                    fullSizeAttachmentView
+                }
+            } else {
+                // 编辑模式：横向滚动
+                horizontalAttachmentView
+            }
+        }
+        .background(Color(.systemBackground))
+    }
+    
+    // 网格布局
+    private var gridAttachmentView: some View {
+        ScrollView {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 12)], spacing: 12) {
+                ForEach(Array(currentAttachments.enumerated()), id: \.element.id) { index, attachment in
+                    AttachmentThumbnailView(
+                        attachment: attachment,
+                        shouldSaveOnDelete: false,
+                        showDeleteButton: false,
+                        onDelete: {}
+                    )
+                    .frame(width: 100, height: 100)
+                    .onTapGesture {
+                        selectedAttachmentIndex = index
+                        showAttachmentViewer = true
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+        }
+        .frame(maxHeight: 300)
+    }
+    
+    // 原图模式（垂直列表）
+    private var fullSizeAttachmentView: some View {
+        VStack(spacing: 16) {
+            ForEach(Array(currentAttachments.enumerated()), id: \.element.id) { index, attachment in
+                FullSizeAttachmentView(
+                    attachment: attachment,
+                    noteStore: noteStore
+                )
+                .onTapGesture {
+                    selectedAttachmentIndex = index
+                    showAttachmentViewer = true
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+    }
+    
+    // 横向滚动（编辑模式）
+    private var horizontalAttachmentView: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             LazyHStack(spacing: 12) {
-                ForEach(currentAttachments) { attachment in
+                ForEach(Array(currentAttachments.enumerated()), id: \.element.id) { index, attachment in
                     AttachmentThumbnailView(
                         attachment: attachment,
                         shouldSaveOnDelete: false,
@@ -492,14 +648,19 @@ struct NoteView: View {
                     )
                     .frame(width: 100, height: 100)
                     .onTapGesture {
-                        selectedAttachment = attachment
+                        selectedAttachmentIndex = index
+                        showAttachmentViewer = true
                     }
                 }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
         }
-        .background(Color(.systemBackground))
+    }
+    
+    // 切换附件显示模式
+    private func toggleAttachmentDisplayMode() {
+        attachmentDisplayMode = attachmentDisplayMode == .grid ? .fullSize : .grid
     }
 
     // MARK: - 时间信息显示
@@ -1116,3 +1277,314 @@ struct NoteView: View {
     }
 }
 
+// MARK: - 可导航的附件查看器
+
+/// 支持左右切换的附件查看器
+struct NavigableAttachmentViewerSheet: View {
+    let attachments: [AttachmentItem]
+    @Binding var currentIndex: Int
+    @Environment(NoteStore.self) var noteStore
+    @Environment(\.dismiss) private var dismiss
+    
+    private var currentAttachment: AttachmentItem {
+        attachments[safe: currentIndex] ?? attachments.first!
+    }
+    
+    private var canGoBack: Bool {
+        currentIndex > 0
+    }
+    
+    private var canGoForward: Bool {
+        currentIndex < attachments.count - 1
+    }
+    
+    private var isLocationAttachment: Bool {
+        currentAttachment.type == .location
+    }
+    
+    var body: some View {
+        ZStack {
+            // 主要内容
+            TabView(selection: $currentIndex) {
+                ForEach(Array(attachments.enumerated()), id: \.element.id) { index, attachment in
+                    VStack(spacing: 0) {
+                        attachmentContentView(for: attachment)
+                            .frame(maxHeight: .infinity)
+                        
+                        // 页面指示器（在每个附件内容下方）
+                        if attachments.count > 1 {
+                            HStack(spacing: 8) {
+                                ForEach(0..<attachments.count, id: \.self) { idx in
+                                    Circle()
+                                        .fill(idx == currentIndex ? Color.primary : Color.primary.opacity(0.3))
+                                        .frame(width: 8, height: 8)
+                                }
+                            }
+                            .padding(.vertical, 16)
+                            .padding(.bottom, 8)
+                        }
+                    }
+                    .tag(index)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .background(Color(.systemBackground))
+            
+            // 关闭按钮（左上角）
+            VStack {
+                HStack {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(.primary.opacity(0.7))
+                            .padding(12)
+                            .background(
+                                Circle()
+                                    .fill(Color(.systemBackground).opacity(0.8))
+                            )
+                            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                    }
+                    .padding(.leading, 16)
+                    .padding(.top, 16)
+                    
+                    Spacer()
+                }
+                Spacer()
+            }
+            
+            // 左右导航按钮（仅地图类型显示）
+            if isLocationAttachment && attachments.count > 1 {
+                HStack {
+                    // 左侧按钮
+                    if canGoBack {
+                        Button {
+                            withAnimation {
+                                currentIndex -= 1
+                            }
+                        } label: {
+                            Image(systemName: "chevron.left.circle.fill")
+                                .font(.system(size: 44))
+                                .foregroundColor(.primary.opacity(0.6))
+                                .shadow(radius: 4)
+                        }
+                        .padding(.leading, 20)
+                    }
+                    
+                    Spacer()
+                    
+                    // 右侧按钮
+                    if canGoForward {
+                        Button {
+                            withAnimation {
+                                currentIndex += 1
+                            }
+                        } label: {
+                            Image(systemName: "chevron.right.circle.fill")
+                                .font(.system(size: 44))
+                                .foregroundColor(.primary.opacity(0.6))
+                                .shadow(radius: 4)
+                        }
+                        .padding(.trailing, 20)
+                    }
+                }
+            }
+        }
+        .onTapGesture(count: 2) {
+            dismiss()
+        }
+    }
+    
+    @ViewBuilder
+    private func attachmentContentView(for attachment: AttachmentItem) -> some View {
+        switch attachment.type {
+        case .photo, .scannedDocument, .scannedText, .drawing:
+            ImageViewer(attachment: attachment)
+        case .video:
+            VideoViewer(attachment: attachment)
+        case .audio:
+            AudioPlayerView(attachment: attachment)
+        case .file:
+            FilePreviewView(attachment: attachment)
+        case .location:
+            LocationViewer(attachment: attachment)
+        }
+    }
+}
+
+// 安全数组访问扩展
+extension Array {
+    subscript(safe index: Int) -> Element? {
+        return indices.contains(index) ? self[index] : nil
+    }
+}
+
+// MARK: - 原图附件视图
+
+/// 原图模式下显示附件的视图
+struct FullSizeAttachmentView: View {
+    let attachment: AttachmentItem
+    let noteStore: NoteStore
+    @State private var image: UIImage?
+    @State private var isLoading = true
+    
+    var body: some View {
+        Group {
+            switch attachment.type {
+            case .photo, .scannedDocument, .scannedText, .drawing:
+                imageView
+            case .video:
+                videoThumbnailView
+            case .audio:
+                audioPlaceholderView
+            case .file:
+                filePlaceholderView
+            case .location:
+                locationThumbnailView
+            }
+        }
+    }
+    
+    private var imageView: some View {
+        Group {
+            if let image = image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .cornerRadius(12)
+                    .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+            } else if isLoading {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.systemGray6))
+                        .aspectRatio(4/3, contentMode: .fit)
+                    
+                    ProgressView()
+                }
+            } else {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.systemGray6))
+                        .aspectRatio(4/3, contentMode: .fit)
+                    
+                    Image(systemName: "photo")
+                        .font(.largeTitle)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .onAppear { loadImage() }
+    }
+    
+    private var videoThumbnailView: some View {
+        ZStack {
+            if let image = image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .cornerRadius(12)
+                    .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+            } else {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(.systemGray6))
+                    .aspectRatio(16/9, contentMode: .fit)
+            }
+            
+            Image(systemName: "play.circle.fill")
+                .font(.system(size: 50))
+                .foregroundColor(.white)
+                .shadow(radius: 4)
+        }
+        .onAppear { loadThumbnail() }
+    }
+    
+    private var audioPlaceholderView: some View {
+        HStack {
+            Image(systemName: "waveform")
+                .font(.title)
+                .foregroundColor(.orange)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text("音频文件")
+                    .font(.headline)
+                Text(attachment.type.displayName)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+    
+    private var filePlaceholderView: some View {
+        HStack {
+            Image(systemName: "doc.fill")
+                .font(.title)
+                .foregroundColor(.blue)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text("文件")
+                    .font(.headline)
+                Text((attachment.fileName as NSString).pathExtension.uppercased().isEmpty ? "FILE" : (attachment.fileName as NSString).pathExtension.uppercased())
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+    
+    private var locationThumbnailView: some View {
+        ZStack {
+            if let image = image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .cornerRadius(12)
+                    .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+            } else {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(.systemGray6))
+                    .aspectRatio(16/9, contentMode: .fit)
+            }
+            
+            Image(systemName: "mappin.circle.fill")
+                .font(.system(size: 40))
+                .foregroundColor(.red)
+                .shadow(radius: 4)
+        }
+        .onAppear { loadThumbnail() }
+    }
+    
+    private func loadImage() {
+        isLoading = true
+        DispatchQueue.global(qos: .userInitiated).async {
+            let url = noteStore.attachmentURL(for: attachment)
+            if let data = try? Data(contentsOf: url),
+               let loaded = UIImage(data: data) {
+                DispatchQueue.main.async {
+                    image = loaded
+                    isLoading = false
+                }
+            } else {
+                DispatchQueue.main.async {
+                    isLoading = false
+                }
+            }
+        }
+    }
+    
+    private func loadThumbnail() {
+        guard let thumbnailURL = noteStore.thumbnailURL(for: attachment),
+              let thumbnailData = try? Data(contentsOf: thumbnailURL),
+              let thumbnailImage = UIImage(data: thumbnailData) else { return }
+        image = thumbnailImage
+    }
+}

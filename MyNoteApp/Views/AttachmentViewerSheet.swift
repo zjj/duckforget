@@ -47,8 +47,6 @@ struct ImageViewer: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
-
             if let image = image {
                 Image(uiImage: image)
                     .resizable()
@@ -73,7 +71,6 @@ struct ImageViewer: View {
             } else {
                 ProgressView()
                     .scaleEffect(1.5)
-                    .tint(.white)
             }
         }
         .onAppear { loadImage() }
