@@ -214,8 +214,7 @@ struct NoteView: View {
                         exitEditMode()
                     } label: {
                         Image(systemName: "checkmark")
-                            .fontWeight(.semibold)
-                            .foregroundColor(undoRedoManager.canUndo || undoRedoManager.canRedo ? .orange : .secondary)
+                            .font(.system(size: 16))
                     }
                     .disabled(!undoRedoManager.canUndo && !undoRedoManager.canRedo)
                 } else {
