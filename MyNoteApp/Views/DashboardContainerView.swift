@@ -155,20 +155,31 @@ struct DashboardContainerView: View {
                 NavigationStack {
                     NoteView(note: note, startInEditMode: openInEditMode)
                         .environment(noteStore)
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .topBarLeading) {
-                            Button {
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .topBarLeading) {
+                                Button {
+                                    showNoteEditor = false
+                                    noteToNavigate = nil
+                                    openInEditMode = false
+                                } label: {
+                                    Image(systemName: "chevron.left")
+                                        .font(.system(size: 17, weight: .semibold))
+                                }
+                            }
+                        }
+                }
+                .gesture(
+                    DragGesture()
+                        .onEnded { value in
+                            // Only allow swipe to dismiss if starting from the left edge (simulating navigation back)
+                            if value.startLocation.x < 50 && value.translation.width > 100 {
                                 showNoteEditor = false
                                 noteToNavigate = nil
                                 openInEditMode = false
-                            } label: {
-                                Image(systemName: "xmark")
-                                    .font(.body.weight(.semibold))
                             }
                         }
-                    }
-                }
+                )
             }
         }
     }
