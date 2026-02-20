@@ -363,75 +363,8 @@ struct NoteListView: View {
                 NoteView(note: note, startInEditMode: false)
                     .environment(noteStore)
             } label: {
-                VStack(alignment: .leading, spacing: 8) {
-                    // 第一行：标签 + 时间（右对齐）
-                    HStack(spacing: 6) {
-                        if !note.tags.isEmpty {
-                            let maxTagsToShow = 5
-                            let displayTags = Array(note.tags.prefix(maxTagsToShow))
-                            let remainingCount = note.tags.count - maxTagsToShow
-                            
-                            HStack(spacing: 6) {
-                                ForEach(displayTags) { tag in
-                                    Text(tag.name)
-                                        .font(.caption2)
-                                        .foregroundColor(.white)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 3)
-                                        .background(Color.accentColor)
-                                        .cornerRadius(4)
-                                }
-                                
-                                if remainingCount > 0 {
-                                    Text("+\(remainingCount)")
-                                        .font(.caption2)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                        } else {
-                            Spacer()
-                                .frame(height: 24)
-                        }
-                        
-                        Spacer()
-                        
-                        Text(note.createdAt.formattedAbsolute)
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                    }
-                    .frame(height: 24)
-                    
-                    // 第二行：文字
-                    Text(note.preview)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .lineLimit(2)
-                        .foregroundColor(.primary)
-                        .frame(height: 40, alignment: .leading)
-                    
-                    // 第三行：附件图标
-                    if !note.attachments.isEmpty {
-                        let noteAttachments = note.attachments.sorted { $0.createdAt < $1.createdAt }
-                        HStack(spacing: 6) {
-                            ForEach(noteAttachments.prefix(6)) { att in
-                                ListViewAttachmentThumbnail(attachment: att)
-                            }
-                            if noteAttachments.count > 6 {
-                                Text("+\(noteAttachments.count - 6)")
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        .frame(height: 24)
-                    } else {
-                        Spacer()
-                            .frame(height: 24)
-                    }
-                }
-                .frame(height: 100)
-                .padding(12)
-                .background(Color(.systemGray6))
-                .cornerRadius(12)
+                NoteRowView(note: note)
+                    .environment(noteStore)
             }
             .buttonStyle(.plain)
             .contextMenu {
@@ -492,56 +425,6 @@ struct NoteListView: View {
 
     // MARK: - 列表缩略图组件
 
-    private struct ListViewAttachmentThumbnail: View {
-        let attachment: AttachmentItem
-        @Environment(NoteStore.self) var noteStore
-        @State private var image: UIImage?
-
-        var body: some View {
-            Group {
-                if let image {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 22, height: 22)
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                } else {
-                    AttachmentMiniIcon(type: attachment.type)
-                }
-            }
-            .onAppear {
-                loadThumbnail()
-            }
-        }
-        
-        private func loadThumbnail() {
-            guard [.photo, .video, .scannedDocument, .scannedText, .drawing, .location].contains(attachment.type) else { return }
-            
-            DispatchQueue.global(qos: .userInitiated).async {
-                var loadedImage: UIImage?
-                
-                // 优先加载缩略图
-                if let thumbURL = noteStore.thumbnailURL(for: attachment),
-                   let data = try? Data(contentsOf: thumbURL) {
-                    loadedImage = UIImage(data: data)
-                }
-                
-                // 回退到原图
-                if loadedImage == nil {
-                    let url = noteStore.attachmentURL(for: attachment)
-                    if let data = try? Data(contentsOf: url) {
-                        loadedImage = UIImage(data: data)
-                    }
-                }
-                
-                if let result = loadedImage {
-                    DispatchQueue.main.async {
-                        self.image = result
-                    }
-                }
-            }
-        }
-    }
 }
 
 // A helper to conditionally apply modifiers

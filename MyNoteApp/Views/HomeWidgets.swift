@@ -916,44 +916,14 @@ struct TagFullPagePreview: View {
                 .padding(.top, 40)
             } else {
                 ScrollView {
-                    VStack(spacing: 0) {
+                    LazyVStack(spacing: 8) {
                         ForEach(displayedNotes.prefix(100)) { note in
                             NavigationLink(destination: NoteView(note: note, startInEditMode: false).environment(noteStore)) {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text(note.preview)
-                                        .font(.subheadline)
-                                        .fontWeight(.semibold)
-                                        .lineLimit(2)
-                                        .foregroundColor(.primary)
-                                    
-                                    HStack {
-                                        if !note.attachments.isEmpty {
-                                            HStack(spacing: 4) {
-                                                ForEach(note.attachments.prefix(3)) { att in
-                                                    WidgetAttachmentThumbnail(attachment: att)
-                                                }
-                                                if note.attachments.count > 3 {
-                                                    Text("+\(note.attachments.count - 3)")
-                                                        .font(.caption2)
-                                                        .foregroundColor(.secondary)
-                                                }
-                                            }
-                                        }
-                                        
-                                        Spacer()
-                                        
-                                        Text(note.createdAt.formattedAbsolute)
-                                            .font(.caption2)
-                                            .foregroundStyle(.tertiary)
-                                    }
-                                }
-                                .padding()
+                                NoteRowView(note: note)
+                                    .environment(noteStore)
                             }
                             .buttonStyle(.plain)
                             .disabled(isEditing)
-                            
-                            Divider()
-                                .padding(.leading)
                         }
                         
                         if displayedNotes.count > 100 {
@@ -974,6 +944,8 @@ struct TagFullPagePreview: View {
                             .disabled(isEditing)
                         }
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
                 }
             }
             
@@ -1050,44 +1022,14 @@ struct RecentNotesFullPagePreview: View {
                 .padding(.top, 40)
             } else {
                 ScrollView {
-                    VStack(spacing: 0) {
+                    LazyVStack(spacing: 8) {
                         ForEach(displayedNotes.prefix(100)) { note in
                             NavigationLink(destination: NoteView(note: note, startInEditMode: false).environment(noteStore)) {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text(note.preview)
-                                        .font(.subheadline)
-                                        .fontWeight(.semibold)
-                                        .lineLimit(2)
-                                        .foregroundColor(.primary)
-                                    
-                                    HStack {
-                                        if !note.attachments.isEmpty {
-                                            HStack(spacing: 4) {
-                                                ForEach(note.attachments.prefix(3)) { att in
-                                                    WidgetAttachmentThumbnail(attachment: att)
-                                                }
-                                                if note.attachments.count > 3 {
-                                                    Text("+\(note.attachments.count - 3)")
-                                                        .font(.caption2)
-                                                        .foregroundColor(.secondary)
-                                                }
-                                            }
-                                        }
-                                        
-                                        Spacer()
-                                        
-                                        Text(note.createdAt.formattedAbsolute)
-                                            .font(.caption2)
-                                            .foregroundStyle(.tertiary)
-                                    }
-                                }
-                                .padding()
+                                NoteRowView(note: note)
+                                    .environment(noteStore)
                             }
                             .buttonStyle(.plain)
                             .disabled(isEditing)
-                            
-                            Divider()
-                                .padding(.leading)
                         }
                         
                         if displayedNotes.count > 100 {
@@ -1112,6 +1054,8 @@ struct RecentNotesFullPagePreview: View {
                             .disabled(isEditing)
                         }
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
                 }
             }
             

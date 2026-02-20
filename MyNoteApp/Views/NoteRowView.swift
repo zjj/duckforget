@@ -6,41 +6,42 @@ struct NoteRowView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // 第一行：标签 + 时间（右对齐）
-            HStack(spacing: 8) {
-                if !note.tags.isEmpty {
-                    tagsView
-                        .frame(height: 24)
-                } else {
-                    Spacer()
-                        .frame(height: 24)
-                }
-                
-                Spacer()
-                
-                Text(note.createdAt.formattedShort)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+            // 第一行：标签（如果有）
+            if !note.tags.isEmpty {
+                tagsView
             }
-            .frame(height: 24)
             
-            // 第二行：文字
+            // 第二行：内容预览
             Text(note.preview)
-                .font(.headline)
-                .lineLimit(1)
-                .frame(height: 20, alignment: .leading)
+                .font(.subheadline)
+                //.fontWeight(.semibold)
+                .lineLimit(2)
+                .foregroundColor(.primary)
+            
+            Spacer()
+            
+            // 最后一行：附件（如果有）+ 时间
+            HStack(alignment: .bottom, spacing: 8) {
+                // 附件缩略图
+                if !note.attachments.isEmpty {
+                    attachmentIcons
+                }
+            }
+                
+            Spacer()
 
-            // 第三行：附件小图标预览
-            if !note.attachments.isEmpty {
-                attachmentIcons
-                    .frame(height: 24)
-            } else {
+            // 时间
+            HStack {    
                 Spacer()
-                    .frame(height: 24)
+                Text(note.createdAt.formattedAbsolute)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
             }
         }
-        .frame(height: 80)
-        .padding(.vertical, 8)
+        .frame(minHeight: 100)
+        .padding(12)
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
     }
 
     // MARK: - 标签
@@ -53,19 +54,17 @@ struct NoteRowView: View {
         
         HStack(spacing: 4) {
             ForEach(displayTags) { tag in
-                Text(tag.name)
-                    .font(.caption2)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color.accentColor)
-                    .cornerRadius(4)
+                HStack(spacing: 2) {
+                    Image(systemName: "tag")
+                        .font(.caption2)
+                    Text(tag.name)
+                        .font(.caption2)
+                }
             }
             
             if remainingCount > 0 {
                 Text("+\(remainingCount)")
                     .font(.caption2)
-                    .foregroundColor(.secondary)
             }
         }
     }
@@ -76,13 +75,18 @@ struct NoteRowView: View {
     private var attachmentIcons: some View {
         let noteAttachments = note.attachments.sorted { $0.createdAt < $1.createdAt }
         HStack(spacing: 6) {
-            ForEach(noteAttachments.prefix(6)) { att in
+            ForEach(noteAttachments.prefix(3)) { att in
                 AttachmentRowThumbnail(attachment: att)
             }
-            if noteAttachments.count > 6 {
-                Text("+\(noteAttachments.count - 6)")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+            if noteAttachments.count > 3 {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color(.systemGray5))
+                        .frame(width: 60, height: 60)
+                    Text("+\(noteAttachments.count - 3)")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                }
             }
         }
     }
@@ -101,10 +105,11 @@ private struct AttachmentRowThumbnail: View {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()
-                    .frame(width: 22, height: 22)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                    .frame(width: 60, height: 60)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
             } else {
                 AttachmentMiniIcon(type: attachment.type)
+                    .frame(width: 60, height: 60)
             }
         }
         .onAppear {
