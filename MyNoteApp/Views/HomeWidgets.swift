@@ -48,12 +48,14 @@ struct SearchWidget: View {
 
 struct TagWidget: View {
     @Environment(NoteStore.self) var noteStore
+    @Environment(\.modelContext) private var modelContext
     let tagName: String
     let size: WidgetSize
     let isEditing: Bool
     @Binding var showTagDetail: Bool
+    @State private var totalNotesCount: Int = 0
     
-    // 使用 Query 直接查询符合条件的 NoteItem，不仅能正确过滤已删除记录，还能实时响应 isDeleted 变化
+    // 使用 Query 直接查询符合条件的 NoteItem，限制前100条（仅用于展示）
     @Query var notes: [NoteItem]
     
     init(tagName: String, size: WidgetSize, isEditing: Bool = false, showTagDetail: Binding<Bool>) {
@@ -65,19 +67,18 @@ struct TagWidget: View {
         let filter = #Predicate<NoteItem> { note in
             !note.isDeleted && note.tags.contains { $0.name == tagName }
         }
-        _notes = Query(filter: filter, sort: \.updatedAt, order: .reverse)
-    }
-    
-    var tagNotes: [NoteItem] {
-        return notes
+        var descriptor = FetchDescriptor<NoteItem>(predicate: filter)
+        descriptor.sortBy = [SortDescriptor(\.updatedAt, order: .reverse)]
+        descriptor.fetchLimit = 100
+        _notes = Query(descriptor)
     }
     
     var displayedNotes: [NoteItem] {
         switch size {
-        case .small: return Array(tagNotes.prefix(50))
-        case .medium: return Array(tagNotes.prefix(50))
-        case .large: return Array(tagNotes.prefix(50))
-        case .fullPage: return Array(tagNotes.prefix(100)) // 全屏模式显示前100条
+        case .small: return Array(notes.prefix(15))
+        case .medium: return Array(notes.prefix(15))
+        case .large: return Array(notes.prefix(15))
+        case .fullPage: return Array(notes.prefix(100)) // 全屏模式显示前100条
         }
     }
     
@@ -142,17 +143,28 @@ struct TagWidget: View {
                                 .disabled(isEditing)
                             }
                             
-                            // "无其他内容"提示
-                            VStack {
-                                Spacer()
-                                Text("无其他内容")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                Spacer()
+                            // “+xxx”按钮或查看全部
+                            NavigationLink(destination: TagNotesListPage(tagName: tagName).environment(noteStore)) {
+                                VStack(spacing: 4) {
+                                    Spacer()
+                                    let remaining = totalNotesCount - displayedNotes.count
+                                    if remaining > 0 {
+                                        Text("+\(remaining)")
+                                            .font(.headline)
+                                            .foregroundColor(.accentColor)
+                                        Text("查看更多")
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                    } 
+                                    Spacer()
+                                }
+                                .padding()
+                                .frame(width: 140, height: 100)
+                                .background(Color(.systemGray6).opacity(0.5))
+                                .cornerRadius(12)
                             }
-                            .frame(width: 140, height: 100)
-                            .background(Color(.systemGray6).opacity(0.5))
-                            .cornerRadius(12)
+                            .buttonStyle(.plain)
+                            .disabled(isEditing)
                         }
                         .padding(.horizontal)
                     }
@@ -162,7 +174,17 @@ struct TagWidget: View {
             .background(Color(.systemBackground))
             .cornerRadius(16)
             .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+            .task { fetchTotalCount() }
         }
+    }
+    
+    private func fetchTotalCount() {
+        let name = tagName
+        let filter = #Predicate<NoteItem> { note in
+            !note.isDeleted && note.tags.contains { $0.name == name }
+        }
+        let descriptor = FetchDescriptor<NoteItem>(predicate: filter)
+        totalNotesCount = (try? modelContext.fetchCount(descriptor)) ?? 0
     }
     
     // 附件图标展示
@@ -184,27 +206,36 @@ struct TagWidget: View {
 
 struct RecentNotesWidget: View {
     @Environment(NoteStore.self) var noteStore
-    @Query(
-        filter: #Predicate<NoteItem> { $0.isDeleted == false },
-        sort: \NoteItem.updatedAt,
-        order: .reverse
-    ) var notes: [NoteItem]
+    @Environment(\.modelContext) private var modelContext
+    @Query var notes: [NoteItem]
+    @State private var totalNotesCount: Int = 0
     
     let size: WidgetSize
     let isEditing: Bool
     @Binding var showRecentNotes: Bool
     
-    var displayedNotes: [NoteItem] {
-        // 先筛选最近48小时的记录
-        let fortyEightHoursAgo = Calendar.current.date(byAdding: .hour, value: -48, to: Date()) ?? Date()
-        let recentNotes = notes.filter { $0.updatedAt >= fortyEightHoursAgo }
+    init(size: WidgetSize, isEditing: Bool, showRecentNotes: Binding<Bool>) {
+        self.size = size
+        self.isEditing = isEditing
+        self._showRecentNotes = showRecentNotes
         
-        // 再根据 size 限制数量
+        let fortyEightHoursAgo = Calendar.current.date(byAdding: .hour, value: -48, to: Date()) ?? Date()
+        let filter = #Predicate<NoteItem> { note in
+            !note.isDeleted && note.updatedAt >= fortyEightHoursAgo
+        }
+        var descriptor = FetchDescriptor<NoteItem>(predicate: filter)
+        descriptor.sortBy = [SortDescriptor(\.updatedAt, order: .reverse)]
+        descriptor.fetchLimit = 100
+        _notes = Query(descriptor)
+    }
+    
+    var displayedNotes: [NoteItem] {
+        // 根据 size 限制数量
         switch size {
-        case .small: return Array(recentNotes.prefix(50))
-        case .medium: return Array(recentNotes.prefix(50))
-        case .large: return Array(recentNotes.prefix(50))
-        case .fullPage: return Array(recentNotes.prefix(50))
+        case .small: return Array(notes.prefix(15))
+        case .medium: return Array(notes.prefix(15))
+        case .large: return Array(notes.prefix(15))
+        case .fullPage: return Array(notes.prefix(100))
         }
     }
     
@@ -272,17 +303,33 @@ struct RecentNotesWidget: View {
                             .buttonStyle(.plain)
                         }
                         
-                        // “无其他内容”提示
-                        VStack {
-                            Spacer()
-                            Text("无其他内容")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Spacer()
+                        // “+xxx”按钮或查看全部
+                        NavigationLink(destination: NoteSearchPage(
+                            pageTitle: "最近记录",
+                            filterRecentDays: 2,
+                            hideSearchBar: false
+                        ).environment(noteStore)) {
+                            VStack(spacing: 4) {
+                                Spacer()
+                                let remaining = totalNotesCount - displayedNotes.count
+                                if remaining > 0 {
+                                    Text("+\(remaining)")
+                                        .font(.headline)
+                                        .foregroundColor(.accentColor)
+                                    Text("查看更多")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                } 
+
+                                Spacer()
+                            }
+                            .padding()
+                            .frame(width: 140, height: 100)
+                            .background(Color(.systemGray6).opacity(0.5))
+                            .cornerRadius(12)
                         }
-                        .frame(width: 140, height: 100)
-                        .background(Color(.systemGray6).opacity(0.5))
-                        .cornerRadius(12)
+                        .buttonStyle(.plain)
+                        .disabled(isEditing)
                     }
                     .padding(.horizontal)
                 }
@@ -292,7 +339,17 @@ struct RecentNotesWidget: View {
         .background(Color(.systemBackground))
         .cornerRadius(16)
         .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+        .task { fetchTotalCount() }
         }
+    }
+    
+    private func fetchTotalCount() {
+        let fortyEightHoursAgo = Calendar.current.date(byAdding: .hour, value: -48, to: Date()) ?? Date()
+        let filter = #Predicate<NoteItem> { note in
+            !note.isDeleted && note.updatedAt >= fortyEightHoursAgo
+        }
+        let descriptor = FetchDescriptor<NoteItem>(predicate: filter)
+        totalNotesCount = (try? modelContext.fetchCount(descriptor)) ?? 0
     }
     
     // 附件图标展示（复用 NoteRowView 的逻辑）
