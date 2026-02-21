@@ -21,10 +21,8 @@ struct NoteView: View {
     @State private var content = ""
     @State private var hasLoaded = false
     @State private var isEditorFocused = false
-    @State private var cursorPosition: Int = 0
 
     // 语音实时插入状态
-    @State private var speechInsertionIndex: Int = 0
     @State private var contentBeforeSpeech: String = ""
     @State private var contentAfterSpeech: String = ""
     @State private var lastTranscriptLength: Int = 0
@@ -53,8 +51,8 @@ struct NoteView: View {
     // 语音输入
     @StateObject private var speechRecognizer = SpeechRecognizer()
 
-    // 文本视图 coordinator 引用
-    @State private var textViewCoordinator: CursorTrackingTextView.Coordinator?
+    // 编辑器焦点
+    @FocusState private var editorFocused: Bool
 
     // 撤销/重做管理器
     @StateObject private var undoRedoManager = UndoRedoManager()
@@ -70,6 +68,12 @@ struct NoteView: View {
 
     // 富文本工具栏
     @State private var showRichTextBar = false
+    
+    // 格式菜单
+    @State private var showFormatMenu = false
+
+    // Markdown 编辑器协调器
+    @State private var markdownCoordinator: MarkdownTextView.Coordinator?
 
     // 编辑状态追踪
     @State private var wasEdited = false
@@ -113,15 +117,15 @@ struct NoteView: View {
         ZStack {
             // 主内容
             Group {
-                if !isEditMode && attachmentDisplayMode == .fullSize && !currentAttachments.isEmpty {
-                    // 原图模式：整个页面可滚动
+                if !isEditMode {
+                    // 预览模式（网格/原图）：整个页面可滚动，内容顶部对齐
                     ScrollView {
                         VStack(spacing: 0) {
                             mainContentView
                         }
                     }
                 } else {
-                    // 其他模式：正常布局
+                    // 编辑模式：普通 VStack，TextEditor 可垂直伸展
                     VStack(spacing: 0) {
                         mainContentView
                     }
@@ -348,6 +352,15 @@ struct NoteView: View {
             TagManagementSheet(note: note)
                 .environment(noteStore)
         }
+        .sheet(isPresented: $showFormatMenu) {
+            FormatMenuSheet { action in
+                applyFormatAction(action)
+                showFormatMenu = false
+            }
+            .presentationDetents([.fraction(0.55)])
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(20)
+        }
         .alert("确认删除", isPresented: $showDeleteConfirmation) {
             Button("取消", role: .cancel) { }
             Button("删除", role: .destructive) {
@@ -405,7 +418,7 @@ struct NoteView: View {
                     onBulletList: { insertPrefix("• ") },
                     onNumberedList: { insertPrefix("1. ") },
                     onDismissKeyboard: {
-                        textViewCoordinator?.blur()
+                        markdownCoordinator?.blur()
                     }
                 )
             }
@@ -447,43 +460,34 @@ struct NoteView: View {
     private var textEditorSection: some View {
         Group {
             if isEditMode {
-                // 编辑模式：使用 CursorTrackingTextView
+                // 编辑模式：使用 MarkdownTextView（UITextView + 实时语法高亮）
                 ZStack(alignment: .topLeading) {
-                    CursorTrackingTextView(
+                    MarkdownTextView(
                         text: $content,
-                        cursorPosition: $cursorPosition,
-                        isEditable: isEditMode,
+                        isEditable: true,
                         onFocusChange: { focused in
                             isEditorFocused = focused
                         },
-                        onUndoStateChange: { undo, redo in
-                            // UITextView 的 undo/redo 状态已不再使用，改用 UndoRedoManager
+                        onLongPress: {
+                            showFormatMenu = true
                         },
-                        onCoordinatorReady: { coordinator in
-                            textViewCoordinator = coordinator
-                            // 自动聚焦（编辑模式时）
-                            if isEditMode {
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                    coordinator.focus()
-                                    let len = (self.content as NSString).length
-                                    if len > 0 {
-                                        coordinator.setCursor(to: len)
-                                    }
-                                }
-                            }
+                        onCoordinatorReady: { coord in
+                            markdownCoordinator = coord
                         }
                     )
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
 
                     if content.isEmpty && !speechRecognizer.isRecording {
                         Text("开始输入...")
                             .foregroundColor(Color(.placeholderText))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 8)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
                             .allowsHitTesting(false)
                     }
                 }
             } else {
-                // 预览模式：使用 Text 显示
+                // 预览模式：渲染 Markdown
                 if content.isEmpty {
                     Text("暂无内容")
                         .foregroundColor(Color(.placeholderText))
@@ -491,7 +495,7 @@ struct NoteView: View {
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
                 } else {
-                    Text(content)
+                    MarkdownRenderView(content: content)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
@@ -542,11 +546,6 @@ struct NoteView: View {
             // 顶部模式切换按钮（仅预览模式显示）
             if !isEditMode && currentAttachments.count > 0 {
                 HStack {
-                    Text("附件")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
-                    
                     Spacer()
                     
                     Button {
@@ -589,26 +588,23 @@ struct NoteView: View {
     
     // 网格布局
     private var gridAttachmentView: some View {
-        ScrollView {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 12)], spacing: 12) {
-                ForEach(Array(currentAttachments.enumerated()), id: \.element.id) { index, attachment in
-                    AttachmentThumbnailView(
-                        attachment: attachment,
-                        shouldSaveOnDelete: false,
-                        showDeleteButton: false,
-                        onDelete: {}
-                    )
-                    .frame(width: 100, height: 100)
-                    .onTapGesture {
-                        selectedAttachmentIndex = index
-                        showAttachmentViewer = true
-                    }
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 12)], spacing: 12) {
+            ForEach(Array(currentAttachments.enumerated()), id: \.element.id) { index, attachment in
+                AttachmentThumbnailView(
+                    attachment: attachment,
+                    shouldSaveOnDelete: false,
+                    showDeleteButton: false,
+                    onDelete: {}
+                )
+                .frame(width: 100, height: 100)
+                .onTapGesture {
+                    selectedAttachmentIndex = index
+                    showAttachmentViewer = true
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
         }
-        .frame(maxHeight: 300)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
     }
     
     // 原图模式（垂直列表）
@@ -733,14 +729,9 @@ struct NoteView: View {
     /// 进入编辑模式
     private func enterEditMode() {
         isEditMode = true
-        
-        // 聚焦光标到末尾
+        // 延迟聚焦，等待 MarkdownTextView 渲染
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            textViewCoordinator?.focus()
-            let len = (content as NSString).length
-            if len > 0 {
-                textViewCoordinator?.setCursor(to: len)
-            }
+            markdownCoordinator?.focus()
         }
     }
     
@@ -765,7 +756,7 @@ struct NoteView: View {
         note.undoRedoHistoryData = nil
         
         // 取消键盘焦点
-        textViewCoordinator?.blur()
+        markdownCoordinator?.blur()
         
         // 震动反馈
         let generator = UINotificationFeedbackGenerator()
@@ -838,11 +829,7 @@ struct NoteView: View {
     /// 编辑模式下的实时保存
     private func saveContentInEditMode() {
         // 更新笔记内容
-        if let latestText = textViewCoordinator?.getText() {
-            note.content = latestText
-        } else {
-            note.content = content
-        }
+        note.content = content
         
         // 注意：不在编辑模式时删除附件，只是在 UI 中隐藏
         // 实际删除只在点击"完成"或退出时进行
@@ -881,8 +868,6 @@ struct NoteView: View {
         // 加载待删除的附件ID列表
         deletedAttachmentIDs = Set(note.pendingDeletedAttachmentIDs ?? [])
         
-        cursorPosition = (content as NSString).length
-
         // 加载undo/redo历史（如果存在）
         if let historyData = note.undoRedoHistoryData {
             undoRedoManager.loadHistory(from: historyData)
@@ -893,6 +878,13 @@ struct NoteView: View {
         
         // 初始化编辑模式
         isEditMode = startInEditMode || onPublish != nil
+        
+        // 如果从编辑模式启动，延迟聚焦编辑器
+        if isEditMode {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                markdownCoordinator?.focus()
+            }
+        }
 
         hasLoaded = true
     }
@@ -909,12 +901,9 @@ struct NoteView: View {
         // 取消任何待处理的保存任务
         saveTask?.cancel()
         
-        // 获取最新文本内容
-        let latestText = textViewCoordinator?.getText() ?? content
-        
         // 最终保存（确保所有内容都持久化）
-        if latestText != note.content {
-            note.content = latestText
+        if content != note.content {
+            note.content = content
             note.updatedAt = Date()
         }
         
@@ -990,25 +979,11 @@ struct NoteView: View {
         }
     }
 
-    /// 开始语音输入：记录光标位置，分割内容为前后两段
+    /// 开始语音输入：将内容分割为前后两段（始终插入到末尾）
     private func beginSpeechInsertion() {
-        let nsContent = content as NSString
-        let total = nsContent.length
-
-        // 如果光标不在文本内（未聚焦），插入到末尾
-        let insertAt: Int
-        if isEditorFocused && cursorPosition >= 0 && cursorPosition <= total {
-            insertAt = cursorPosition
-        } else {
-            insertAt = total
-        }
-
-        speechInsertionIndex = insertAt
-
-        // 分割内容
-        let startIndex = content.index(content.startIndex, offsetBy: min(insertAt, content.count))
-        contentBeforeSpeech = String(content[content.startIndex..<startIndex])
-        contentAfterSpeech = String(content[startIndex..<content.endIndex])
+        // TextEditor 不暴露光标位置，固定插入到内容末尾
+        contentBeforeSpeech = content
+        contentAfterSpeech = ""
         lastTranscriptLength = 0
         
         // 重置取消标记
@@ -1023,10 +998,6 @@ struct NoteView: View {
         let newContent = contentBeforeSpeech + transcript + contentAfterSpeech
         content = newContent
 
-        // 将光标移到 transcript 末尾
-        let newCursorPos =
-            (contentBeforeSpeech as NSString).length + (transcript as NSString).length
-        cursorPosition = newCursorPos
         lastTranscriptLength = (transcript as NSString).length
     }
 
@@ -1047,12 +1018,8 @@ struct NoteView: View {
                 // 没有识别到内容，恢复原文
                 content = contentBeforeSpeech + contentAfterSpeech
             } else {
-                // 保存识别的内容到光标位置
+                // 保存识别的内容到末尾
                 content = contentBeforeSpeech + finalTranscript + contentAfterSpeech
-                
-                // 更新光标位置到插入文字的末尾
-                let newCursorPos = (contentBeforeSpeech as NSString).length + (finalTranscript as NSString).length
-                cursorPosition = newCursorPos
                 
                 // 标记已编辑（不自动保存）
                 wasEdited = true
@@ -1069,47 +1036,72 @@ struct NoteView: View {
 
     // MARK: - 富文本格式
 
-    /// 应用 Markdown 格式（加粗/斜体）
+    /// 应用 Markdown 格式（加粗/斜体），插入到内容末尾
     private func applyTextFormat(_ format: TextFormat) {
-        guard let coordinator = textViewCoordinator,
-            let range = coordinator.getSelectedRange(),
-            let fullText = coordinator.getText()
-        else { return }
-
-        let marker: String
         switch format {
-        case .bold: marker = "**"
-        case .italic: marker = "*"
-        }
-
-        if range.length > 0 {
-            // 有选中文字：包裹标记
-            let nsText = fullText as NSString
-            let selected = nsText.substring(with: range)
-            let replacement = "\(marker)\(selected)\(marker)"
-            coordinator.replaceRange(range, with: replacement)
-        } else {
-            // 无选中：插入占位符并放置光标
-            let placeholder = "\(marker)文本\(marker)"
-            coordinator.insertAtCursor(placeholder)
+        case .bold: applyFormatAction(.bold)
+        case .italic: applyFormatAction(.italic)
         }
     }
 
     /// 在当前行开头插入前缀（标题、列表等）
     private func insertPrefix(_ prefix: String) {
-        guard let coordinator = textViewCoordinator,
-            let range = coordinator.getSelectedRange(),
-            let fullText = coordinator.getText()
-        else { return }
-
-        let nsText = fullText as NSString
-        // 找到当前行的开头
-        var lineStart = range.location
-        while lineStart > 0 && nsText.character(at: lineStart - 1) != 0x0A {
-            lineStart -= 1
+        switch prefix {
+        case "• ", "- ": applyFormatAction(.bullet)
+        case "1. ": applyFormatAction(.numbered)
+        default:
+            if let coord = markdownCoordinator {
+                coord.insertBlockAtCursor(prefix)
+            } else {
+                if !content.isEmpty && !content.hasSuffix("\n") { content += "\n" }
+                content += prefix
+            }
         }
-        let insertRange = NSRange(location: lineStart, length: 0)
-        coordinator.replaceRange(insertRange, with: prefix)
+    }
+
+    /// 应用格式操作（支持选中文本时包裹、无选中时插入）
+    private func applyFormatAction(_ action: FormatMenuSheet.FormatAction) {
+        guard let coord = markdownCoordinator else {
+            // Fallback: append to end
+            let text = action.rawMarkdown
+            if !content.isEmpty && !content.hasSuffix("\n") { content += "\n" }
+            content += text
+            return
+        }
+
+        switch action {
+        // Inline formats: wrap selection or insert with placeholder
+        case .bold:
+            coord.applyInlineFormat(prefix: "**", suffix: "**", placeholder: "粗体文本")
+        case .italic:
+            coord.applyInlineFormat(prefix: "*", suffix: "*", placeholder: "斜体文本")
+        case .strikethrough:
+            coord.applyInlineFormat(prefix: "~~", suffix: "~~", placeholder: "删除线文本")
+        case .code:
+            coord.applyInlineFormat(prefix: "`", suffix: "`", placeholder: "代码")
+
+        // Block formats: add prefix to line or toggle
+        case .h1:
+            coord.applyBlockFormat(prefix: "# ")
+        case .h2:
+            coord.applyBlockFormat(prefix: "## ")
+        case .h3:
+            coord.applyBlockFormat(prefix: "### ")
+        case .quote:
+            coord.applyBlockFormat(prefix: "> ")
+        case .bullet:
+            coord.applyBlockFormat(prefix: "- ")
+        case .numbered:
+            coord.applyBlockFormat(prefix: "1. ")
+        case .checkbox:
+            coord.applyBlockFormat(prefix: "- [ ] ")
+
+        // Special blocks: insert as-is
+        case .codeBlock:
+            coord.insertBlockAtCursor("```\n代码块\n```")
+        case .divider:
+            coord.insertBlockAtCursor("---\n")
+        }
     }
 
     // MARK: - 处理扫描结果
@@ -1586,5 +1578,372 @@ struct FullSizeAttachmentView: View {
               let thumbnailData = try? Data(contentsOf: thumbnailURL),
               let thumbnailImage = UIImage(data: thumbnailData) else { return }
         image = thumbnailImage
+    }
+}
+
+// MARK: - 格式菜单
+
+struct FormatMenuSheet: View {
+    let onSelect: (FormatAction) -> Void
+
+    enum FormatAction: String, CaseIterable, Identifiable {
+        case h1, h2, h3
+        case bold, italic, strikethrough
+        case code, codeBlock
+        case quote, bullet, numbered, checkbox
+        case divider
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .h1: return "标题 1"
+            case .h2: return "标题 2"
+            case .h3: return "标题 3"
+            case .bold: return "粗体"
+            case .italic: return "斜体"
+            case .strikethrough: return "删除线"
+            case .code: return "内联代码"
+            case .codeBlock: return "代码块"
+            case .quote: return "引用"
+            case .bullet: return "无序列表"
+            case .numbered: return "有序列表"
+            case .checkbox: return "待办事项"
+            case .divider: return "分割线"
+            }
+        }
+
+        var icon: String {
+            switch self {
+            case .h1: return "textformat.size.larger"
+            case .h2: return "textformat.size"
+            case .h3: return "textformat.size.smaller"
+            case .bold: return "bold"
+            case .italic: return "italic"
+            case .strikethrough: return "strikethrough"
+            case .code: return "chevron.left.forwardslash.chevron.right"
+            case .codeBlock: return "terminal"
+            case .quote: return "text.quote"
+            case .bullet: return "list.bullet"
+            case .numbered: return "list.number"
+            case .checkbox: return "checklist"
+            case .divider: return "minus"
+            }
+        }
+
+        var preview: String {
+            switch self {
+            case .h1: return "# 标题"
+            case .h2: return "## 标题"
+            case .h3: return "### 标题"
+            case .bold: return "**文本**"
+            case .italic: return "*文本*"
+            case .strikethrough: return "~~文本~~"
+            case .code: return "`代码`"
+            case .codeBlock: return "```代码块```"
+            case .quote: return "> 引用文本"
+            case .bullet: return "- 列表项"
+            case .numbered: return "1. 列表项"
+            case .checkbox: return "- [ ] 待办"
+            case .divider: return "---"
+            }
+        }
+
+        /// Returns the raw markdown string for fallback insertion
+        var rawMarkdown: String {
+            switch self {
+            case .h1: return "# 标题\n"
+            case .h2: return "## 标题\n"
+            case .h3: return "### 标题\n"
+            case .bold: return "**粗体文字**"
+            case .italic: return "*斜体文字*"
+            case .strikethrough: return "~~删除线~~"
+            case .code: return "`代码`"
+            case .codeBlock: return "```\n代码块\n```\n"
+            case .quote: return "> 引用文本\n"
+            case .bullet: return "- 列表项\n"
+            case .numbered: return "1. 列表项\n"
+            case .checkbox: return "- [ ] 待办事项\n"
+            case .divider: return "\n---\n"
+            }
+        }
+
+        var color: Color {
+            switch self {
+            case .h1, .h2, .h3: return .purple
+            case .bold, .italic, .strikethrough: return .blue
+            case .code, .codeBlock: return .orange
+            case .quote: return .green
+            case .bullet, .numbered, .checkbox: return .teal
+            case .divider: return .gray
+            }
+        }
+    }
+
+    private let columns = [
+        GridItem(.flexible()),
+        GridItem(.flexible()),
+        GridItem(.flexible())
+    ]
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // 标题
+            HStack {
+                Text("插入格式")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                Spacer()
+                Text("长按文字区域唤起")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 12)
+
+            Divider()
+
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 12) {
+                    ForEach(FormatAction.allCases) { action in
+                        Button {
+                            onSelect(action)
+                        } label: {
+                            VStack(spacing: 6) {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(action.color.opacity(0.12))
+                                        .frame(height: 44)
+
+                                    Image(systemName: action.icon)
+                                        .font(.system(size: 20, weight: .medium))
+                                        .foregroundColor(action.color)
+                                }
+
+                                Text(action.title)
+                                    .font(.caption)
+                                    .foregroundColor(.primary)
+                                    .lineLimit(1)
+
+                                Text(action.preview)
+                                    .font(.system(size: 10, design: .monospaced))
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                            }
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 6)
+                            .background(Color(.systemBackground))
+                            .cornerRadius(12)
+                            .shadow(color: Color.black.opacity(0.04), radius: 2, x: 0, y: 1)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 16)
+            }
+        }
+    }
+}
+// MARK: - Markdown 渲染视图
+
+struct MarkdownRenderView: View {
+    let content: String
+
+    // Parsed block model
+    private enum Block {
+        case heading(level: Int, text: String)
+        case codeBlock(lang: String, code: String)
+        case blockquote(text: String)
+        case bullet(text: String, indent: Int)
+        case numbered(index: String, text: String)
+        case checkbox(checked: Bool, text: String)
+        case divider
+        case paragraph(text: String)
+        case blank
+    }
+
+    private var blocks: [Block] {
+        var result: [Block] = []
+        var lines = content.components(separatedBy: "\n")
+        var i = 0
+
+        while i < lines.count {
+            let line = lines[i]
+
+            // Code block
+            if line.hasPrefix("```") {
+                let lang = String(line.dropFirst(3)).trimmingCharacters(in: .whitespaces)
+                var codeLines: [String] = []
+                i += 1
+                while i < lines.count && !lines[i].hasPrefix("```") {
+                    codeLines.append(lines[i])
+                    i += 1
+                }
+                result.append(.codeBlock(lang: lang, code: codeLines.joined(separator: "\n")))
+                i += 1
+                continue
+            }
+
+            // Heading
+            if line.hasPrefix("#### ") {
+                result.append(.heading(level: 4, text: String(line.dropFirst(5))))
+            } else if line.hasPrefix("### ") {
+                result.append(.heading(level: 3, text: String(line.dropFirst(4))))
+            } else if line.hasPrefix("## ") {
+                result.append(.heading(level: 2, text: String(line.dropFirst(3))))
+            } else if line.hasPrefix("# ") {
+                result.append(.heading(level: 1, text: String(line.dropFirst(2))))
+
+            // Blockquote
+            } else if line.hasPrefix("> ") {
+                result.append(.blockquote(text: String(line.dropFirst(2))))
+
+            // Checkbox (must check before bullet)
+            } else if line.hasPrefix("- [ ] ") {
+                result.append(.checkbox(checked: false, text: String(line.dropFirst(6))))
+            } else if line.hasPrefix("- [x] ") || line.hasPrefix("- [X] ") {
+                result.append(.checkbox(checked: true, text: String(line.dropFirst(6))))
+
+            // Bullet list
+            } else if line.hasPrefix("- ") || line.hasPrefix("* ") {
+                let indent = line.prefix(while: { $0 == " " }).count / 2
+                let text = String(line.dropFirst(2))
+                result.append(.bullet(text: text, indent: indent))
+
+            // Numbered list
+            } else if let matchRange = line.range(of: #"^\d+\.\s"#, options: .regularExpression) {
+                let prefix = String(line[matchRange])
+                let idx = String(prefix.dropLast(2))
+                let text = String(line[matchRange.upperBound...])
+                result.append(.numbered(index: idx + ".", text: text))
+
+            // Divider
+            } else if line == "---" || line == "***" || line == "___" {
+                result.append(.divider)
+
+            // Blank
+            } else if line.trimmingCharacters(in: .whitespaces).isEmpty {
+                result.append(.blank)
+
+            // Paragraph
+            } else {
+                result.append(.paragraph(text: line))
+            }
+
+            i += 1
+        }
+        return result
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
+                blockView(block)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func blockView(_ block: Block) -> some View {
+        switch block {
+
+        case .heading(let level, let text):
+            inlineText(text)
+                .font(headingFont(level))
+                .fontWeight(level <= 2 ? .bold : .semibold)
+                .foregroundColor(.primary)
+                .padding(.top, level == 1 ? 8 : level == 2 ? 4 : 2)
+
+        case .codeBlock(_, let code):
+            ScrollView(.horizontal, showsIndicators: false) {
+                Text(code.isEmpty ? " " : code)
+                    .font(.system(.footnote, design: .monospaced))
+                    .foregroundColor(.primary)
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .background(Color(.systemGray6))
+            .cornerRadius(8)
+            .padding(.vertical, 4)
+
+        case .blockquote(let text):
+            HStack(alignment: .top, spacing: 0) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Color.accentColor)
+                    .frame(width: 3)
+                inlineText(text)
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 10)
+            }
+            .padding(.vertical, 2)
+
+        case .bullet(let text, let indent):
+            HStack(alignment: .top, spacing: 8) {
+                Text("•")
+                    .foregroundColor(.secondary)
+                    .padding(.leading, CGFloat(indent) * 16)
+                inlineText(text)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+        case .numbered(let index, let text):
+            HStack(alignment: .top, spacing: 6) {
+                Text(index)
+                    .foregroundColor(.secondary)
+                    .frame(minWidth: 20, alignment: .trailing)
+                inlineText(text)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+        case .checkbox(let checked, let text):
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: checked ? "checkmark.square.fill" : "square")
+                    .foregroundColor(checked ? .accentColor : .secondary)
+                    .font(.system(size: 15))
+                inlineText(text)
+                    .strikethrough(checked, color: .secondary)
+                    .foregroundColor(checked ? .secondary : .primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+        case .divider:
+            Divider()
+                .padding(.vertical, 6)
+
+        case .blank:
+            Color.clear.frame(height: 6)
+
+        case .paragraph(let text):
+            inlineText(text)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// Renders inline markdown (bold, italic, `code`, ~~strikethrough~~) via AttributedString
+    @ViewBuilder
+    private func inlineText(_ raw: String) -> some View {
+        if let attributed = try? AttributedString(
+            markdown: raw,
+            options: AttributedString.MarkdownParsingOptions(
+                interpretedSyntax: .inlineOnlyPreservingWhitespace
+            )
+        ) {
+            Text(attributed)
+        } else {
+            Text(raw)
+        }
+    }
+
+    private func headingFont(_ level: Int) -> Font {
+        switch level {
+        case 1: return .title
+        case 2: return .title2
+        case 3: return .title3
+        default: return .headline
+        }
     }
 }
