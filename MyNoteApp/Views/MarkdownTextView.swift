@@ -12,7 +12,7 @@ struct MarkdownTextView: UIViewRepresentable {
     @Binding var text: String
     var isEditable: Bool = true
     var onFocusChange: ((Bool) -> Void)?
-    var onLongPress: (() -> Void)?
+    var onLongPress: ((CGPoint) -> Void)?
     var onCoordinatorReady: ((Coordinator) -> Void)?
 
     func makeCoordinator() -> Coordinator {
@@ -130,8 +130,16 @@ struct MarkdownTextView: UIViewRepresentable {
         }
 
         @objc func handleLongPress(_ gesture: UILongPressGestureRecognizer) {
-            guard gesture.state == .began else { return }
-            parent.onLongPress?()
+            guard gesture.state == .began, let tv = textView else { return }
+            // Convert press location to the text view's window coordinate space
+            let locationInTV = gesture.location(in: tv)
+            // Convert to the SwiftUI coordinate space via the window
+            if let window = tv.window {
+                let locationInWindow = tv.convert(locationInTV, to: window)
+                parent.onLongPress?(locationInWindow)
+            } else {
+                parent.onLongPress?(locationInTV)
+            }
         }
 
         // MARK: UIGestureRecognizerDelegate
@@ -408,6 +416,39 @@ struct MarkdownTextView: UIViewRepresentable {
 
         /// Dismiss keyboard
         func blur() { textView?.resignFirstResponder() }
+
+        /// Select all text
+        func selectAll() {
+            textView?.selectAll(nil)
+        }
+
+        /// Get the text of the line at the current cursor position
+        func getCurrentLineText() -> String {
+            guard let tv = textView else { return "" }
+            let nsText = tv.text as NSString
+            guard nsText.length > 0 else { return "" }
+            let cursor = min(tv.selectedRange.location, nsText.length)
+            let lineRange = nsText.lineRange(for: NSRange(location: cursor, length: 0))
+            return nsText.substring(with: lineRange).trimmingCharacters(in: .newlines)
+        }
+
+        /// Toggle todo checkbox on the current line: - [ ] ↔ - [x]
+        func toggleTodoOnCurrentLine() {
+            guard let tv = textView else { return }
+            let nsText = tv.text as NSString
+            guard nsText.length > 0 else { return }
+            let cursor = min(tv.selectedRange.location, nsText.length)
+            let lineRange = nsText.lineRange(for: NSRange(location: cursor, length: 0))
+            let line = nsText.substring(with: lineRange)
+
+            if line.hasPrefix("- [x] ") || line.hasPrefix("- [X] ") {
+                let prefixRange = NSRange(location: lineRange.location, length: 6)
+                replaceRange(tv, range: prefixRange, with: "- [ ] ")
+            } else if line.hasPrefix("- [ ] ") {
+                let prefixRange = NSRange(location: lineRange.location, length: 6)
+                replaceRange(tv, range: prefixRange, with: "- [x] ")
+            }
+        }
 
         /// Insert text at the current cursor position
         func insertTextAtCursor(_ text: String) {

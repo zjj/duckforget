@@ -81,7 +81,8 @@ class ToolbarSettings: ObservableObject {
             .location,
             .drawing,
             .scanText,
-            .scanDocument
+            .scanDocument,
+            .markdown
         ].map { ToolbarItemConfig(type: $0, isEnabled: true) }
     }
     

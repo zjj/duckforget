@@ -69,8 +69,12 @@ struct NoteView: View {
     // 富文本工具栏
     @State private var showRichTextBar = false
     
-    // 格式菜单
-    @State private var showFormatMenu = false
+    // 浮动上下文菜单
+    @State private var showFloatingMenu = false
+    @State private var floatingMenuHasSelection = false
+    @State private var floatingMenuIsTodoLine = false
+    @State private var floatingMenuIsTodoChecked = false
+    @State private var floatingMenuPosition: CGPoint = .zero
 
     // Markdown 编辑器协调器
     @State private var markdownCoordinator: MarkdownTextView.Coordinator?
@@ -109,6 +113,21 @@ struct NoteView: View {
     private var currentAttachments: [AttachmentItem] {
         noteStore.getAttachments(for: note)
             .filter { !deletedAttachmentIDs.contains($0.id) }
+    }
+
+    /// 浮动菜单锚点：始终放在屏幕顶部区域，避免被键盘和工具栏遮挡
+    private var floatingMenuAnchor: CGPoint {
+        let screen = UIScreen.main.bounds
+        let margin: CGFloat = 16
+        let safeTop: CGFloat = 60  // 状态栏 + 导航栏高度
+        
+        // X: 居中屏幕
+        let x = screen.width / 2
+        
+        // Y: 菜单顶部紧贴导航栏下方，确保不被键盘遮挡
+        let y = safeTop + margin + 160  // 菜单中心点≈顶部偏下
+        
+        return CGPoint(x: x, y: y)
     }
 
     // MARK: - Body
@@ -157,6 +176,38 @@ struct NoteView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                 .allowsHitTesting(true)
+            }
+
+            // 浮动上下文菜单
+            if showFloatingMenu {
+                // 半透明背景（点击关闭）
+                Color.black.opacity(0.15)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
+                            showFloatingMenu = false
+                        }
+                    }
+                    .zIndex(10)
+
+                FloatingContextMenu(
+                    isTodoLine: floatingMenuIsTodoLine,
+                    isTodoChecked: floatingMenuIsTodoChecked,
+                    onToggleTodo: {
+                        markdownCoordinator?.toggleTodoOnCurrentLine()
+                    },
+                    onFormatAction: { action in
+                        applyFormatAction(action)
+                    },
+                    onDismiss: {
+                        withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
+                            showFloatingMenu = false
+                        }
+                    }
+                )
+                .position(floatingMenuAnchor)
+                .transition(.scale(scale: 0.85, anchor: .top).combined(with: .opacity))
+                .zIndex(11)
             }
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -352,15 +403,7 @@ struct NoteView: View {
             TagManagementSheet(note: note)
                 .environment(noteStore)
         }
-        .sheet(isPresented: $showFormatMenu) {
-            FormatMenuSheet { action in
-                applyFormatAction(action)
-                showFormatMenu = false
-            }
-            .presentationDetents([.fraction(0.55)])
-            .presentationDragIndicator(.visible)
-            .presentationCornerRadius(20)
-        }
+
         .alert("确认删除", isPresented: $showDeleteConfirmation) {
             Button("取消", role: .cancel) { }
             Button("删除", role: .destructive) {
@@ -434,25 +477,20 @@ struct NoteView: View {
     // MARK: - 标签区域（预览模式）
     
     private var tagSection: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(note.tags) { tag in
-                    HStack(spacing: 4) {
-                        Image(systemName: "tag.fill")
-                            .font(.system(size: 10))
-                        Text(tag.name)
-                            .font(.caption)
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(Color.accentColor.opacity(0.15))
-                    .foregroundColor(.accentColor)
-                    .cornerRadius(12)
+        HStack(spacing: 4) {
+            ForEach(note.tags) { tag in
+                HStack(spacing: 2) {
+                    Image(systemName: "tag")
+                        .font(.caption2)
+                    Text(tag.name)
+                        .font(.caption2)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            Spacer()
         }
+        .foregroundColor(.secondary)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
     }
 
     // MARK: - 文本编辑区
@@ -468,9 +506,6 @@ struct NoteView: View {
                         onFocusChange: { focused in
                             isEditorFocused = focused
                         },
-                        onLongPress: {
-                            showFormatMenu = true
-                        },
                         onCoordinatorReady: { coord in
                             markdownCoordinator = coord
                         }
@@ -479,13 +514,17 @@ struct NoteView: View {
                     .padding(.vertical, 4)
 
                     if content.isEmpty && !speechRecognizer.isRecording {
-                        Text("开始输入...")
-                            .foregroundColor(Color(.placeholderText))
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
-                            .allowsHitTesting(false)
+                        HStack {
+                            Text("开始输入...")
+                                .foregroundColor(Color(.placeholderText))
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                                .allowsHitTesting(false)
+                            Spacer()
+                        }
                     }
                 }
+                .padding(.top, 4)
             } else {
                 // 预览模式：渲染 Markdown
                 if content.isEmpty {
@@ -706,6 +745,19 @@ struct NoteView: View {
                 activeScanMode = .textExtraction
             case .scanDocument:
                 activeScanMode = .documentScan
+            case .markdown:
+                // 触发 Markdown 上下文菜单
+                let lineText = markdownCoordinator?.getCurrentLineText() ?? ""
+                floatingMenuHasSelection = markdownCoordinator?.selectedText != nil
+                floatingMenuIsTodoLine = lineText.hasPrefix("- [ ] ") || lineText.hasPrefix("- [x] ") || lineText.hasPrefix("- [X] ")
+                floatingMenuIsTodoChecked = lineText.hasPrefix("- [x] ") || lineText.hasPrefix("- [X] ")
+                
+                let generator = UIImpactFeedbackGenerator(style: .medium)
+                generator.impactOccurred()
+                
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                    showFloatingMenu = true
+                }
             }
         }
     }
