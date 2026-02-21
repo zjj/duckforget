@@ -1849,11 +1849,12 @@ struct MarkdownRenderView: View {
             let trimmedLine = leadingSpaces > 0 ? String(line.dropFirst(leadingSpaces)) : line
 
             // Code block
-            if line.hasPrefix("```") {
+            if line.hasPrefix("```") || line.hasPrefix("~~~") {
+                let fencePrefix = line.hasPrefix("```") ? "```" : "~~~"
                 let lang = String(line.dropFirst(3)).trimmingCharacters(in: .whitespaces)
                 var codeLines: [String] = []
                 i += 1
-                while i < lines.count && !lines[i].hasPrefix("```") {
+                while i < lines.count && !lines[i].hasPrefix(fencePrefix) {
                     codeLines.append(lines[i])
                     i += 1
                 }
@@ -1863,7 +1864,11 @@ struct MarkdownRenderView: View {
             }
 
             // Heading
-            if line.hasPrefix("#### ") {
+            if line.hasPrefix("###### ") {
+                result.append(.heading(level: 6, text: String(line.dropFirst(7))))
+            } else if line.hasPrefix("##### ") {
+                result.append(.heading(level: 5, text: String(line.dropFirst(6))))
+            } else if line.hasPrefix("#### ") {
                 result.append(.heading(level: 4, text: String(line.dropFirst(5))))
             } else if line.hasPrefix("### ") {
                 result.append(.heading(level: 3, text: String(line.dropFirst(4))))
@@ -1883,7 +1888,7 @@ struct MarkdownRenderView: View {
                 result.append(.checkbox(checked: true, text: String(trimmedLine.dropFirst(6))))
 
             // Bullet list (supports indented bullets)
-            } else if trimmedLine.hasPrefix("- ") || trimmedLine.hasPrefix("* ") {
+            } else if trimmedLine.hasPrefix("- ") || trimmedLine.hasPrefix("* ") || trimmedLine.hasPrefix("+ ") {
                 result.append(.bullet(text: String(trimmedLine.dropFirst(2)), indent: leadingSpaces / 2))
 
             // Numbered list
@@ -1997,10 +2002,138 @@ struct MarkdownRenderView: View {
         }
     }
 
-    /// Renders inline text as-is, preserving the original content without any transformation.
+    /// Renders inline text with custom markdown formatting (bold, italic, strikethrough, code, links).
     @ViewBuilder
     private func inlineText(_ raw: String) -> some View {
-        Text(raw)
+        Text(parseInlineMarkdown(raw))
+    }
+
+    /// Parse inline markdown to an NSAttributedString-backed AttributedString.
+    /// Handles: **bold**, *italic*, ***bold-italic***, ~~strikethrough~~, `code`, [link](url), ![img](url)
+    private func parseInlineMarkdown(_ raw: String) -> AttributedString {
+        // Ordered by priority (longest markers first)
+        struct Rule {
+            let open: String
+            let close: String
+            let apply: (inout AttributedString) -> Void
+        }
+
+        let baseFont = UIFont.preferredFont(forTextStyle: .body)
+
+        func boldItalicFont() -> UIFont {
+            let traits: UIFontDescriptor.SymbolicTraits = [.traitBold, .traitItalic]
+            let desc = baseFont.fontDescriptor.withSymbolicTraits(traits) ?? baseFont.fontDescriptor
+            return UIFont(descriptor: desc, size: baseFont.pointSize)
+        }
+        func boldFont() -> UIFont {
+            let desc = baseFont.fontDescriptor.withSymbolicTraits(.traitBold) ?? baseFont.fontDescriptor
+            return UIFont(descriptor: desc, size: baseFont.pointSize)
+        }
+        func italicFont() -> UIFont {
+            let desc = baseFont.fontDescriptor.withSymbolicTraits(.traitItalic) ?? baseFont.fontDescriptor
+            return UIFont(descriptor: desc, size: baseFont.pointSize)
+        }
+        let codeFont = UIFont.monospacedSystemFont(ofSize: baseFont.pointSize * 0.9, weight: .regular)
+
+        // Tokenise the string into (text, isMarked, attributes) segments using NSAttributedString
+        let nsAttr = NSMutableAttributedString(string: raw)
+
+        // Pattern matching helper: find all non-overlapping matches and apply them
+        func applyMarkup(open: String, close: String,
+                         markerAttrs: [NSAttributedString.Key: Any],
+                         contentAttrs: [NSAttributedString.Key: Any]) {
+            // Build pattern: escape special regex chars
+            func esc(_ s: String) -> String { NSRegularExpression.escapedPattern(for: s) }
+            let pattern = "\(esc(open))(.+?)\(esc(close))"
+            guard let regex = try? NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators]) else { return }
+            let str = nsAttr.string as NSString
+            let matches = regex.matches(in: nsAttr.string,
+                                        range: NSRange(location: 0, length: str.length))
+            // Apply in reverse so ranges stay valid
+            for match in matches.reversed() {
+                let fullRange = match.range
+                guard fullRange.location != NSNotFound, fullRange.length > open.count + close.count else { continue }
+                let openLen = (open as NSString).length
+                let closeLen = (close as NSString).length
+                let openRange = NSRange(location: fullRange.location, length: openLen)
+                let contentRange = NSRange(location: fullRange.location + openLen,
+                                           length: fullRange.length - openLen - closeLen)
+                let closeRange = NSRange(location: NSMaxRange(fullRange) - closeLen, length: closeLen)
+
+                if contentRange.length > 0 {
+                    nsAttr.addAttributes(contentAttrs, range: contentRange)
+                }
+                nsAttr.addAttributes(markerAttrs, range: openRange)
+                nsAttr.addAttributes(markerAttrs, range: closeRange)
+            }
+        }
+
+        let markerColor = UIColor.tertiaryLabel
+
+        // Apply in longest-first order so ***x*** is caught before **x** or *x*
+        applyMarkup(open: "***", close: "***",
+                    markerAttrs: [.foregroundColor: markerColor],
+                    contentAttrs: [.font: boldItalicFont()])
+        applyMarkup(open: "___", close: "___",
+                    markerAttrs: [.foregroundColor: markerColor],
+                    contentAttrs: [.font: boldItalicFont()])
+        applyMarkup(open: "**", close: "**",
+                    markerAttrs: [.foregroundColor: markerColor],
+                    contentAttrs: [.font: boldFont()])
+        applyMarkup(open: "__", close: "__",
+                    markerAttrs: [.foregroundColor: markerColor],
+                    contentAttrs: [.font: boldFont()])
+        applyMarkup(open: "*", close: "*",
+                    markerAttrs: [.foregroundColor: markerColor],
+                    contentAttrs: [.font: italicFont()])
+        applyMarkup(open: "_", close: "_",
+                    markerAttrs: [.foregroundColor: markerColor],
+                    contentAttrs: [.font: italicFont()])
+        applyMarkup(open: "~~", close: "~~",
+                    markerAttrs: [.foregroundColor: markerColor],
+                    contentAttrs: [.strikethroughStyle: NSUnderlineStyle.single.rawValue,
+                                   .foregroundColor: UIColor.secondaryLabel])
+        applyMarkup(open: "`", close: "`",
+                    markerAttrs: [.foregroundColor: UIColor.clear],
+                    contentAttrs: [.font: codeFont,
+                                   .backgroundColor: UIColor.tertiarySystemFill,
+                                   .foregroundColor: UIColor.systemOrange])
+
+        // Links: [text](url)
+        if let linkRegex = try? NSRegularExpression(pattern: #"(?<!!)\[([^\]]+)\]\(([^)]+)\)"#) {
+            let str = nsAttr.string as NSString
+            let matches = linkRegex.matches(in: nsAttr.string, range: NSRange(location: 0, length: str.length))
+            for match in matches.reversed() where match.numberOfRanges >= 3 {
+                let fullRange = match.range
+                let textRange = match.range(at: 1)
+                if textRange.length > 0 {
+                    nsAttr.addAttributes([
+                        .foregroundColor: UIColor.systemBlue,
+                        .underlineStyle: NSUnderlineStyle.single.rawValue
+                    ], range: textRange)
+                }
+                // Dim the brackets and URL portion
+                let preText = NSRange(location: fullRange.location, length: 1) // [
+                let postTextStart = textRange.location + textRange.length       // ](url)
+                let postTextLen = NSMaxRange(fullRange) - postTextStart
+                let postRange = NSRange(location: postTextStart, length: postTextLen)
+                nsAttr.addAttribute(.foregroundColor, value: UIColor.tertiaryLabel, range: preText)
+                if postRange.length > 0 {
+                    nsAttr.addAttribute(.foregroundColor, value: UIColor.tertiaryLabel, range: postRange)
+                }
+            }
+        }
+
+        // Images: ![alt](url) — show alt text in purple, dim everything else
+        if let imgRegex = try? NSRegularExpression(pattern: #"!\[([^\]]*)\]\(([^)]+)\)"#) {
+            let str = nsAttr.string as NSString
+            let matches = imgRegex.matches(in: nsAttr.string, range: NSRange(location: 0, length: str.length))
+            for match in matches.reversed() where match.numberOfRanges >= 3 {
+                nsAttr.addAttribute(.foregroundColor, value: UIColor.systemPurple, range: match.range)
+            }
+        }
+
+        return AttributedString(nsAttr)
     }
 
     private func headingFont(_ level: Int) -> Font {
@@ -2008,7 +2141,9 @@ struct MarkdownRenderView: View {
         case 1: return .title
         case 2: return .title2
         case 3: return .title3
-        default: return .headline
+        case 4: return .headline
+        case 5: return .subheadline
+        default: return .footnote
         }
     }
 }
