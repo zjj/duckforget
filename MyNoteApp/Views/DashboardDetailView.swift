@@ -563,8 +563,8 @@ struct NewNoteButton: View {
             .cornerRadius(16)
         }
         .buttonStyle(.plain)
-        .navigationDestination(isPresented: $showEditor) {
-            NewNoteEditorPage()
+        .fullScreenCover(isPresented: $showEditor) {
+            NewNoteModalView(isPresented: $showEditor)
         }
     }
 }
