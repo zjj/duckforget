@@ -18,6 +18,9 @@ struct TagNotesListPage: View {
     @State private var viewMode: ViewMode = .list
     @State private var sortMode: SortMode = .dateModified
     
+    @State private var noteToDelete: NoteItem?
+    @State private var showDeleteConfirmation = false
+    
     init(tagName: String, isEmbedded: Bool = false, onSearchTap: (() -> Void)? = nil) {
         self.tagName = tagName
         self.isEmbedded = isEmbedded
@@ -146,6 +149,14 @@ struct TagNotesListPage: View {
                             }
                         }
                         .buttonStyle(.plain)
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                noteToDelete = note
+                                showDeleteConfirmation = true
+                            } label: {
+                                Label("删除", systemImage: "trash")
+                            }
+                        }
                     }
                     
                     if filteredNotes.count > displayLimit {
@@ -164,6 +175,14 @@ struct TagNotesListPage: View {
                             NoteRowView(note: note)
                                 .environment(noteStore)
                         }
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                noteToDelete = note
+                                showDeleteConfirmation = true
+                            } label: {
+                                Label("删除", systemImage: "trash")
+                            }
+                        }
                     }
                 }
                 .listStyle(.plain)
@@ -181,6 +200,14 @@ struct TagNotesListPage: View {
                                     .environment(noteStore)
                             }
                             .buttonStyle(.plain)
+                            .contextMenu {
+                                Button(role: .destructive) {
+                                    noteToDelete = note
+                                    showDeleteConfirmation = true
+                                } label: {
+                                    Label("删除", systemImage: "trash")
+                                }
+                            }
                         }
                     }
                     .padding(.horizontal, 16)
@@ -190,6 +217,17 @@ struct TagNotesListPage: View {
         }
         .navigationTitle(tagName)
         .navigationBarTitleDisplayMode(.inline)
+        .alert("确认删除", isPresented: $showDeleteConfirmation) {
+            Button("取消", role: .cancel) { }
+            Button("删除", role: .destructive) {
+                if let note = noteToDelete {
+                    noteStore.softDeleteNote(note)
+                    noteToDelete = nil
+                }
+            }
+        } message: {
+            Text("确定要删除这条笔记吗？删除后将移至废纸篓。")
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
