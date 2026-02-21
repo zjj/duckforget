@@ -78,6 +78,8 @@ struct NoteView: View {
 
     // Markdown 编辑器协调器
     @State private var markdownCoordinator: MarkdownTextView.Coordinator?
+    // 是否在协调器就绪后自动聚焦（替代计时器，避免竞争条件）
+    @State private var shouldAutoFocus = false
 
     // 编辑状态追踪
     @State private var wasEdited = false
@@ -426,6 +428,11 @@ struct NoteView: View {
     
     private var mainContentView: some View {
         Group {
+            // 时间信息（预览模式置顶显示）
+            if !isEditMode && onPublish == nil {
+                timeInfoSection
+            }
+
             // 标签区域（仅预览模式显示）
             if !isEditMode && !note.tags.isEmpty {
                 tagSection
@@ -447,8 +454,8 @@ struct NoteView: View {
                 attachmentStripSection
             }
 
-            // 时间信息
-            if onPublish == nil {
+            // 时间信息（编辑模式底部显示）
+            if isEditMode && onPublish == nil {
                 timeInfoSection
             }
 
@@ -508,6 +515,12 @@ struct NoteView: View {
                         },
                         onCoordinatorReady: { coord in
                             markdownCoordinator = coord
+                            if shouldAutoFocus {
+                                shouldAutoFocus = false
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                    coord.focus()
+                                }
+                            }
                         }
                     )
                     .padding(.horizontal, 12)
@@ -785,9 +798,14 @@ struct NoteView: View {
     /// 进入编辑模式
     private func enterEditMode() {
         isEditMode = true
-        // 延迟聚焦，等待 MarkdownTextView 渲染
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            markdownCoordinator?.focus()
+        // isEditMode 变为 true 后，MarkdownTextView 首次进入视图层，makeUIView 完成后
+        // onCoordinatorReady 会触发。若协调器已存在则可直接延迟较短时间聚焦。
+        if let coord = markdownCoordinator {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                coord.focus()
+            }
+        } else {
+            shouldAutoFocus = true
         }
     }
     
@@ -935,11 +953,9 @@ struct NoteView: View {
         // 初始化编辑模式
         isEditMode = startInEditMode || onPublish != nil
         
-        // 如果从编辑模式启动，延迟聚焦编辑器
+        // 如果从编辑模式启动，等待协调器就绪后自动聚焦（避免计时器竞争条件）
         if isEditMode {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                markdownCoordinator?.focus()
-            }
+            shouldAutoFocus = true
         }
 
         hasLoaded = true
@@ -1828,6 +1844,10 @@ struct MarkdownRenderView: View {
         while i < lines.count {
             let line = lines[i]
 
+            // Precompute trimmed info for bullet/checkbox detection (supports indented items)
+            let leadingSpaces = line.prefix(while: { $0 == " " }).count
+            let trimmedLine = leadingSpaces > 0 ? String(line.dropFirst(leadingSpaces)) : line
+
             // Code block
             if line.hasPrefix("```") {
                 let lang = String(line.dropFirst(3)).trimmingCharacters(in: .whitespaces)
@@ -1856,17 +1876,15 @@ struct MarkdownRenderView: View {
             } else if line.hasPrefix("> ") {
                 result.append(.blockquote(text: String(line.dropFirst(2))))
 
-            // Checkbox (must check before bullet)
-            } else if line.hasPrefix("- [ ] ") {
-                result.append(.checkbox(checked: false, text: String(line.dropFirst(6))))
-            } else if line.hasPrefix("- [x] ") || line.hasPrefix("- [X] ") {
-                result.append(.checkbox(checked: true, text: String(line.dropFirst(6))))
+            // Checkbox (must check before bullet; supports indented checkboxes)
+            } else if trimmedLine.hasPrefix("- [ ] ") {
+                result.append(.checkbox(checked: false, text: String(trimmedLine.dropFirst(6))))
+            } else if trimmedLine.hasPrefix("- [x] ") || trimmedLine.hasPrefix("- [X] ") {
+                result.append(.checkbox(checked: true, text: String(trimmedLine.dropFirst(6))))
 
-            // Bullet list
-            } else if line.hasPrefix("- ") || line.hasPrefix("* ") {
-                let indent = line.prefix(while: { $0 == " " }).count / 2
-                let text = String(line.dropFirst(2))
-                result.append(.bullet(text: text, indent: indent))
+            // Bullet list (supports indented bullets)
+            } else if trimmedLine.hasPrefix("- ") || trimmedLine.hasPrefix("* ") {
+                result.append(.bullet(text: String(trimmedLine.dropFirst(2)), indent: leadingSpaces / 2))
 
             // Numbered list
             } else if let matchRange = line.range(of: #"^\d+\.\s"#, options: .regularExpression) {
@@ -1979,19 +1997,10 @@ struct MarkdownRenderView: View {
         }
     }
 
-    /// Renders inline markdown (bold, italic, `code`, ~~strikethrough~~) via AttributedString
+    /// Renders inline text as-is, preserving the original content without any transformation.
     @ViewBuilder
     private func inlineText(_ raw: String) -> some View {
-        if let attributed = try? AttributedString(
-            markdown: raw,
-            options: AttributedString.MarkdownParsingOptions(
-                interpretedSyntax: .inlineOnlyPreservingWhitespace
-            )
-        ) {
-            Text(attributed)
-        } else {
-            Text(raw)
-        }
+        Text(raw)
     }
 
     private func headingFont(_ level: Int) -> Font {

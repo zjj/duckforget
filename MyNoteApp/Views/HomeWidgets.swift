@@ -74,9 +74,9 @@ struct TagWidget: View {
     
     var displayedNotes: [NoteItem] {
         switch size {
-        case .small: return Array(tagNotes.prefix(3))
-        case .medium: return Array(tagNotes.prefix(5))
-        case .large: return Array(tagNotes.prefix(10))
+        case .small: return Array(tagNotes.prefix(50))
+        case .medium: return Array(tagNotes.prefix(50))
+        case .large: return Array(tagNotes.prefix(50))
         case .fullPage: return Array(tagNotes.prefix(100)) // 全屏模式显示前100条
         }
     }
@@ -195,16 +195,16 @@ struct RecentNotesWidget: View {
     @Binding var showRecentNotes: Bool
     
     var displayedNotes: [NoteItem] {
-        // 先筛选最近7天的记录
-        let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-        let recentNotes = notes.filter { $0.updatedAt >= sevenDaysAgo }
+        // 先筛选最近48小时的记录
+        let fortyEightHoursAgo = Calendar.current.date(byAdding: .hour, value: -48, to: Date()) ?? Date()
+        let recentNotes = notes.filter { $0.updatedAt >= fortyEightHoursAgo }
         
         // 再根据 size 限制数量
         switch size {
-        case .small: return Array(recentNotes.prefix(3))
-        case .medium: return Array(recentNotes.prefix(5))
-        case .large: return Array(recentNotes.prefix(10))
-        case .fullPage: return Array(recentNotes.prefix(20))
+        case .small: return Array(recentNotes.prefix(50))
+        case .medium: return Array(recentNotes.prefix(50))
+        case .large: return Array(recentNotes.prefix(50))
+        case .fullPage: return Array(recentNotes.prefix(50))
         }
     }
     
@@ -217,7 +217,7 @@ struct RecentNotesWidget: View {
                 // 标题区域：点击跳转到完整列表
                 NavigationLink(destination: NoteSearchPage(
                     pageTitle: "最近记录",
-                    filterRecentDays: 7,
+                    filterRecentDays: 2,
                     hideSearchBar: false // 显示顶部搜索栏
                 ).environment(noteStore)) {
                     HStack {
@@ -980,7 +980,7 @@ struct RecentNotesFullPagePreview: View {
             // 搜索框（伪）→ 直接 NavigationLink 跳转
             NavigationLink(destination: NoteSearchPage(
                 pageTitle: "最近记录",
-                filterRecentDays: 7,
+                filterRecentDays: 2,
                 hideSearchBar: false
             ).environment(noteStore)) {
                 HStack(spacing: 8) {
@@ -1010,7 +1010,7 @@ struct RecentNotesFullPagePreview: View {
                         .font(.system(size: 48))
                         .foregroundColor(.secondary.opacity(0.5))
                     
-                    Text("最近7天无记录")
+                    Text("最近48小时无记录")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     
