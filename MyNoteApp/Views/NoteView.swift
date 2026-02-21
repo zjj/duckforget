@@ -562,10 +562,13 @@ struct NoteView: View {
                         .padding(.vertical, 6)
                         .background(Color.accentColor.opacity(0.1))
                         .cornerRadius(8)
+                        .contentShape(Rectangle())
                     }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
+                .background(Color(.systemBackground))
+                .zIndex(1)
             }
             
             // 附件显示区域
@@ -597,6 +600,7 @@ struct NoteView: View {
                     onDelete: {}
                 )
                 .frame(width: 100, height: 100)
+                .contentShape(Rectangle())
                 .onTapGesture {
                     selectedAttachmentIndex = index
                     showAttachmentViewer = true
