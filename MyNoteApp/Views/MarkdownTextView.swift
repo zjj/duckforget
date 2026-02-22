@@ -14,6 +14,7 @@ struct MarkdownTextView: UIViewRepresentable {
     var onFocusChange: ((Bool) -> Void)?
     var onLongPress: ((CGPoint) -> Void)?
     var onCoordinatorReady: ((Coordinator) -> Void)?
+    var onCursorLineChanged: (() -> Void)?
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -165,6 +166,7 @@ struct MarkdownTextView: UIViewRepresentable {
             if line != previousCursorLine {
                 previousCursorLine = line
                 applyHighlighting(textView)
+                parent.onCursorLineChanged?()
             }
             // Always scroll to keep cursor visible above toolbar
             scrollToCursor(textView)

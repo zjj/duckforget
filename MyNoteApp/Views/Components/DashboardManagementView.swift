@@ -15,6 +15,14 @@ struct DashboardManagementView: View {
     @State private var trashRetentionDays: Int = AppSettings.shared.trashRetentionDays
     @State private var pageToDelete: DashboardPage?
     @State private var showDeleteConfirmation = false
+    @State private var isExporting = false
+    @State private var exportedURL: URL?
+    @State private var showExportSheet = false
+    @State private var showExportConfigSheet = false
+    @State private var exportErrorMessage: String?
+    @State private var showExportError = false
+    @State private var exportCurrent: Int = 0
+    @State private var exportTotal: Int = 0
 
     var body: some View {
         List {
@@ -203,6 +211,45 @@ struct DashboardManagementView: View {
                     .foregroundColor(.secondary)
             }
             
+            Section {
+                Button {
+                    showExportConfigSheet = true
+                } label: {
+                    HStack {
+                        Label("导出笔记", systemImage: "arrow.up.doc.on.clipboard")
+                            .foregroundColor(.primary)
+                        Spacer()
+                        if isExporting {
+                            HStack(spacing: 6) {
+                                Text(exportTotal > 0 ? "\(exportCurrent)/\(exportTotal)" : "")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .monospacedDigit()
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                            }
+                        } else {
+                            Image(systemName: "chevron.right")
+                                .font(.footnote)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                .disabled(isExporting)
+            } header: {
+                Text("数据导出")
+            } footer: {
+                if isExporting {
+                    Text("正在整理笔记 \(exportCurrent) / \(exportTotal)，请稍候…")
+                        .font(.caption)
+                        .foregroundColor(.accentColor)
+                } else {
+                    Text("按时间范围或标签筛选笔记，打包为 ZIP 文件导出")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+
             Section(header: Text("其它")) {
                 NavigationLink(destination: AboutView()) {
                     Label("关于", systemImage: "info.circle")
@@ -220,6 +267,117 @@ struct DashboardManagementView: View {
         } message: {
             if let page = pageToDelete {
                 Text("确定要删除页面「\(page.name)」吗？该页面的所有组件配置都将被清除。")
+            }
+        }
+        .sheet(isPresented: $showExportSheet, onDismiss: {
+            if let url = exportedURL {
+                try? FileManager.default.removeItem(at: url)
+                exportedURL = nil
+            }
+        }) {
+            if let url = exportedURL {
+                ShareSheet(items: [url])
+            }
+        }
+        .sheet(isPresented: $showExportConfigSheet) {
+            ExportFilterSheet { startDate, endDate, tag in
+                exportNotes(startDate: startDate, endDate: endDate, tag: tag)
+            }
+        }
+        .alert("导出失败", isPresented: $showExportError) {
+            Button("确定", role: .cancel) {}
+        } message: {
+            Text(exportErrorMessage ?? "未知错误")
+        }
+    }
+
+    // MARK: - Private Helpers
+
+    private func exportNotes(startDate: Date, endDate: Date, tag: TagItem?) {
+        isExporting = true
+        exportCurrent = 0
+        exportTotal = 0
+        let service = ExportService(noteStore: noteStore)
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                let url = try service.exportAllNotes(
+                    startDate: startDate,
+                    endDate: endDate,
+                    tag: tag
+                ) { current, total in
+                    self.exportCurrent = current
+                    self.exportTotal   = total
+                }
+                DispatchQueue.main.async {
+                    isExporting = false
+                    exportedURL = url
+                    showExportSheet = true
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    isExporting = false
+                    exportErrorMessage = error.localizedDescription
+                    showExportError = true
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Export Filter Sheet
+
+struct ExportFilterSheet: View {
+    @Environment(NoteStore.self) var noteStore
+    @Environment(\.dismiss) private var dismiss
+
+    /// 默认开始时间：当年 1 月 1 日
+    @State private var startDate: Date = {
+        let comps = Calendar.current.dateComponents([.year], from: Date())
+        return Calendar.current.date(from: comps) ?? Date()
+    }()
+    @State private var endDate: Date = Date()
+    @State private var selectedTagID: UUID? = nil
+
+    let onExport: (Date, Date, TagItem?) -> Void
+
+    private var allTags: [TagItem] { noteStore.fetchTags() }
+
+    private var selectedTag: TagItem? {
+        guard let id = selectedTagID else { return nil }
+        return allTags.first { $0.id == id }
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section(header: Text("时间范围")) {
+                    DatePicker("开始时间", selection: $startDate, displayedComponents: .date)
+                    DatePicker("结束时间", selection: $endDate,
+                               in: startDate..., displayedComponents: .date)
+                }
+
+                Section(header: Text("标签筛选")) {
+                    Picker("标签", selection: $selectedTagID) {
+                        Text("不限标签").tag(nil as UUID?)
+                        ForEach(allTags) { tag in
+                            Text("#\(tag.name)").tag(tag.id as UUID?)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("导出笔记")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("取消") { dismiss() }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("导出") {
+                        onExport(startDate, endDate, selectedTag)
+                        dismiss()
+                    }
+                    .fontWeight(.semibold)
+                }
             }
         }
     }

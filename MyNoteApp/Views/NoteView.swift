@@ -66,15 +66,20 @@ struct NoteView: View {
     // 标签管理
     @State private var showTagManagement = false
 
-    // 富文本工具栏
-    @State private var showRichTextBar = false
-    
     // 浮动上下文菜单
     @State private var showFloatingMenu = false
     @State private var floatingMenuHasSelection = false
     @State private var floatingMenuIsTodoLine = false
     @State private var floatingMenuIsTodoChecked = false
     @State private var floatingMenuPosition: CGPoint = .zero
+    
+    // 格式工具栏展开状态
+    @State private var showExpandedFormatBar = false
+    
+    // 当前行待办状态
+    @State private var currentLineIsTodo = false
+    @State private var currentLineIsTodoChecked = false
+    @State private var todoToggleButtonPressed = false
 
     // Markdown 编辑器协调器
     @State private var markdownCoordinator: MarkdownTextView.Coordinator?
@@ -98,6 +103,14 @@ struct NoteView: View {
     
     // 删除中标记（防止 cleanupOnExit 干扰）
     @State private var isDeleting = false
+
+    // 导出
+    @State private var showExportPicker = false
+    @State private var isExporting = false
+    @State private var exportFileURL: URL? = nil
+    @State private var showShareSheet = false
+    @State private var exportError: String? = nil
+    @State private var showExportError = false
 
     enum ScanMode: String, Identifiable {
         case textExtraction // Renamed from text
@@ -257,11 +270,22 @@ struct NoteView: View {
                             .font(.system(size: 16))
                             .scaleEffect((undoRedoManager.canUndo || undoRedoManager.canRedo) ? 1.0 : 0.8)
                             .animation(.spring(response: 0.3, dampingFraction: 0.5), value: (undoRedoManager.canUndo || undoRedoManager.canRedo))
+                            .scaleEffect((undoRedoManager.canUndo || undoRedoManager.canRedo) ? 1.0 : 0.8)
+                            .animation(.spring(response: 0.3, dampingFraction: 0.5), value: (undoRedoManager.canUndo || undoRedoManager.canRedo))
                     }
+                    .disabled(!undoRedoManager.canUndo && !undoRedoManager.canRedo)
                     .disabled(!undoRedoManager.canUndo && !undoRedoManager.canRedo)
                 } else {
                     // 预览模式：... + pencil
                     Menu {
+                        Button {
+                            showExportPicker = true
+                        } label: {
+                            Label("导出", systemImage: "square.and.arrow.up")
+                        }
+
+                        Divider()
+
                         Button(role: .destructive) {
                             showDeleteConfirmation = true
                         } label: {
@@ -422,6 +446,49 @@ struct NoteView: View {
         } message: {
             Text("确定要删除这条记录吗？")
         }
+        // ---- 导出格式选择 ----
+        .confirmationDialog("选择导出格式", isPresented: $showExportPicker, titleVisibility: .visible) {
+            Button("PDF") { triggerExport(format: .pdf) }
+            Button("纯文本（.txt）") { triggerExport(format: .txt) }
+            Button("Markdown（.md）") { triggerExport(format: .markdown) }
+            Button("ZIP 归档（含附件）") { triggerExport(format: .zip) }
+            Button("取消", role: .cancel) { }
+        }
+        // ---- 系统分享面板 ----
+        .sheet(isPresented: $showShareSheet, onDismiss: {
+            if let url = exportFileURL {
+                try? FileManager.default.removeItem(at: url)
+                exportFileURL = nil
+            }
+        }) {
+            if let url = exportFileURL {
+                ShareSheet(items: [url])
+            }
+        }
+        // ---- 导出失败提示 ----
+        .alert("导出失败", isPresented: $showExportError) {
+            Button("好", role: .cancel) { }
+        } message: {
+            Text(exportError ?? "未知错误")
+        }
+        // ---- 导出 Loading 遮罩 ----
+        .overlay {
+            if isExporting {
+                ZStack {
+                    Color.black.opacity(0.35).ignoresSafeArea()
+                    VStack(spacing: 14) {
+                        ProgressView()
+                            .tint(.white)
+                            .scaleEffect(1.3)
+                        Text("正在导出…")
+                            .font(.subheadline)
+                            .foregroundStyle(.white)
+                    }
+                    .padding(28)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
+                }
+            }
+        }
     }
 
     // MARK: - 主内容视图
@@ -458,25 +525,17 @@ struct NoteView: View {
             if isEditMode && onPublish == nil {
                 timeInfoSection
             }
-
-            // 富文本工具栏（仅编辑模式 + 键盘聚焦时显示）
-            if isEditMode && showRichTextBar && isEditorFocused {
-                Divider()
-                RichTextToolbar(
-                    onBold: { applyTextFormat(.bold) },
-                    onItalic: { applyTextFormat(.italic) },
-                    onBulletList: { insertPrefix("• ") },
-                    onNumberedList: { insertPrefix("1. ") },
-                    onDismissKeyboard: {
-                        markdownCoordinator?.blur()
-                    }
-                )
-            }
             
             // 底部工具栏（仅编辑模式显示）
             if isEditMode {
                 Divider()
                 bottomToolbar
+            }
+            
+            // 展开的格式工具栏（在底部工具栏下方）
+            if isEditMode && showExpandedFormatBar {
+                Divider()
+                expandedFormatToolbar
             }
         }
     }
@@ -521,6 +580,11 @@ struct NoteView: View {
                                     coord.focus()
                                 }
                             }
+                            // 初始化时更新待办状态
+                            updateCurrentLineTodoStatus()
+                        },
+                        onCursorLineChanged: {
+                            updateCurrentLineTodoStatus()
                         }
                     )
                     .padding(.horizontal, 12)
@@ -728,18 +792,127 @@ struct NoteView: View {
         .padding(.bottom, 8)
     }
 
+    // MARK: - 展开的格式工具栏（2行图标布局）
+    
+    private var expandedFormatToolbar: some View {
+        let allFormats = FormatMenuSheet.FormatAction.allCases
+        let halfCount = (allFormats.count + 1) / 2
+        let row1 = Array(allFormats.prefix(halfCount))
+        let row2 = Array(allFormats.dropFirst(halfCount))
+        
+        return VStack(spacing: 0) {
+            // 第一行
+            HStack(spacing: 0) {
+                ForEach(row1) { action in
+                    Button {
+                        applyFormatAction(action)
+                        let generator = UIImpactFeedbackGenerator(style: .light)
+                        generator.impactOccurred()
+                    } label: {
+                        Image(systemName: action.icon)
+                            .font(.system(size: 16))
+                            .foregroundColor(action.color)
+                            .frame(maxWidth: .infinity, minHeight: 36)
+                    }
+                    
+                    if action != row1.last {
+                        Divider()
+                            .frame(height: 24)
+                    }
+                }
+            }
+            
+            Divider()
+            
+            // 第二行
+            HStack(spacing: 0) {
+                ForEach(row2) { action in
+                    Button {
+                        applyFormatAction(action)
+                        let generator = UIImpactFeedbackGenerator(style: .light)
+                        generator.impactOccurred()
+                    } label: {
+                        Image(systemName: action.icon)
+                            .font(.system(size: 16))
+                            .foregroundColor(action.color)
+                            .frame(maxWidth: .infinity, minHeight: 36)
+                    }
+                    
+                    if action != row2.last {
+                        Divider()
+                            .frame(height: 24)
+                    }
+                }
+                
+                // 待办切换按钮
+                Divider()
+                    .frame(height: 24)
+                
+                Button {
+                    toggleTodoCheckbox()
+                } label: {
+                    Text(currentLineIsTodoChecked ? "[x]" : "[ ]")
+                        .font(.system(size: 14, weight: .medium, design: .monospaced))
+                        .foregroundColor(currentLineIsTodo ? .teal : .gray)
+                        .frame(maxWidth: .infinity, minHeight: 36)
+                        .opacity(todoToggleButtonPressed ? 0.3 : 1.0)
+                        .scaleEffect(todoToggleButtonPressed ? 1.2 : 1.0)
+                }
+                .disabled(!currentLineIsTodo)
+                .animation(.easeInOut(duration: 0.15), value: todoToggleButtonPressed)
+            }
+        }
+        .background(Color(.systemGray6))
+    }
+
     // MARK: - 底部工具栏（展开式附件选项）
 
     private var bottomToolbar: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 16) {
-                ForEach(toolbarSettings.activeItems) { item in
-                    toolButton(for: item)
+        HStack(spacing: 0) {
+            // 左侧固定：Markdown 格式按钮（切换展开/收起）
+            Button {
+                let generator = UIImpactFeedbackGenerator(style: .medium)
+                generator.impactOccurred()
+                
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                    showExpandedFormatBar.toggle()
                 }
+            } label: {
+                Image(systemName: showExpandedFormatBar ? "chevron.down" : "text.word.spacing")
+                    .font(.system(size: 18))
+                    .foregroundColor(.accentColor)
+                    .frame(width: 40, height: 36)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            
+            Divider()
+                .frame(height: 24)
+                .padding(.horizontal, 4)
+            
+            // 中间可滚动工具栏
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(toolbarSettings.activeItems.filter { $0 != .markdown }) { item in
+                        toolButton(for: item)
+                    }
+                }
+                .padding(.horizontal, 8)
+            }
+            
+            Divider()
+                .frame(height: 24)
+                .padding(.horizontal, 4)
+            
+            // 右侧固定：键盘收起按钮
+            Button {
+                markdownCoordinator?.blur()
+            } label: {
+                Image(systemName: "keyboard.chevron.compact.down")
+                    .font(.system(size: 18))
+                    .foregroundColor(.accentColor)
+                    .frame(width: 40, height: 36)
+            }
         }
+        .frame(height: 44)
         .background(Color(.systemBackground))
     }
     
@@ -783,12 +956,10 @@ struct NoteView: View {
         
         var body: some View {
             Button(action: action) {
-                VStack(spacing: 4) {
-                    Image(systemName: icon)
-                        .font(.system(size: 24))
-                        .foregroundColor(.accentColor)
-                        .frame(width: 44, height: 44)
-                }
+                Image(systemName: icon)
+                    .font(.system(size: 18))
+                    .foregroundColor(.accentColor)
+                    .frame(width: 36, height: 36)
             }
         }
     }
@@ -924,6 +1095,30 @@ struct NoteView: View {
         // 注意：不清空 deletedAttachmentIDs，保持删除状态直到完成编辑
         initialTagIDs = Set(note.tags.map { $0.id })
         wasEdited = false
+    }
+
+    // MARK: - 导出
+
+    private func triggerExport(format: ExportFormat) {
+        isExporting = true
+        let service = ExportService(noteStore: noteStore)
+        let capturedNote = note
+        Task.detached(priority: .userInitiated) {
+            do {
+                let url = try service.export(note: capturedNote, format: format)
+                await MainActor.run {
+                    isExporting = false
+                    exportFileURL = url
+                    showShareSheet = true
+                }
+            } catch {
+                await MainActor.run {
+                    isExporting = false
+                    exportError = error.localizedDescription
+                    showExportError = true
+                }
+            }
+        }
     }
 
     private func loadContent() {
@@ -1131,6 +1326,44 @@ struct NoteView: View {
         }
     }
 
+    /// 切换当前行的待办复选框
+    private func toggleTodoCheckbox() {
+        guard currentLineIsTodo else { return }
+        
+        // 触发按压动画
+        withAnimation(.easeInOut(duration: 0.15)) {
+            todoToggleButtonPressed = true
+        }
+        
+        // 触发震动反馈
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.impactOccurred()
+        
+        // 执行切换
+        markdownCoordinator?.toggleTodoOnCurrentLine()
+        
+        // 延迟更新状态和恢复按钮
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            updateCurrentLineTodoStatus()
+            withAnimation(.easeInOut(duration: 0.15)) {
+                todoToggleButtonPressed = false
+            }
+        }
+    }
+    
+    /// 更新当前行的待办状态
+    private func updateCurrentLineTodoStatus() {
+        guard let coord = markdownCoordinator else {
+            currentLineIsTodo = false
+            currentLineIsTodoChecked = false
+            return
+        }
+        
+        let lineText = coord.getCurrentLineText()
+        currentLineIsTodo = lineText.hasPrefix("- [ ] ") || lineText.hasPrefix("- [x] ") || lineText.hasPrefix("- [X] ")
+        currentLineIsTodoChecked = lineText.hasPrefix("- [x] ") || lineText.hasPrefix("- [X] ")
+    }
+
     /// 应用格式操作（支持选中文本时包裹、无选中时插入）
     private func applyFormatAction(_ action: FormatMenuSheet.FormatAction) {
         guard let coord = markdownCoordinator else {
@@ -1151,6 +1384,10 @@ struct NoteView: View {
             coord.applyInlineFormat(prefix: "~~", suffix: "~~", placeholder: "删除线文本")
         case .code:
             coord.applyInlineFormat(prefix: "`", suffix: "`", placeholder: "代码")
+        case .link:
+            coord.applyInlineFormat(prefix: "[", suffix: "](https://example.com)", placeholder: "链接文本")
+        case .image:
+            coord.applyInlineFormat(prefix: "![", suffix: "](https://example.com/image.jpg)", placeholder: "图片描述")
 
         // Block formats: add prefix to line or toggle
         case .h1:
@@ -1664,14 +1901,15 @@ struct FormatMenuSheet: View {
         case code, codeBlock
         case quote, bullet, numbered, checkbox
         case divider
+        case link, image
 
         var id: String { rawValue }
 
         var title: String {
             switch self {
-            case .h1: return "标题 1"
-            case .h2: return "标题 2"
-            case .h3: return "标题 3"
+            case .h1: return "h1"
+            case .h2: return "h2"
+            case .h3: return "h3"
             case .bold: return "粗体"
             case .italic: return "斜体"
             case .strikethrough: return "删除线"
@@ -1682,6 +1920,8 @@ struct FormatMenuSheet: View {
             case .numbered: return "有序列表"
             case .checkbox: return "待办事项"
             case .divider: return "分割线"
+            case .link: return "链接"
+            case .image: return "图片"
             }
         }
 
@@ -1700,6 +1940,8 @@ struct FormatMenuSheet: View {
             case .numbered: return "list.number"
             case .checkbox: return "checklist"
             case .divider: return "minus"
+            case .link: return "link"
+            case .image: return "photo"
             }
         }
 
@@ -1718,6 +1960,8 @@ struct FormatMenuSheet: View {
             case .numbered: return "1. 列表项"
             case .checkbox: return "- [ ] 待办"
             case .divider: return "---"
+            case .link: return "[文本](url)"
+            case .image: return "![图片](url)"
             }
         }
 
@@ -1737,6 +1981,8 @@ struct FormatMenuSheet: View {
             case .numbered: return "1. 列表项\n"
             case .checkbox: return "- [ ] 待办事项\n"
             case .divider: return "\n---\n"
+            case .link: return "[链接文本](https://example.com)"
+            case .image: return "![图片描述](https://example.com/image.jpg)"
             }
         }
 
@@ -1748,6 +1994,8 @@ struct FormatMenuSheet: View {
             case .quote: return .green
             case .bullet, .numbered, .checkbox: return .teal
             case .divider: return .gray
+            case .link: return .indigo
+            case .image: return .pink
             }
         }
     }
@@ -2002,22 +2250,215 @@ struct MarkdownRenderView: View {
         }
     }
 
-    /// Renders inline text with custom markdown formatting (bold, italic, strikethrough, code, links).
+    /// Renders inline text with custom markdown formatting (bold, italic, strikethrough, code, links, images).
     @ViewBuilder
     private func inlineText(_ raw: String) -> some View {
-        Text(parseInlineMarkdown(raw))
+        renderInlineMarkdown(raw)
     }
-
-    /// Parse inline markdown to an NSAttributedString-backed AttributedString.
-    /// Handles: **bold**, *italic*, ***bold-italic***, ~~strikethrough~~, `code`, [link](url), ![img](url)
-    private func parseInlineMarkdown(_ raw: String) -> AttributedString {
-        // Ordered by priority (longest markers first)
-        struct Rule {
-            let open: String
-            let close: String
-            let apply: (inout AttributedString) -> Void
+    
+    /// Render inline markdown with actual interactive links and embedded images
+    @ViewBuilder
+    private func renderInlineMarkdown(_ raw: String) -> some View {
+        let segments = parseInlineSegments(raw)
+        
+        if segments.isEmpty {
+            Text("")
+        } else {
+            // Use HStack with wrapping for inline flow
+            // For multiline content, wrap each segment in its own view
+            flowLayout(segments: segments)
         }
-
+    }
+    
+    @ViewBuilder
+    private func flowLayout(segments: [InlineSegment]) -> some View {
+        // Group consecutive text segments together, render links and images separately
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(Array(groupSegments(segments).enumerated()), id: \.offset) { _, group in
+                switch group {
+                case .combinedText(let textSegments):
+                    let combined = textSegments.reduce(Text("")) { result, attr in
+                        result + Text(attr)
+                    }
+                    combined
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                case .link(let displayText, let url):
+                    Link(displayText, destination: URL(string: url) ?? URL(string: "about:blank")!)
+                        .foregroundColor(.blue)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                case .image(let alt, let url):
+                    VStack(alignment: .leading, spacing: 4) {
+                        AsyncImage(url: URL(string: url)) { phase in
+                            switch phase {
+                            case .empty:
+                                ProgressView()
+                                    .frame(height: 200)
+                                    .frame(maxWidth: .infinity)
+                            case .success(let image):
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(maxWidth: .infinity)
+                                    .cornerRadius(8)
+                            case .failure:
+                                HStack {
+                                    Image(systemName: "photo.badge.exclamationmark")
+                                        .foregroundColor(.red)
+                                    Text("Failed to load image")
+                                        .foregroundColor(.secondary)
+                                }
+                                .frame(height: 100)
+                                .frame(maxWidth: .infinity)
+                            @unknown default:
+                                EmptyView()
+                            }
+                        }
+                        if !alt.isEmpty {
+                            Text(alt)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .italic()
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+        }
+    }
+    
+    enum SegmentGroup {
+        case combinedText([AttributedString])
+        case link(displayText: String, url: String)
+        case image(alt: String, url: String)
+    }
+    
+    /// Group consecutive text segments together
+    private func groupSegments(_ segments: [InlineSegment]) -> [SegmentGroup] {
+        var groups: [SegmentGroup] = []
+        var currentTextSegments: [AttributedString] = []
+        
+        for segment in segments {
+            switch segment {
+            case .text(let attr):
+                currentTextSegments.append(attr)
+            case .link(let displayText, let url):
+                if !currentTextSegments.isEmpty {
+                    groups.append(.combinedText(currentTextSegments))
+                    currentTextSegments = []
+                }
+                groups.append(.link(displayText: displayText, url: url))
+            case .image(let alt, let url):
+                if !currentTextSegments.isEmpty {
+                    groups.append(.combinedText(currentTextSegments))
+                    currentTextSegments = []
+                }
+                groups.append(.image(alt: alt, url: url))
+            }
+        }
+        
+        if !currentTextSegments.isEmpty {
+            groups.append(.combinedText(currentTextSegments))
+        }
+        
+        return groups
+    }
+    
+    enum InlineSegment {
+        case text(AttributedString)
+        case link(displayText: String, url: String)
+        case image(alt: String, url: String)
+    }
+    
+    /// Parse inline markdown into segments (text, links, images)
+    private func parseInlineSegments(_ raw: String) -> [InlineSegment] {
+        var segments: [InlineSegment] = []
+        var currentPos = raw.startIndex
+        
+        // First, find all links and images with their positions
+        struct Match {
+            let range: Range<String.Index>
+            let type: MatchType
+        }
+        
+        enum MatchType {
+            case link(text: String, url: String)
+            case image(alt: String, url: String)
+        }
+        
+        var matches: [Match] = []
+        
+        // Find all links: [text](url)
+        let linkPattern = #"(?<!!)\[([^\]]+)\]\(([^)]+)\)"#
+        if let linkRegex = try? NSRegularExpression(pattern: linkPattern) {
+            let nsString = raw as NSString
+            let results = linkRegex.matches(in: raw, range: NSRange(location: 0, length: nsString.length))
+            for match in results where match.numberOfRanges >= 3 {
+                if let range = Range(match.range, in: raw),
+                   let textRange = Range(match.range(at: 1), in: raw),
+                   let urlRange = Range(match.range(at: 2), in: raw) {
+                    let text = String(raw[textRange])
+                    let url = String(raw[urlRange])
+                    matches.append(Match(range: range, type: .link(text: text, url: url)))
+                }
+            }
+        }
+        
+        // Find all images: ![alt](url)
+        let imagePattern = #"!\[([^\]]*)\]\(([^)]+)\)"#
+        if let imageRegex = try? NSRegularExpression(pattern: imagePattern) {
+            let nsString = raw as NSString
+            let results = imageRegex.matches(in: raw, range: NSRange(location: 0, length: nsString.length))
+            for match in results where match.numberOfRanges >= 3 {
+                if let range = Range(match.range, in: raw),
+                   let altRange = Range(match.range(at: 1), in: raw),
+                   let urlRange = Range(match.range(at: 2), in: raw) {
+                    let alt = String(raw[altRange])
+                    let url = String(raw[urlRange])
+                    matches.append(Match(range: range, type: .image(alt: alt, url: url)))
+                }
+            }
+        }
+        
+        // Sort matches by position
+        matches.sort { $0.range.lowerBound < $1.range.lowerBound }
+        
+        // Build segments
+        for match in matches {
+            // Add text before this match
+            if currentPos < match.range.lowerBound {
+                let textPart = String(raw[currentPos..<match.range.lowerBound])
+                if !textPart.isEmpty {
+                    segments.append(.text(parseTextMarkdown(textPart)))
+                }
+            }
+            
+            // Add the match
+            switch match.type {
+            case .link(let text, let url):
+                segments.append(.link(displayText: text, url: url))
+            case .image(let alt, let url):
+                segments.append(.image(alt: alt, url: url))
+            }
+            
+            currentPos = match.range.upperBound
+        }
+        
+        // Add remaining text
+        if currentPos < raw.endIndex {
+            let textPart = String(raw[currentPos..<raw.endIndex])
+            if !textPart.isEmpty {
+                segments.append(.text(parseTextMarkdown(textPart)))
+            }
+        }
+        
+        return segments
+    }
+    
+    /// Parse text markdown (bold, italic, strikethrough, code) to AttributedString
+    /// This is used for text segments that don't contain links or images
+    /// In preview mode, markers are completely removed
+    private func parseTextMarkdown(_ raw: String) -> AttributedString {
         let baseFont = UIFont.preferredFont(forTextStyle: .body)
 
         func boldItalicFont() -> UIFont {
@@ -2035,104 +2476,69 @@ struct MarkdownRenderView: View {
         }
         let codeFont = UIFont.monospacedSystemFont(ofSize: baseFont.pointSize * 0.9, weight: .regular)
 
-        // Tokenise the string into (text, isMarked, attributes) segments using NSAttributedString
-        let nsAttr = NSMutableAttributedString(string: raw)
-
-        // Pattern matching helper: find all non-overlapping matches and apply them
-        func applyMarkup(open: String, close: String,
-                         markerAttrs: [NSAttributedString.Key: Any],
-                         contentAttrs: [NSAttributedString.Key: Any]) {
-            // Build pattern: escape special regex chars
+        // Process markdown by removing markers and applying formatting
+        var result = raw
+        var ranges: [(range: NSRange, attrs: [NSAttributedString.Key: Any])] = []
+        
+        // Helper to process a markdown pattern and collect formatted ranges
+        func processPattern(open: String, close: String, attrs: [NSAttributedString.Key: Any]) {
             func esc(_ s: String) -> String { NSRegularExpression.escapedPattern(for: s) }
             let pattern = "\(esc(open))(.+?)\(esc(close))"
             guard let regex = try? NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators]) else { return }
-            let str = nsAttr.string as NSString
-            let matches = regex.matches(in: nsAttr.string,
-                                        range: NSRange(location: 0, length: str.length))
-            // Apply in reverse so ranges stay valid
+            
+            var offset = 0
+            let nsString = result as NSString
+            let matches = regex.matches(in: result, range: NSRange(location: 0, length: nsString.length))
+            
             for match in matches.reversed() {
+                guard match.numberOfRanges >= 2 else { continue }
                 let fullRange = match.range
-                guard fullRange.location != NSNotFound, fullRange.length > open.count + close.count else { continue }
+                let contentRange = match.range(at: 1)
+                
+                guard let fullSwiftRange = Range(fullRange, in: result),
+                      let contentSwiftRange = Range(contentRange, in: result) else { continue }
+                
+                let content = String(result[contentSwiftRange])
+                
+                // Calculate new position after removing markers
                 let openLen = (open as NSString).length
-                let closeLen = (close as NSString).length
-                let openRange = NSRange(location: fullRange.location, length: openLen)
-                let contentRange = NSRange(location: fullRange.location + openLen,
-                                           length: fullRange.length - openLen - closeLen)
-                let closeRange = NSRange(location: NSMaxRange(fullRange) - closeLen, length: closeLen)
-
-                if contentRange.length > 0 {
-                    nsAttr.addAttributes(contentAttrs, range: contentRange)
-                }
-                nsAttr.addAttributes(markerAttrs, range: openRange)
-                nsAttr.addAttributes(markerAttrs, range: closeRange)
+                let newStart = fullRange.location - offset
+                let newRange = NSRange(location: newStart, length: content.count)
+                
+                // Store the attributes to apply later
+                ranges.append((range: newRange, attrs: attrs))
+                
+                // Remove the markdown markers from the string
+                result.replaceSubrange(fullSwiftRange, with: content)
+                offset += openLen + (close as NSString).length
             }
         }
-
-        let markerColor = UIColor.tertiaryLabel
-
-        // Apply in longest-first order so ***x*** is caught before **x** or *x*
-        applyMarkup(open: "***", close: "***",
-                    markerAttrs: [.foregroundColor: markerColor],
-                    contentAttrs: [.font: boldItalicFont()])
-        applyMarkup(open: "___", close: "___",
-                    markerAttrs: [.foregroundColor: markerColor],
-                    contentAttrs: [.font: boldItalicFont()])
-        applyMarkup(open: "**", close: "**",
-                    markerAttrs: [.foregroundColor: markerColor],
-                    contentAttrs: [.font: boldFont()])
-        applyMarkup(open: "__", close: "__",
-                    markerAttrs: [.foregroundColor: markerColor],
-                    contentAttrs: [.font: boldFont()])
-        applyMarkup(open: "*", close: "*",
-                    markerAttrs: [.foregroundColor: markerColor],
-                    contentAttrs: [.font: italicFont()])
-        applyMarkup(open: "_", close: "_",
-                    markerAttrs: [.foregroundColor: markerColor],
-                    contentAttrs: [.font: italicFont()])
-        applyMarkup(open: "~~", close: "~~",
-                    markerAttrs: [.foregroundColor: markerColor],
-                    contentAttrs: [.strikethroughStyle: NSUnderlineStyle.single.rawValue,
-                                   .foregroundColor: UIColor.secondaryLabel])
-        applyMarkup(open: "`", close: "`",
-                    markerAttrs: [.foregroundColor: UIColor.clear],
-                    contentAttrs: [.font: codeFont,
-                                   .backgroundColor: UIColor.tertiarySystemFill,
-                                   .foregroundColor: UIColor.systemOrange])
-
-        // Links: [text](url)
-        if let linkRegex = try? NSRegularExpression(pattern: #"(?<!!)\[([^\]]+)\]\(([^)]+)\)"#) {
-            let str = nsAttr.string as NSString
-            let matches = linkRegex.matches(in: nsAttr.string, range: NSRange(location: 0, length: str.length))
-            for match in matches.reversed() where match.numberOfRanges >= 3 {
-                let fullRange = match.range
-                let textRange = match.range(at: 1)
-                if textRange.length > 0 {
-                    nsAttr.addAttributes([
-                        .foregroundColor: UIColor.systemBlue,
-                        .underlineStyle: NSUnderlineStyle.single.rawValue
-                    ], range: textRange)
-                }
-                // Dim the brackets and URL portion
-                let preText = NSRange(location: fullRange.location, length: 1) // [
-                let postTextStart = textRange.location + textRange.length       // ](url)
-                let postTextLen = NSMaxRange(fullRange) - postTextStart
-                let postRange = NSRange(location: postTextStart, length: postTextLen)
-                nsAttr.addAttribute(.foregroundColor, value: UIColor.tertiaryLabel, range: preText)
-                if postRange.length > 0 {
-                    nsAttr.addAttribute(.foregroundColor, value: UIColor.tertiaryLabel, range: postRange)
-                }
+        
+        // Process in longest-first order so ***x*** is caught before **x** or *x*
+        processPattern(open: "***", close: "***", attrs: [.font: boldItalicFont()])
+        processPattern(open: "___", close: "___", attrs: [.font: boldItalicFont()])
+        processPattern(open: "**", close: "**", attrs: [.font: boldFont()])
+        processPattern(open: "__", close: "__", attrs: [.font: boldFont()])
+        processPattern(open: "*", close: "*", attrs: [.font: italicFont()])
+        processPattern(open: "_", close: "_", attrs: [.font: italicFont()])
+        processPattern(open: "~~", close: "~~", attrs: [
+            .strikethroughStyle: NSUnderlineStyle.single.rawValue,
+            .foregroundColor: UIColor.secondaryLabel
+        ])
+        processPattern(open: "`", close: "`", attrs: [
+            .font: codeFont,
+            .backgroundColor: UIColor.tertiarySystemFill,
+            .foregroundColor: UIColor.systemOrange
+        ])
+        
+        // Build the final attributed string
+        let nsAttr = NSMutableAttributedString(string: result)
+        for (range, attrs) in ranges.reversed() {
+            if range.location >= 0 && range.location + range.length <= nsAttr.length {
+                nsAttr.addAttributes(attrs, range: range)
             }
         }
-
-        // Images: ![alt](url) — show alt text in purple, dim everything else
-        if let imgRegex = try? NSRegularExpression(pattern: #"!\[([^\]]*)\]\(([^)]+)\)"#) {
-            let str = nsAttr.string as NSString
-            let matches = imgRegex.matches(in: nsAttr.string, range: NSRange(location: 0, length: str.length))
-            for match in matches.reversed() where match.numberOfRanges >= 3 {
-                nsAttr.addAttribute(.foregroundColor, value: UIColor.systemPurple, range: match.range)
-            }
-        }
-
+        
         return AttributedString(nsAttr)
     }
 
