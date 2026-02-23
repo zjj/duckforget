@@ -144,15 +144,14 @@ class NoteStore {
     func cleanupExpiredTrash() {
         let retentionDays = AppSettings.shared.trashRetentionDays
         let cutoff = Calendar.current.date(byAdding: .day, value: -retentionDays, to: Date()) ?? Date()
+        // 将日期条件下推到 SwiftData Predicate，让数据库层过滤，避免全量加载再 Swift 筛选
         let descriptor = FetchDescriptor<NoteItem>(
-            predicate: #Predicate {
-                $0.isDeleted == true && $0.deletedAt != nil
+            predicate: #Predicate { note in
+                note.isDeleted == true && note.deletedAt != nil && note.deletedAt! < cutoff
             })
-        guard let trashed = try? modelContext.fetch(descriptor) else { return }
-        for note in trashed {
-            if let deletedAt = note.deletedAt, deletedAt < cutoff {
-                permanentlyDeleteNote(note)
-            }
+        guard let expired = try? modelContext.fetch(descriptor) else { return }
+        for note in expired {
+            permanentlyDeleteNote(note)
         }
     }
 
