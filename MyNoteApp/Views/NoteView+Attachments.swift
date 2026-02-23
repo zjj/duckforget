@@ -244,33 +244,39 @@ extension NoteView {
     // MARK: 保存图片附件
 
     func saveImage(_ image: UIImage, type: AttachmentType) {
-        guard let imageData = image.jpegData(compressionQuality: 0.8) else { return }
+        Task { @MainActor in
+            // 图片压缩和缩略图渲染在后台线程执行，避免高分辨率图片阻塞主线程
+            let result: (Data, Data?)? = await Task.detached(priority: .userInitiated) {
+                guard let imageData = image.jpegData(compressionQuality: 0.8) else { return nil }
+                let thumbSize = CGSize(width: 200, height: 200)
+                let renderer = UIGraphicsImageRenderer(size: thumbSize)
+                let thumbImage = renderer.image { _ in
+                    image.draw(in: CGRect(origin: .zero, size: thumbSize))
+                }
+                return (imageData, thumbImage.jpegData(compressionQuality: 0.6))
+            }.value
 
-        // 生成缩略图
-        let thumbSize = CGSize(width: 200, height: 200)
-        let renderer = UIGraphicsImageRenderer(size: thumbSize)
-        let thumbImage = renderer.image { _ in
-            image.draw(in: CGRect(origin: .zero, size: thumbSize))
-        }
-        let thumbnailData = thumbImage.jpegData(compressionQuality: 0.6)
+            guard let (imageData, thumbnailData) = result else { return }
 
-        let attachment = noteStore.addAttachmentWithThumbnail(
-            to: note,
-            type: type,
-            data: imageData,
-            thumbnailData: thumbnailData,
-            fileExtension: "jpg",
-            shouldSave: false
-        )
-        
-        // 记録到undo管理器
-        if let attachmentID = attachment?.id {
-            undoRedoManager.recordAction(.attachmentAdded(attachmentID: attachmentID))
-            previousAttachmentIDs.insert(attachmentID)
-            saveContentInEditMode()
+            // SwiftData 写入和 UI 状态更新回到主线程
+            let attachment = noteStore.addAttachmentWithThumbnail(
+                to: note,
+                type: type,
+                data: imageData,
+                thumbnailData: thumbnailData,
+                fileExtension: "jpg",
+                shouldSave: false
+            )
+
+            // 记録到undo管理器
+            if let attachmentID = attachment?.id {
+                undoRedoManager.recordAction(.attachmentAdded(attachmentID: attachmentID))
+                previousAttachmentIDs.insert(attachmentID)
+                saveContentInEditMode()
+            }
+
+            wasEdited = true
         }
-        
-        wasEdited = true
     }
 
     // MARK: 保存视频附件
