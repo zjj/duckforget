@@ -115,21 +115,17 @@ final class ExportService {
             divPath.stroke()
             y += 14
 
-            // ---- 正文（支持自动换页）----
+            // ---- 正文（支持自动换页，渲染 Markdown 格式）----
             // 注意：CTFrameDraw 使用 Core Graphics 原生坐标系（原点在左下，Y 轴向上），
             // 而 UIGraphicsPDFRenderer 上下文已对 Y 轴做了翻转（UIKit 坐标系）。
             // 因此需要：
             //   1. 在每次 CTFrameDraw 前 save/翻转/restore CG 上下文；
             //   2. 将绘制区域 (UIKit rect) 转换为 CG 坐标系中对应的 rect。
-            let contentAttrs: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 13),
-                .foregroundColor: UIColor.black
-            ]
-            let attrContent = NSAttributedString(string: note.content, attributes: contentAttrs)
+            let attrContent = markdownAttributedString(for: note.content)
 
             let framesetter = CTFramesetterCreateWithAttributedString(attrContent)
             var charIndex = 0
-            while charIndex < note.content.utf16.count {
+            while charIndex < attrContent.length {
                 let availableHeight = pageRect.height - y - margin
 
                 // CG 坐标系中的等价区域：
@@ -146,6 +142,10 @@ final class ExportService {
                 cgCtx.saveGState()
                 cgCtx.translateBy(x: 0, y: pageRect.height)
                 cgCtx.scaleBy(x: 1, y: -1)
+                // 重置 textMatrix：NSString.draw(in:) 等 UIKit 绘制方法会修改 textMatrix
+                // 以补偿 UIKit 坐标系翻转，CTFrameDraw 在 CG 坐标系下需要 identity textMatrix，
+                // 否则文字会被二次翻转导致镜像。
+                cgCtx.textMatrix = .identity
                 CTFrameDraw(frame, cgCtx)
                 cgCtx.restoreGState()
 
@@ -153,7 +153,7 @@ final class ExportService {
                 if visibleRange.length == 0 { break }
                 charIndex += visibleRange.length
 
-                if charIndex < note.content.utf16.count {
+                if charIndex < attrContent.length {
                     ctx.beginPage()
                     y = margin
                 }
@@ -173,8 +173,11 @@ final class ExportService {
                     guard let imgData = try? Data(contentsOf: url),
                           let img = UIImage(data: imgData) else { continue }
 
+                    // 修正图片方向，防止 EXIF 旋转导致镜像或方向错误
+                    let normalizedImg = Self.normalizeImageOrientation(img)
+
                     // 宽度撑满内容区，高度按原始比例等比缩放
-                    let aspect = img.size.height / max(img.size.width, 1)
+                    let aspect = normalizedImg.size.height / max(normalizedImg.size.width, 1)
                     let imgW = contentWidth
                     let imgH = contentWidth * aspect
 
@@ -184,13 +187,155 @@ final class ExportService {
                     }
 
                     let imgRect = CGRect(x: margin, y: iy, width: imgW, height: imgH)
-                    img.draw(in: imgRect)
+                    normalizedImg.draw(in: imgRect)
                     iy += imgH + 14
+                }
+            }
+
+            // ---- 位置附件（location）----
+            let locationAttachments = noteStore.getAttachments(for: note).filter { $0.type == .location }
+
+            if !locationAttachments.isEmpty {
+                // 如果前面没有图片附件，需要新开一页
+                if imageAttachments.isEmpty {
+                    ctx.beginPage()
+                }
+                var ly: CGFloat = imageAttachments.isEmpty ? margin : (pageRect.height - margin) // 如果有图片页的话换页
+                if !imageAttachments.isEmpty {
+                    ctx.beginPage()
+                    ly = margin
+                }
+
+                let locationTitleAttrs: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.systemFont(ofSize: 11, weight: .medium),
+                    .foregroundColor: UIColor.systemGray
+                ]
+                let coordAttrs: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.monospacedSystemFont(ofSize: 10, weight: .regular),
+                    .foregroundColor: UIColor.systemGray2
+                ]
+
+                for attachment in locationAttachments {
+                    // 尝试渲染位置缩略图
+                    if let thumbURL = noteStore.thumbnailURL(for: attachment),
+                       let thumbData = try? Data(contentsOf: thumbURL),
+                       let thumbImg = UIImage(data: thumbData) {
+                        let normalizedThumb = Self.normalizeImageOrientation(thumbImg)
+                        let aspect = normalizedThumb.size.height / max(normalizedThumb.size.width, 1)
+                        let imgW = contentWidth
+                        let imgH = contentWidth * aspect
+
+                        if ly + imgH + 30 > pageRect.height - margin {
+                            ctx.beginPage()
+                            ly = margin
+                        }
+
+                        let imgRect = CGRect(x: margin, y: ly, width: imgW, height: imgH)
+                        normalizedThumb.draw(in: imgRect)
+                        ly += imgH + 4
+                    }
+
+                    // 解析并渲染坐标文字
+                    let dataURL = noteStore.attachmentURL(for: attachment)
+                    if let jsonData = try? Data(contentsOf: dataURL),
+                       let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+                       let lat = json["latitude"] as? Double,
+                       let lon = json["longitude"] as? Double {
+                        let coordStr = String(format: "📍 %.6f, %.6f", lat, lon)
+                        if ly + 20 > pageRect.height - margin {
+                            ctx.beginPage()
+                            ly = margin
+                        }
+                        (coordStr as NSString).draw(at: CGPoint(x: margin, y: ly), withAttributes: coordAttrs)
+                        ly += 18
+                    } else {
+                        ("📍 位置" as NSString).draw(at: CGPoint(x: margin, y: ly), withAttributes: locationTitleAttrs)
+                        ly += 18
+                    }
+                    ly += 10
                 }
             }
         }
 
         return try writeTempFile(data: pdfData, name: creationFilename(for: note) + ".pdf")
+    }
+
+    // MARK: - Markdown → NSAttributedString (for PDF)
+
+    private func markdownAttributedString(for content: String) -> NSAttributedString {
+        let baseFontSize: CGFloat = 13
+        let bodyFont  = UIFont.systemFont(ofSize: baseFontSize)
+        let codeFont  = UIFont.monospacedSystemFont(ofSize: baseFontSize * 0.9, weight: .regular)
+        let h1Font    = UIFont.systemFont(ofSize: baseFontSize * 1.6,  weight: .bold)
+        let h2Font    = UIFont.systemFont(ofSize: baseFontSize * 1.35, weight: .bold)
+        let h3Font    = UIFont.systemFont(ofSize: baseFontSize * 1.15, weight: .semibold)
+        let bodyColor = UIColor.black
+        let grayColor = UIColor.systemGray
+
+        let result = NSMutableAttributedString()
+        let lines   = content.components(separatedBy: "\n")
+        var inCodeBlock = false
+        var codeLines: [String] = []
+
+        func appendLine(_ text: String, font: UIFont, color: UIColor = bodyColor) {
+            result.append(NSAttributedString(
+                string: text + "\n",
+                attributes: [.font: font, .foregroundColor: color]
+            ))
+        }
+
+        // 剥离行内 Markdown 语法，保留文字
+        func stripInline(_ text: String) -> String {
+            var s = text
+            s = s.replacingOccurrences(of: "\\*\\*(.+?)\\*\\*",  with: "$1", options: .regularExpression)
+            s = s.replacingOccurrences(of: "\\*(.+?)\\*",         with: "$1", options: .regularExpression)
+            s = s.replacingOccurrences(of: "~~(.+?)~~",           with: "$1", options: .regularExpression)
+            s = s.replacingOccurrences(of: "`([^`]+)`",           with: "$1", options: .regularExpression)
+            s = s.replacingOccurrences(of: "!\\[.*?\\]\\(.*?\\)", with: "",   options: .regularExpression)
+            s = s.replacingOccurrences(of: "\\[(.+?)\\]\\(.*?\\)",with: "$1", options: .regularExpression)
+            return s
+        }
+
+        for line in lines {
+            // 代码块围栏
+            if line.hasPrefix("```") || line.hasPrefix("~~~") {
+                if inCodeBlock {
+                    result.append(NSAttributedString(
+                        string: codeLines.joined(separator: "\n") + "\n",
+                        attributes: [.font: codeFont, .foregroundColor: grayColor]
+                    ))
+                    codeLines = []; inCodeBlock = false
+                } else {
+                    inCodeBlock = true
+                }
+                continue
+            }
+            if inCodeBlock { codeLines.append(line); continue }
+
+            // 块级元素
+            if      line.hasPrefix("### ") { appendLine(stripInline(String(line.dropFirst(4))), font: h3Font) }
+            else if line.hasPrefix("## ")  { appendLine(stripInline(String(line.dropFirst(3))), font: h2Font) }
+            else if line.hasPrefix("# ")   { appendLine(stripInline(String(line.dropFirst(2))), font: h1Font) }
+            else if line.hasPrefix("> ")   { appendLine("│ " + stripInline(String(line.dropFirst(2))), font: bodyFont, color: grayColor) }
+            else if line.hasPrefix("- [x] ") || line.hasPrefix("- [X] ") {
+                appendLine("☑ " + stripInline(String(line.dropFirst(6))), font: bodyFont)
+            } else if line.hasPrefix("- [ ] ") {
+                appendLine("☐ " + stripInline(String(line.dropFirst(6))), font: bodyFont)
+            } else if line.hasPrefix("- ") || line.hasPrefix("* ") || line.hasPrefix("+ ") {
+                appendLine("• " + stripInline(String(line.dropFirst(2))), font: bodyFont)
+            } else {
+                appendLine(stripInline(line), font: bodyFont)
+            }
+        }
+
+        // 冲刷未关闭的代码块
+        if !codeLines.isEmpty {
+            result.append(NSAttributedString(
+                string: codeLines.joined(separator: "\n") + "\n",
+                attributes: [.font: codeFont, .foregroundColor: grayColor]
+            ))
+        }
+        return result
     }
 
     // MARK: - TXT
@@ -257,6 +402,15 @@ final class ExportService {
             let src = noteStore.attachmentURL(for: attachment)
             if (try? src.checkResourceIsReachable()) == true {
                 try? fm.copyItem(at: src, to: assetsDir.appendingPathComponent(destName))
+            }
+
+            // 位置附件：额外复制缩略图（地图截图）
+            if attachment.type == .location,
+               let thumbName = attachment.thumbnailFileName,
+               let thumbSrc = noteStore.thumbnailURL(for: attachment) {
+                if (try? thumbSrc.checkResourceIsReachable()) == true {
+                    try? fm.copyItem(at: thumbSrc, to: assetsDir.appendingPathComponent(thumbName))
+                }
             }
         }
 
@@ -383,6 +537,15 @@ final class ExportService {
                 let src = noteStore.attachmentURL(for: attachment)
                 if (try? src.checkResourceIsReachable()) == true {
                     try? fm.copyItem(at: src, to: assetsDir.appendingPathComponent(destName))
+                }
+
+                // 位置附件：额外复制缩略图（地图截图）
+                if attachment.type == .location,
+                   let thumbName = attachment.thumbnailFileName,
+                   let thumbSrc = noteStore.thumbnailURL(for: attachment) {
+                    if (try? thumbSrc.checkResourceIsReachable()) == true {
+                        try? fm.copyItem(at: thumbSrc, to: assetsDir.appendingPathComponent(thumbName))
+                    }
                 }
             }
 
@@ -617,6 +780,24 @@ final class ExportService {
                 attachHTML += "<div class=\"attachment\">"
                 attachHTML += "<img src=\"assets/\(escaped)\" alt=\"\(escapeHTML(m.attachment.type.displayName))\">"
                 attachHTML += "</div>\n"
+            } else if m.attachment.type == .location {
+                // 位置附件：显示缩略图 + 坐标文字
+                attachHTML += "<div class=\"attachment location-attachment\">\n"
+                if let thumbName = m.attachment.thumbnailFileName {
+                    let thumbEscaped = escapeHTML(thumbName)
+                    attachHTML += "<img src=\"assets/\(thumbEscaped)\" alt=\"位置截图\">\n"
+                }
+                // 解析 JSON 获取坐标
+                let dataURL = noteStore.attachmentURL(for: m.attachment)
+                if let jsonData = try? Data(contentsOf: dataURL),
+                   let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+                   let lat = json["latitude"] as? Double,
+                   let lon = json["longitude"] as? Double {
+                    attachHTML += "<p class=\"location-coord\">📍 \(String(format: "%.6f, %.6f", lat, lon))</p>\n"
+                } else {
+                    attachHTML += "<p class=\"location-coord\">📍 位置</p>\n"
+                }
+                attachHTML += "</div>\n"
             } else {
                 attachHTML += "<div class=\"attachment file-attachment\">"
                 attachHTML += "<a href=\"assets/\(escaped)\">📎 \(escaped)</a>"
@@ -666,6 +847,12 @@ final class ExportService {
             }
             .file-attachment a { color: #007aff; text-decoration: none; }
             .file-attachment a:hover { text-decoration: underline; }
+            .location-attachment { text-align: center; }
+            .location-attachment img { border-radius: 10px; }
+            .location-coord {
+              font-size: 13px; color: #8e8e93; margin: 6px 0 0;
+              font-family: ui-monospace, SFMono-Regular, monospace;
+            }
           </style>
         </head>
         <body>
@@ -795,6 +982,17 @@ final class ExportService {
             }
         }
         return crc ^ 0xFFFF_FFFF
+    }
+
+    // MARK: - Image Orientation Normalization
+
+    /// 将图片方向标准化为 .up，避免 PDF 渲染时出现镜像或旋转问题
+    static func normalizeImageOrientation(_ image: UIImage) -> UIImage {
+        guard image.imageOrientation != .up else { return image }
+        let renderer = UIGraphicsImageRenderer(size: image.size)
+        return renderer.image { _ in
+            image.draw(at: .zero)
+        }
     }
 
     // MARK: - File Helpers

@@ -49,10 +49,16 @@ struct FloatingContextMenu: View {
                         onFormatAction(action); onDismiss()
                     } label: {
                         HStack(spacing: 4) {
-                            Image(systemName: action.icon)
-                                .font(.system(size: 14))
-                                .foregroundColor(action.color)
-                            
+                            if let label = action.customLabel {
+                                Text(label)
+                                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                    .foregroundColor(action.color)
+                            } else {
+                                Image(systemName: action.icon)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(action.color)
+                            }
+
                             Text(action.title)
                                 .font(.system(size: 12))
                                 .lineLimit(1)

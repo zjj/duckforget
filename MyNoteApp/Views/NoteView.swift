@@ -48,6 +48,9 @@ struct NoteView: View {
     }
     @State private var attachmentDisplayMode: AttachmentDisplayMode = .grid
 
+    // 编辑模式下附件栏收起状态
+    @State private var isAttachmentBarCollapsed = false
+
     // 语音输入
     @StateObject private var speechRecognizer = SpeechRecognizer()
 
@@ -226,6 +229,23 @@ struct NoteView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .overlay(alignment: .leading) {
+            if isEditMode {
+                Color.clear
+                    .frame(width: 20)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 20, coordinateSpace: .local)
+                            .onEnded { value in
+                                guard value.startLocation.x < 20 else { return }
+                                if value.translation.width > 60
+                                    && abs(value.translation.height) < abs(value.translation.width) {
+                                    exitEditMode()
+                                }
+                            }
+                    )
+            }
+        }
         .toolbar {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
                 if isEditMode {
@@ -266,15 +286,9 @@ struct NoteView: View {
                     Button {
                         exitEditMode()
                     } label: {
-                        Image(systemName: "checkmark")
+                        Image(systemName: (undoRedoManager.canUndo || undoRedoManager.canRedo) ? "checkmark" : "eyes")
                             .font(.system(size: 16))
-                            .scaleEffect((undoRedoManager.canUndo || undoRedoManager.canRedo) ? 1.0 : 0.8)
-                            .animation(.spring(response: 0.3, dampingFraction: 0.5), value: (undoRedoManager.canUndo || undoRedoManager.canRedo))
-                            .scaleEffect((undoRedoManager.canUndo || undoRedoManager.canRedo) ? 1.0 : 0.8)
-                            .animation(.spring(response: 0.3, dampingFraction: 0.5), value: (undoRedoManager.canUndo || undoRedoManager.canRedo))
                     }
-                    .disabled(!undoRedoManager.canUndo && !undoRedoManager.canRedo)
-                    .disabled(!undoRedoManager.canUndo && !undoRedoManager.canRedo)
                 } else {
                     // 预览模式：... + pencil
                     Menu {
@@ -321,10 +335,10 @@ struct NoteView: View {
                 undoRedoManager.recordAction(.textChange(previousText: previousContent, newText: content))
                 previousContent = content
                 
-                // 延迟实时保存（防抖：1秒后保存）
+                // 延迟实时保存（防抖：0.5秒后保存）
                 saveTask?.cancel()
                 saveTask = Task {
-                    try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+                    try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second
                     if !Task.isCancelled {
                         await MainActor.run {
                             saveContentInEditMode()
@@ -594,7 +608,8 @@ struct NoteView: View {
                         HStack {
                             Text("开始输入...")
                                 .foregroundColor(Color(.placeholderText))
-                                .padding(.horizontal, 16)
+                                .padding(.leading, 21)
+                                .padding(.trailing, 16)
                                 .padding(.vertical, 12)
                                 .allowsHitTesting(false)
                             Spacer()
@@ -603,18 +618,26 @@ struct NoteView: View {
                 }
                 .padding(.top, 4)
             } else {
-                // 预览模式：渲染 Markdown
+                // 预览模式：渲染 Markdown（双击进入编辑模式）
                 if content.isEmpty {
                     Text("暂无内容")
                         .foregroundColor(Color(.placeholderText))
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
+                        .contentShape(Rectangle())
+                        .onTapGesture(count: 2) {
+                            enterEditMode()
+                        }
                 } else {
                     MarkdownRenderView(content: content)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
+                        .contentShape(Rectangle())
+                        .onTapGesture(count: 2) {
+                            enterEditMode()
+                        }
                 }
             }
         }
@@ -659,7 +682,7 @@ struct NoteView: View {
 
     private var attachmentStripSection: some View {
         VStack(spacing: 0) {
-            // 顶部模式切换按钮（仅预览模式显示）
+            // 顶部模式切换按钮
             if !isEditMode && currentAttachments.count > 0 {
                 HStack {
                     Spacer()
@@ -686,6 +709,34 @@ struct NoteView: View {
                 .background(Color(.systemBackground))
                 .zIndex(1)
             }
+
+            // 编辑模式：收起/展开按钮
+            if isEditMode && currentAttachments.count > 0 {
+                HStack {
+                    Text("附件 (\(currentAttachments.count))")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Button {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            isAttachmentBarCollapsed.toggle()
+                        }
+                    } label: {
+                        Image(systemName: isAttachmentBarCollapsed ? "chevron.down" : "chevron.up")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.accentColor)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(Color.accentColor.opacity(0.1))
+                            .cornerRadius(6)
+                            .contentShape(Rectangle())
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 6)
+                .background(Color(.systemBackground))
+                .zIndex(1)
+            }
             
             // 附件显示区域
             if !isEditMode {
@@ -697,8 +748,8 @@ struct NoteView: View {
                     // 原图模式
                     fullSizeAttachmentView
                 }
-            } else {
-                // 编辑模式：横向滚动
+            } else if !isAttachmentBarCollapsed {
+                // 编辑模式：横向滚动（未收起时显示）
                 horizontalAttachmentView
             }
         }
@@ -795,11 +846,11 @@ struct NoteView: View {
     // MARK: - 展开的格式工具栏（2行图标布局）
     
     private var expandedFormatToolbar: some View {
-        let allFormats = FormatMenuSheet.FormatAction.allCases
+        let allFormats = FormatMenuSheet.FormatAction.allCases.filter { $0 != .image }
         let halfCount = (allFormats.count + 1) / 2
         let row1 = Array(allFormats.prefix(halfCount))
         let row2 = Array(allFormats.dropFirst(halfCount))
-        
+
         return VStack(spacing: 0) {
             // 第一行
             HStack(spacing: 0) {
@@ -809,21 +860,28 @@ struct NoteView: View {
                         let generator = UIImpactFeedbackGenerator(style: .light)
                         generator.impactOccurred()
                     } label: {
-                        Image(systemName: action.icon)
-                            .font(.system(size: 16))
-                            .foregroundColor(action.color)
-                            .frame(maxWidth: .infinity, minHeight: 36)
+                        Group {
+                            if let label = action.customLabel {
+                                Text(label)
+                                    .font(.system(size: 14, weight: .bold, design: .monospaced))
+                            } else {
+                                Image(systemName: action.icon)
+                                    .font(.system(size: 16))
+                            }
+                        }
+                        .foregroundColor(action.color)
+                        .frame(maxWidth: .infinity, minHeight: 36)
                     }
-                    
+
                     if action != row1.last {
                         Divider()
                             .frame(height: 24)
                     }
                 }
             }
-            
+
             Divider()
-            
+
             // 第二行
             HStack(spacing: 0) {
                 ForEach(row2) { action in
@@ -832,12 +890,19 @@ struct NoteView: View {
                         let generator = UIImpactFeedbackGenerator(style: .light)
                         generator.impactOccurred()
                     } label: {
-                        Image(systemName: action.icon)
-                            .font(.system(size: 16))
-                            .foregroundColor(action.color)
-                            .frame(maxWidth: .infinity, minHeight: 36)
+                        Group {
+                            if let label = action.customLabel {
+                                Text(label)
+                                    .font(.system(size: 14, weight: .bold, design: .monospaced))
+                            } else {
+                                Image(systemName: action.icon)
+                                    .font(.system(size: 16))
+                            }
+                        }
+                        .foregroundColor(action.color)
+                        .frame(maxWidth: .infinity, minHeight: 36)
                     }
-                    
+
                     if action != row2.last {
                         Divider()
                             .frame(height: 24)
@@ -1945,6 +2010,16 @@ struct FormatMenuSheet: View {
             }
         }
 
+        /// 自定义文字标签（侄先于 SF Symbol 图标）
+        var customLabel: String? {
+            switch self {
+            case .h1: return "#"
+            case .h2: return "##"
+            case .h3: return "###"
+            default: return nil
+            }
+        }
+
         var preview: String {
             switch self {
             case .h1: return "# 标题"
@@ -2026,7 +2101,7 @@ struct FormatMenuSheet: View {
 
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 12) {
-                    ForEach(FormatAction.allCases) { action in
+                    ForEach(FormatAction.allCases.filter { $0 != .image }) { action in
                         Button {
                             onSelect(action)
                         } label: {
@@ -2036,9 +2111,15 @@ struct FormatMenuSheet: View {
                                         .fill(action.color.opacity(0.12))
                                         .frame(height: 44)
 
-                                    Image(systemName: action.icon)
-                                        .font(.system(size: 20, weight: .medium))
-                                        .foregroundColor(action.color)
+                                    if let label = action.customLabel {
+                                        Text(label)
+                                            .font(.system(size: 18, weight: .bold, design: .monospaced))
+                                            .foregroundColor(action.color)
+                                    } else {
+                                        Image(systemName: action.icon)
+                                            .font(.system(size: 20, weight: .medium))
+                                            .foregroundColor(action.color)
+                                    }
                                 }
 
                                 Text(action.title)
