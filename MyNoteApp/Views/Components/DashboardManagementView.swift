@@ -303,12 +303,12 @@ struct DashboardManagementView: View {
         // Task.detached or DispatchQueue is needed here.
         Task {
             do {
-                let url = try service.exportAllNotes(
+                let url = try await service.exportAllNotes(
                     startDate: startDate,
                     endDate: endDate,
                     tag: tag
                 ) { current, total in
-                    // Called on @MainActor — direct property access is safe.
+                    // Called on @MainActor via Task { @MainActor in } inside exportAllNotes.
                     exportCurrent = current
                     exportTotal   = total
                 }

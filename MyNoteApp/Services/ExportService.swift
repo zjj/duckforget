@@ -63,19 +63,72 @@ final class ExportService {
         self.noteStore = noteStore
     }
 
+    // MARK: - Export Snapshots
+
+    /// Plain-value snapshot of all data needed to export one note.
+    /// Must be created on the ModelContext's actor (main actor), then it is safe
+    /// to pass across task boundaries and use from any thread / actor.
+    private struct NoteExportSnapshot {
+        let id: UUID
+        let content: String
+        let preview: String
+        let createdAt: Date
+        let updatedAt: Date
+        let tagNames: [String]
+        let attachments: [AttachmentExportSnapshot]
+    }
+
+    private struct AttachmentExportSnapshot {
+        let id: UUID
+        let type: AttachmentType
+        let fileName: String
+        let thumbnailFileName: String?
+        let fileURL: URL
+        let thumbnailURL: URL?
+    }
+
+    /// Captures all values needed for export from SwiftData model objects.
+    /// Call this on the same actor/thread as the ModelContext (main actor).
+    private func makeSnapshot(note: NoteItem) -> NoteExportSnapshot {
+        let sorted = noteStore.getAttachments(for: note)
+        return NoteExportSnapshot(
+            id: note.id,
+            content: note.content,
+            preview: note.preview,
+            createdAt: note.createdAt,
+            updatedAt: note.updatedAt,
+            tagNames: note.tags.map { $0.name },
+            attachments: sorted.map { att in
+                AttachmentExportSnapshot(
+                    id: att.id,
+                    type: att.type,
+                    fileName: att.fileName,
+                    thumbnailFileName: att.thumbnailFileName,
+                    fileURL: noteStore.attachmentURL(for: att),
+                    thumbnailURL: noteStore.thumbnailURL(for: att)
+                )
+            }
+        )
+    }
+
     /// 将笔记导出为指定格式，返回临时文件 URL（用完记得删除）
     func export(note: NoteItem, format: ExportFormat) throws -> URL {
+        // Capture all required values from SwiftData model objects up front
+        // (caller must be on the ModelContext's actor — main actor — at this point).
+        // The private export methods then work exclusively with plain value types
+        // and are safe even if moved to Task.detached in the future.
+        let snapshot = makeSnapshot(note: note)
         switch format {
-        case .pdf:      return try exportPDF(note: note)
-        case .txt:      return try exportTXT(note: note)
-        case .markdown: return try exportMarkdown(note: note)
-        case .zip:      return try exportZIP(note: note)
+        case .pdf:      return try exportPDF(note: snapshot)
+        case .txt:      return try exportTXT(note: snapshot)
+        case .markdown: return try exportMarkdown(note: snapshot)
+        case .zip:      return try exportZIP(note: snapshot)
         }
     }
 
     // MARK: - PDF
 
-    private func exportPDF(note: NoteItem) throws -> URL {
+    private func exportPDF(note: NoteExportSnapshot) throws -> URL {
         let pageRect = CGRect(x: 0, y: 0, width: 595.2, height: 841.8) // A4
         let margin: CGFloat = 50
         let contentWidth = pageRect.width - margin * 2
@@ -95,8 +148,8 @@ final class ExportService {
             y += 18
 
             // ---- 标签 ----
-            if !note.tags.isEmpty {
-                let tagsStr = note.tags.map { "#\($0.name)" }.joined(separator: "  ")
+            if !note.tagNames.isEmpty {
+                let tagsStr = note.tagNames.map { "#\($0)" }.joined(separator: "  ")
                 let tagAttrs: [NSAttributedString.Key: Any] = [
                     .font: UIFont.systemFont(ofSize: 11, weight: .medium),
                     .foregroundColor: UIColor.systemBlue
@@ -162,14 +215,14 @@ final class ExportService {
 
             // ---- 图片附件（photo / drawing / scannedDocument）----
             let imageTypes: Set<AttachmentType> = [.photo, .drawing, .scannedDocument]
-            let imageAttachments = noteStore.getAttachments(for: note).filter { imageTypes.contains($0.type) }
+            let imageAttachments = note.attachments.filter { imageTypes.contains($0.type) }
 
             if !imageAttachments.isEmpty {
                 ctx.beginPage()
                 var iy: CGFloat = margin
 
                 for attachment in imageAttachments {
-                    let url = noteStore.attachmentURL(for: attachment)
+                    let url = attachment.fileURL
                     guard let imgData = try? Data(contentsOf: url),
                           let img = UIImage(data: imgData) else { continue }
 
@@ -193,7 +246,7 @@ final class ExportService {
             }
 
             // ---- 位置附件（location）----
-            let locationAttachments = noteStore.getAttachments(for: note).filter { $0.type == .location }
+            let locationAttachments = note.attachments.filter { $0.type == .location }
 
             if !locationAttachments.isEmpty {
                 // 如果前面没有图片附件，需要新开一页
@@ -217,7 +270,7 @@ final class ExportService {
 
                 for attachment in locationAttachments {
                     // 尝试渲染位置缩略图
-                    if let thumbURL = noteStore.thumbnailURL(for: attachment),
+                    if let thumbURL = attachment.thumbnailURL,
                        let thumbData = try? Data(contentsOf: thumbURL),
                        let thumbImg = UIImage(data: thumbData) {
                         let normalizedThumb = Self.normalizeImageOrientation(thumbImg)
@@ -236,7 +289,7 @@ final class ExportService {
                     }
 
                     // 解析并渲染坐标文字
-                    let dataURL = noteStore.attachmentURL(for: attachment)
+                    let dataURL = attachment.fileURL
                     if let jsonData = try? Data(contentsOf: dataURL),
                        let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
                        let lat = json["latitude"] as? Double,
@@ -340,7 +393,7 @@ final class ExportService {
 
     // MARK: - TXT
 
-    private func exportTXT(note: NoteItem) throws -> URL {
+    private func exportTXT(note: NoteExportSnapshot) throws -> URL {
         guard let data = note.content.data(using: .utf8) else {
             throw ExportError.encodingFailed
         }
@@ -349,14 +402,14 @@ final class ExportService {
 
     // MARK: - Markdown
 
-    private func exportMarkdown(note: NoteItem) throws -> URL {
+    private func exportMarkdown(note: NoteExportSnapshot) throws -> URL {
         var md = ""
 
         // YAML front-matter（包含标签和日期）
-        if !note.tags.isEmpty {
+        if !note.tagNames.isEmpty {
             let iso = ISO8601DateFormatter()
             md += "---\n"
-            md += "tags: \(note.tags.map { $0.name }.joined(separator: ", "))\n"
+            md += "tags: \(note.tagNames.joined(separator: ", "))\n"
             md += "date: \(iso.string(from: note.updatedAt))\n"
             md += "---\n\n"
         }
@@ -371,7 +424,7 @@ final class ExportService {
 
     // MARK: - ZIP
 
-    private func exportZIP(note: NoteItem) throws -> URL {
+    private func exportZIP(note: NoteExportSnapshot) throws -> URL {
         let fm = FileManager.default
         let tmpDir = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try fm.createDirectory(at: tmpDir, withIntermediateDirectories: true)
@@ -381,8 +434,8 @@ final class ExportService {
         try fm.createDirectory(at: assetsDir, withIntermediateDirectories: true)
 
         // ---- 复制附件，处理文件名冲突 ----
-        let allAttachments = noteStore.getAttachments(for: note)
-        var fileMapping: [(attachment: AttachmentItem, destName: String)] = []
+        let allAttachments = note.attachments
+        var fileMapping: [(attachment: AttachmentExportSnapshot, destName: String)] = []
         var usedNames = Set<String>()
 
         for attachment in allAttachments {
@@ -399,7 +452,7 @@ final class ExportService {
             usedNames.insert(destName)
             fileMapping.append((attachment, destName))
 
-            let src = noteStore.attachmentURL(for: attachment)
+            let src = attachment.fileURL
             if (try? src.checkResourceIsReachable()) == true {
                 try? fm.copyItem(at: src, to: assetsDir.appendingPathComponent(destName))
             }
@@ -407,7 +460,7 @@ final class ExportService {
             // 位置附件：额外复制缩略图（地图截图）
             if attachment.type == .location,
                let thumbName = attachment.thumbnailFileName,
-               let thumbSrc = noteStore.thumbnailURL(for: attachment) {
+               let thumbSrc = attachment.thumbnailURL {
                 if (try? thumbSrc.checkResourceIsReachable()) == true {
                     try? fm.copyItem(at: thumbSrc, to: assetsDir.appendingPathComponent(thumbName))
                 }
@@ -453,15 +506,22 @@ final class ExportService {
     ///   - startDate: 创建时间下限（包含当日，nil 表示不限）
     ///   - endDate:   创建时间上限（包含当日 23:59:59，nil 表示不限）
     ///   - tag:       标签过滤（nil 表示所有标签）
-    ///   - progress:  进度回调 (已处理笔记数, 笔记总数)，在调用线程同步回调
+    ///   - progress:  进度回调 (已处理笔记数, 笔记总数)，始终在 @MainActor 上调用
     /// ZIP 内每条笔记对应 yyyy/MM/dd/yyyyMMddHHmmss/ 路径的文件夹。
     /// 返回的文件以 {开始日期}_{结束日期}.zip 命名，日期格式 yyyyMMdd。
+    ///
+    /// 必须从 @MainActor 调用（调用者通常是 Task { } 继承主 actor）。
+    /// 函数首先在主 actor 上抓取快照，然后将全部文件 I/O 切换到后台线程执行，
+    /// 避免阻塞主线程，也不会用 DispatchQueue.main.sync 产生死锁。
     func exportAllNotes(
         startDate: Date? = nil,
         endDate: Date? = nil,
         tag: TagItem? = nil,
-        progress: @escaping (Int, Int) -> Void = { _, _ in }
-    ) throws -> URL {
+        progress: @escaping @Sendable (Int, Int) -> Void = { _, _ in }
+    ) async throws -> URL {
+        // ── Phase 0: fetch + snapshot on @MainActor ──────────────────────────
+        // ModelContext must only be accessed on its owning actor (main actor).
+        // We capture all required values into plain Sendable structs here.
         let descriptor = FetchDescriptor<NoteItem>(
             predicate: #Predicate { !$0.isDeleted },
             sortBy: [SortDescriptor(\.createdAt)]
@@ -483,104 +543,108 @@ final class ExportService {
             notes = notes.filter { note in note.tags.contains { $0.id == tag.id } }
         }
 
-        let total = notes.count
-        DispatchQueue.main.sync { progress(0, total) }
-        Thread.sleep(forTimeInterval: 0.03)
+        // Capture into plain value-type snapshots before leaving main actor.
+        let snapshots = notes.map { makeSnapshot(note: $0) }
+        let total = snapshots.count
 
-        let fm = FileManager.default
-        // Phase 1: write each note as a folder tree on disk (one at a time, no bulk memory)
-        let stagingDir = fm.temporaryDirectory.appendingPathComponent("export_\(UUID().uuidString)")
-        try fm.createDirectory(at: stagingDir, withIntermediateDirectories: true)
-        defer { try? fm.removeItem(at: stagingDir) }
+        // Send initial progress on main actor (we are already on it).
+        progress(0, total)
 
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        // ── Phase 1+2: heavy file I/O on a background thread ─────────────────
+        // NoteExportSnapshot / AttachmentExportSnapshot are plain value types
+        // (Sendable), so passing them into Task.detached is safe.
+        return try await Task.detached(priority: .userInitiated) { [startDate, endDate] in
+            let fm = FileManager.default
+            let stagingDir = fm.temporaryDirectory.appendingPathComponent("export_\(UUID().uuidString)")
+            try fm.createDirectory(at: stagingDir, withIntermediateDirectories: true)
+            defer { try? fm.removeItem(at: stagingDir) }
 
-        let datePrefixFmt = DateFormatter()
-        datePrefixFmt.locale = Locale(identifier: "en_US_POSIX")
-        datePrefixFmt.dateFormat = "yyyy/MM/dd"
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
 
-        var usedFolders: [String: Int] = [:]
-        // Show at most ~12 distinct progress ticks; always fire on first and last.
-        let progressStep = max(1, total / 12)
+            let datePrefixFmt = DateFormatter()
+            datePrefixFmt.locale = Locale(identifier: "en_US_POSIX")
+            datePrefixFmt.dateFormat = "yyyy/MM/dd"
 
-        for (index, note) in notes.enumerated() {
-            let datePrefix = datePrefixFmt.string(from: note.createdAt)
-            let baseName   = creationFilename(for: note)
-            let baseFolder = "\(datePrefix)/\(baseName)"
-            let count = usedFolders[baseFolder, default: 0]
-            usedFolders[baseFolder] = count + 1
-            let folderName = count == 0 ? baseFolder : "\(baseFolder)_\(count + 1)"
+            var usedFolders: [String: Int] = [:]
+            // Show at most ~12 distinct progress ticks; always fire on first and last.
+            let progressStep = max(1, total / 12)
 
-            let noteDir   = stagingDir.appendingPathComponent(folderName)
-            let assetsDir = noteDir.appendingPathComponent("assets")
-            try fm.createDirectory(at: assetsDir, withIntermediateDirectories: true)
+            for (index, note) in snapshots.enumerated() {
+                let datePrefix = datePrefixFmt.string(from: note.createdAt)
+                let baseName   = self.creationFilename(for: note)
+                let baseFolder = "\(datePrefix)/\(baseName)"
+                let count = usedFolders[baseFolder, default: 0]
+                usedFolders[baseFolder] = count + 1
+                let folderName = count == 0 ? baseFolder : "\(baseFolder)_\(count + 1)"
 
-            let allAttachments = noteStore.getAttachments(for: note)
-            var fileMapping: [(attachment: AttachmentItem, destName: String)] = []
-            var usedNames = Set<String>()
+                let noteDir   = stagingDir.appendingPathComponent(folderName)
+                let assetsDir = noteDir.appendingPathComponent("assets")
+                try fm.createDirectory(at: assetsDir, withIntermediateDirectories: true)
 
-            for attachment in allAttachments {
-                var destName = attachment.fileName
-                if usedNames.contains(destName) {
-                    let ext  = (destName as NSString).pathExtension
-                    let base = (destName as NSString).deletingPathExtension
-                    var counter = 2
-                    repeat {
-                        destName = "\(base)_\(counter).\(ext)"
-                        counter += 1
-                    } while usedNames.contains(destName)
-                }
-                usedNames.insert(destName)
-                fileMapping.append((attachment, destName))
+                let allAttachments = note.attachments
+                var fileMapping: [(attachment: AttachmentExportSnapshot, destName: String)] = []
+                var usedNames = Set<String>()
 
-                let src = noteStore.attachmentURL(for: attachment)
-                if (try? src.checkResourceIsReachable()) == true {
-                    try? fm.copyItem(at: src, to: assetsDir.appendingPathComponent(destName))
-                }
+                for attachment in allAttachments {
+                    var destName = attachment.fileName
+                    if usedNames.contains(destName) {
+                        let ext  = (destName as NSString).pathExtension
+                        let base = (destName as NSString).deletingPathExtension
+                        var counter = 2
+                        repeat {
+                            destName = "\(base)_\(counter).\(ext)"
+                            counter += 1
+                        } while usedNames.contains(destName)
+                    }
+                    usedNames.insert(destName)
+                    fileMapping.append((attachment, destName))
 
-                // 位置附件：额外复制缩略图（地图截图）
-                if attachment.type == .location,
-                   let thumbName = attachment.thumbnailFileName,
-                   let thumbSrc = noteStore.thumbnailURL(for: attachment) {
-                    if (try? thumbSrc.checkResourceIsReachable()) == true {
-                        try? fm.copyItem(at: thumbSrc, to: assetsDir.appendingPathComponent(thumbName))
+                    let src = attachment.fileURL
+                    if (try? src.checkResourceIsReachable()) == true {
+                        try? fm.copyItem(at: src, to: assetsDir.appendingPathComponent(destName))
+                    }
+
+                    // 位置附件：额外复制缩略图（地图截图）
+                    if attachment.type == .location,
+                       let thumbName = attachment.thumbnailFileName,
+                       let thumbSrc = attachment.thumbnailURL {
+                        if (try? thumbSrc.checkResourceIsReachable()) == true {
+                            try? fm.copyItem(at: thumbSrc, to: assetsDir.appendingPathComponent(thumbName))
+                        }
                     }
                 }
+
+                // Write meta.json to disk
+                if let metaData = try? encoder.encode(self.buildMeta(note: note, fileMapping: fileMapping)) {
+                    try metaData.write(to: noteDir.appendingPathComponent("meta.json"))
+                }
+
+                // Write index.html to disk
+                if let htmlData = self.buildHTML(note: note, fileMapping: fileMapping).data(using: .utf8) {
+                    try htmlData.write(to: noteDir.appendingPathComponent("index.html"))
+                }
+
+                // Send throttled progress update back to main actor.
+                let current = index + 1
+                let isLast  = current == total
+                if isLast || current == 1 || current % progressStep == 0 {
+                    Task { @MainActor in progress(current, total) }
+                }
             }
 
-            // Write meta.json to disk — released from memory after this block
-            if let metaData = try? encoder.encode(buildMeta(note: note, fileMapping: fileMapping)) {
-                try metaData.write(to: noteDir.appendingPathComponent("meta.json"))
-            }
+            // Phase 2: stream-zip the staging directory
+            let fmt = DateFormatter()
+            fmt.dateFormat = "yyyyMMdd"
+            fmt.locale = Locale(identifier: "en_US_POSIX")
+            let startStr = startDate.map { fmt.string(from: $0) } ?? fmt.string(from: Date())
+            let endStr   = endDate.map   { fmt.string(from: $0) } ?? fmt.string(from: Date())
+            let fileName = "\(startStr)_\(endStr).zip"
 
-            // Write index.html to disk
-            if let htmlData = buildHTML(note: note, fileMapping: fileMapping).data(using: .utf8) {
-                try htmlData.write(to: noteDir.appendingPathComponent("index.html"))
-            }
-
-            // Throttle to ~12 ticks; always fire on first and last.
-            // After the sync dispatch, sleep for 30ms so the display link (16ms frame)
-            // actually fires and SwiftUI renders the new value before we continue.
-            let current = index + 1
-            let isLast  = current == total
-            if isLast || current == 1 || current % progressStep == 0 {
-                DispatchQueue.main.sync { progress(current, total) }
-                Thread.sleep(forTimeInterval: 0.03) // ~2 frames — ensures render before next update
-            }
-        }
-
-        // Phase 2: stream-zip the staging directory — only one file in memory at a time
-        let fmt = DateFormatter()
-        fmt.dateFormat = "yyyyMMdd"
-        fmt.locale = Locale(identifier: "en_US_POSIX")
-        let startStr = startDate.map { fmt.string(from: $0) } ?? fmt.string(from: Date())
-        let endStr   = endDate.map   { fmt.string(from: $0) } ?? fmt.string(from: Date())
-        let fileName = "\(startStr)_\(endStr).zip"
-
-        let outputURL = fm.temporaryDirectory.appendingPathComponent(fileName)
-        try streamZip(from: stagingDir, to: outputURL)
-        return outputURL
+            let outputURL = fm.temporaryDirectory.appendingPathComponent(fileName)
+            try self.streamZip(from: stagingDir, to: outputURL)
+            return outputURL
+        }.value
     }
 
     // MARK: - Streaming ZIP (disk → disk, chunk-by-chunk, no full-file in memory)
@@ -742,13 +806,13 @@ final class ExportService {
         let type: String
     }
 
-    private func buildMeta(note: NoteItem,
-                           fileMapping: [(attachment: AttachmentItem, destName: String)]) -> NoteMeta {
+    private func buildMeta(note: NoteExportSnapshot,
+                           fileMapping: [(attachment: AttachmentExportSnapshot, destName: String)]) -> NoteMeta {
         let iso = ISO8601DateFormatter()
         return NoteMeta(
             id: note.id.uuidString,
             content: note.content,
-            tags: note.tags.map { $0.name },
+            tags: note.tagNames,
             createdAt: iso.string(from: note.createdAt),
             updatedAt: iso.string(from: note.updatedAt),
             attachments: fileMapping.map {
@@ -759,14 +823,14 @@ final class ExportService {
 
     // MARK: - HTML Builder
 
-    private func buildHTML(note: NoteItem,
-                           fileMapping: [(attachment: AttachmentItem, destName: String)]) -> String {
+    private func buildHTML(note: NoteExportSnapshot,
+                           fileMapping: [(attachment: AttachmentExportSnapshot, destName: String)]) -> String {
         let title   = note.preview.isEmpty ? "笔记" : note.preview
         let dateStr = note.updatedAt.formatted(date: .abbreviated, time: .shortened)
 
-        let tagsHTML: String = note.tags.isEmpty ? "" :
+        let tagsHTML: String = note.tagNames.isEmpty ? "" :
             "<div class=\"tags\">" +
-            note.tags.map { "<span class=\"tag\">#\(escapeHTML($0.name))</span>" }.joined() +
+            note.tagNames.map { "<span class=\"tag\">#\(escapeHTML($0))</span>" }.joined() +
             "</div>"
 
         let contentHTML = escapeHTML(note.content)
@@ -788,7 +852,7 @@ final class ExportService {
                     attachHTML += "<img src=\"assets/\(thumbEscaped)\" alt=\"位置截图\">\n"
                 }
                 // 解析 JSON 获取坐标
-                let dataURL = noteStore.attachmentURL(for: m.attachment)
+                let dataURL = m.attachment.fileURL
                 if let jsonData = try? Data(contentsOf: dataURL),
                    let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
                    let lat = json["latitude"] as? Double,
@@ -1009,7 +1073,7 @@ final class ExportService {
     }
 
     /// 以笔记创建时间生成文件名，格式：yyyyMMddHHmmss
-    private func creationFilename(for note: NoteItem) -> String {
+    private func creationFilename(for note: NoteExportSnapshot) -> String {
         let fmt = DateFormatter()
         fmt.dateFormat = "yyyyMMddHHmmss"
         fmt.locale = Locale(identifier: "en_US_POSIX")
