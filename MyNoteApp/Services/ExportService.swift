@@ -129,6 +129,10 @@ final class ExportService {
     // MARK: - PDF
 
     private func exportPDF(note: NoteExportSnapshot) throws -> URL {
+        // PDF 中不包含录音和视频附件
+        let excludedTypes: Set<AttachmentType> = [.audio, .video]
+        let pdfAttachments = note.attachments.filter { !excludedTypes.contains($0.type) }
+
         let pageRect = CGRect(x: 0, y: 0, width: 595.2, height: 841.8) // A4
         let margin: CGFloat = 50
         let contentWidth = pageRect.width - margin * 2
@@ -215,7 +219,7 @@ final class ExportService {
 
             // ---- 图片附件（photo / drawing / scannedDocument）----
             let imageTypes: Set<AttachmentType> = [.photo, .drawing, .scannedDocument]
-            let imageAttachments = note.attachments.filter { imageTypes.contains($0.type) }
+            let imageAttachments = pdfAttachments.filter { imageTypes.contains($0.type) }
 
             if !imageAttachments.isEmpty {
                 ctx.beginPage()
@@ -246,7 +250,7 @@ final class ExportService {
             }
 
             // ---- 位置附件（location）----
-            let locationAttachments = note.attachments.filter { $0.type == .location }
+            let locationAttachments = pdfAttachments.filter { $0.type == .location }
 
             if !locationAttachments.isEmpty {
                 // 如果前面没有图片附件，需要新开一页

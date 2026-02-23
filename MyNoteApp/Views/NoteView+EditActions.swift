@@ -205,6 +205,17 @@ extension NoteView {
         // 取消任何待处理的保存任务
         saveTask?.cancel()
         
+        // 如果笔记创建时就是空的，且退出时仍然为空（无内容、无附件），
+        // 直接删除这条空笔记（例如从小组件创建但未输入任何内容）
+        let wasEmptyOnLoad = initialContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                              && initialAttachmentCount == 0
+        let isStillEmpty = content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            && currentAttachments.isEmpty
+        if wasEmptyOnLoad && isStillEmpty {
+            noteStore.permanentlyDeleteNote(note)
+            return
+        }
+        
         // 最终保存（确保所有内容都持久化）
         if content != note.content {
             note.content = content
