@@ -96,7 +96,21 @@ class ToolbarSettings: ObservableObject {
     func move(from source: IndexSet, to destination: Int) {
         configs.move(fromOffsets: source, toOffset: destination)
     }
-    
+
+    /// Move only non-markdown items; keeps markdown entry in its original position
+    func moveNonMarkdown(from source: IndexSet, to destination: Int) {
+        let nonMarkdownIndices = configs.indices.filter { configs[$0].type != .markdown }
+        guard !nonMarkdownIndices.isEmpty else { return }
+        let actualSource = IndexSet(source.map { nonMarkdownIndices[$0] })
+        let actualDest: Int
+        if destination < nonMarkdownIndices.count {
+            actualDest = nonMarkdownIndices[destination]
+        } else {
+            actualDest = (nonMarkdownIndices.last ?? configs.count - 1) + 1
+        }
+        configs.move(fromOffsets: actualSource, toOffset: actualDest)
+    }
+
     func toggle(_ item: ToolbarItemConfig) {
         if let index = configs.firstIndex(where: { $0.id == item.id }) {
             configs[index].isEnabled.toggle()

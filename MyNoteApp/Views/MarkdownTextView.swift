@@ -419,6 +419,14 @@ struct MarkdownTextView: UIViewRepresentable {
         /// Dismiss keyboard
         func blur() { textView?.resignFirstResponder() }
 
+        /// Move the cursor to the given character offset
+        func setCursorPosition(_ position: Int) {
+            guard let tv = textView else { return }
+            let maxPos = (tv.text as NSString).length
+            tv.selectedRange = NSRange(location: min(position, maxPos), length: 0)
+            scrollToCursor(tv)
+        }
+
         /// Select all text
         func selectAll() {
             textView?.selectAll(nil)
@@ -435,6 +443,7 @@ struct MarkdownTextView: UIViewRepresentable {
         }
 
         /// Toggle todo checkbox on the current line: - [ ] ↔ - [x]
+        /// Cursor position is preserved after the toggle.
         func toggleTodoOnCurrentLine() {
             guard let tv = textView else { return }
             let nsText = tv.text as NSString
@@ -445,10 +454,10 @@ struct MarkdownTextView: UIViewRepresentable {
 
             if line.hasPrefix("- [x] ") || line.hasPrefix("- [X] ") {
                 let prefixRange = NSRange(location: lineRange.location, length: 6)
-                replaceRange(tv, range: prefixRange, with: "- [ ] ")
+                replaceRange(tv, range: prefixRange, with: "- [ ] ", cursorAt: cursor)
             } else if line.hasPrefix("- [ ] ") {
                 let prefixRange = NSRange(location: lineRange.location, length: 6)
-                replaceRange(tv, range: prefixRange, with: "- [x] ")
+                replaceRange(tv, range: prefixRange, with: "- [x] ", cursorAt: cursor)
             }
         }
 
@@ -511,6 +520,12 @@ struct MarkdownTextView: UIViewRepresentable {
             guard let tv = textView else { return nil }
             let range = tv.selectedRange
             return range.length > 0 ? range : nil
+        }
+
+        /// Get the current cursor offset (always valid, even with no selection)
+        var cursorOffset: Int {
+            guard let tv = textView else { return 0 }
+            return tv.selectedRange.location
         }
 
         /// Wrap the current selection with prefix and suffix (e.g., make bold: **selection**)

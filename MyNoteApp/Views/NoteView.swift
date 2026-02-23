@@ -26,6 +26,7 @@ struct NoteView: View {
     @State private var contentBeforeSpeech: String = ""
     @State private var contentAfterSpeech: String = ""
     @State private var lastTranscriptLength: Int = 0
+    @State private var lastKnownCursorOffset: Int = 0  // 实时跟踪光标位置，避免按下话筒时焦点丢失
 
     // 弹出控制
     @State private var showCamera = false
@@ -78,6 +79,14 @@ struct NoteView: View {
     
     // 格式工具栏展开状态
     @State private var showExpandedFormatBar = false
+    // 底部工具栏总高度（话筒动态定位用）——根据展开状态动态计算
+    private var micBottomPadding: CGFloat {
+        var h: CGFloat = 44  // bottomToolbar 高度
+        if showExpandedFormatBar && isMarkdownToolbarEnabled {
+            h += 1 + 36 + 1 + 36  // Divider + 第一行 + Divider + 第二行
+        }
+        return h
+    }
     
     // 当前行待办状态
     @State private var currentLineIsTodo = false
@@ -181,14 +190,14 @@ struct NoteView: View {
                             shouldCancel: voiceDragOffset < -80
                         )
                         .offset(y: voiceDragOffset) // 跟随拖拽
-                        .padding(.bottom, 80)
+                        .padding(.bottom, micBottomPadding)
                         .opacity(speechRecognizer.isRecording ? 1 : 0)
                         .scaleEffect(speechRecognizer.isRecording ? 1 : 0.5, anchor: .bottom)
                         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: speechRecognizer.isRecording)
                         
-                        // 麦克风按钮（始终存在以接收手势，录音时变透明）
+                        // 麦克风按钮：下边缘与工具栏上边缘对齐
                         floatingVoiceButton
-                            .padding(.bottom, 80)
+                            .padding(.bottom, micBottomPadding)
                             .opacity(speechRecognizer.isRecording ? 0 : 1)
                     }
                 }
@@ -545,9 +554,9 @@ struct NoteView: View {
                 Divider()
                 bottomToolbar
             }
-            
-            // 展开的格式工具栏（在底部工具栏下方）
-            if isEditMode && showExpandedFormatBar {
+
+            // 展开的格式工具栏（在底部工具栏下方，仅当 Markdown 开关启用时显示）
+            if isEditMode && showExpandedFormatBar && isMarkdownToolbarEnabled {
                 Divider()
                 expandedFormatToolbar
             }
@@ -599,6 +608,10 @@ struct NoteView: View {
                         },
                         onCursorLineChanged: {
                             updateCurrentLineTodoStatus()
+                            // 实时保存光标位置，供语音插入使用
+                            if let coord = markdownCoordinator {
+                                lastKnownCursorOffset = coord.cursorOffset
+                            }
                         }
                     )
                     .padding(.horizontal, 12)
@@ -932,26 +945,32 @@ struct NoteView: View {
 
     // MARK: - 底部工具栏（展开式附件选项）
 
+    /// 是否在设置中启用了 Markdown 工具栏
+    private var isMarkdownToolbarEnabled: Bool {
+        toolbarSettings.configs.first(where: { $0.type == .markdown })?.isEnabled ?? true
+    }
+
     private var bottomToolbar: some View {
         HStack(spacing: 0) {
-            // 左侧固定：Markdown 格式按钮（切换展开/收起）
-            Button {
-                let generator = UIImpactFeedbackGenerator(style: .medium)
-                generator.impactOccurred()
-                
-                withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                    showExpandedFormatBar.toggle()
+            // 左侧固定：Markdown 格式按钮（展开/收起格式栏），仅在 Markdown 启用时显示
+            if isMarkdownToolbarEnabled {
+                Button {
+                    let generator = UIImpactFeedbackGenerator(style: .medium)
+                    generator.impactOccurred()
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                        showExpandedFormatBar.toggle()
+                    }
+                } label: {
+                    Image(systemName: showExpandedFormatBar ? "chevron.down" : "text.word.spacing")
+                        .font(.system(size: 18))
+                        .foregroundColor(showExpandedFormatBar ? .accentColor : .secondary)
+                        .frame(width: 40, height: 36)
                 }
-            } label: {
-                Image(systemName: showExpandedFormatBar ? "chevron.down" : "text.word.spacing")
-                    .font(.system(size: 18))
-                    .foregroundColor(.accentColor)
-                    .frame(width: 40, height: 36)
+
+                Divider()
+                    .frame(height: 24)
+                    .padding(.horizontal, 4)
             }
-            
-            Divider()
-                .frame(height: 24)
-                .padding(.horizontal, 4)
             
             // 中间可滚动工具栏
             ScrollView(.horizontal, showsIndicators: false) {
@@ -1034,6 +1053,7 @@ struct NoteView: View {
     /// 进入编辑模式
     private func enterEditMode() {
         isEditMode = true
+        showExpandedFormatBar = false
         // isEditMode 变为 true 后，MarkdownTextView 首次进入视图层，makeUIView 完成后
         // onCoordinatorReady 会触发。若协调器已存在则可直接延迟较短时间聚焦。
         if let coord = markdownCoordinator {
@@ -1047,6 +1067,7 @@ struct NoteView: View {
     
     /// 退出编辑模式（完成编辑）
     private func exitEditMode() {
+        showExpandedFormatBar = false
         // 取消延迟保存任务
         saveTask?.cancel()
         
@@ -1311,13 +1332,22 @@ struct NoteView: View {
         }
     }
 
-    /// 开始语音输入：将内容分割为前后两段（始终插入到末尾）
+    /// 开始语音输入：将内容在光标处分割为前后两段，在光标处插入
     private func beginSpeechInsertion() {
-        // TextEditor 不暴露光标位置，固定插入到内容末尾
-        contentBeforeSpeech = content
-        contentAfterSpeech = ""
+        let nsContent = content as NSString
+        // 优先使用实时保存的光标位置（应对按下话筒按钮导致焦点丢失的问题）
+        let cursorOffset: Int
+        if let coord = markdownCoordinator {
+            let live = coord.cursorOffset
+            // live 为 0 且内容非空时，可能是焦点干扰导致重置，改用之前保存的值
+            cursorOffset = (live == 0 && nsContent.length > 0) ? min(lastKnownCursorOffset, nsContent.length) : min(live, nsContent.length)
+        } else {
+            cursorOffset = nsContent.length
+        }
+        contentBeforeSpeech = nsContent.substring(to: cursorOffset)
+        contentAfterSpeech = nsContent.substring(from: cursorOffset)
         lastTranscriptLength = 0
-        
+
         // 重置取消标记
         shouldCancelVoiceInput = false
     }
@@ -1350,11 +1380,17 @@ struct NoteView: View {
                 // 没有识别到内容，恢复原文
                 content = contentBeforeSpeech + contentAfterSpeech
             } else {
-                // 保存识别的内容到末尾
+                // 保存识别的内容到光标位置
                 content = contentBeforeSpeech + finalTranscript + contentAfterSpeech
-                
+
                 // 标记已编辑（不自动保存）
                 wasEdited = true
+
+                // 将光标移动到插入文字结尾
+                let cursorPosition = contentBeforeSpeech.count + finalTranscript.count
+                DispatchQueue.main.async {
+                    markdownCoordinator?.setCursorPosition(cursorPosition)
+                }
             }
             
             speechRecognizer.currentTranscript = ""
