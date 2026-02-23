@@ -360,7 +360,8 @@ struct ExportFilterSheet: View {
                     Picker("标签", selection: $selectedTagID) {
                         Text("不限标签").tag(nil as UUID?)
                         ForEach(allTags) { tag in
-                            Text("#\(tag.name)").tag(tag.id as UUID?)
+                            Label(tag.name, systemImage: "tag")
+                                .tag(tag.id as UUID?)
                         }
                     }
                 }
