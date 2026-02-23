@@ -2152,6 +2152,10 @@ struct FormatMenuSheet: View {
 struct MarkdownRenderView: View {
     let content: String
 
+    // 链接跳转确认
+    @State private var pendingLinkURL: URL?
+    @State private var showLinkConfirmation = false
+
     // Parsed block model
     private enum Block {
         case heading(level: Int, text: String)
@@ -2250,6 +2254,19 @@ struct MarkdownRenderView: View {
             ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
                 blockView(block)
             }
+        }
+        .alert("即将离开应用", isPresented: $showLinkConfirmation) {
+            Button("取消", role: .cancel) {
+                pendingLinkURL = nil
+            }
+            Button("继续前往") {
+                if let url = pendingLinkURL {
+                    UIApplication.shared.open(url)
+                }
+                pendingLinkURL = nil
+            }
+        } message: {
+            Text("您即将打开外部链接:\n\n \(pendingLinkURL?.absoluteString ?? "")\n\n本应用对外部网站的内容不承担任何责任，请注意个人信息安全。")
         }
     }
 
@@ -2365,9 +2382,16 @@ struct MarkdownRenderView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .fixedSize(horizontal: false, vertical: true)
                 case .link(let displayText, let url):
-                    Link(displayText, destination: URL(string: url) ?? URL(string: "about:blank")!)
-                        .foregroundColor(.blue)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Button {
+                        if let parsed = URL(string: url) {
+                            pendingLinkURL = parsed
+                            showLinkConfirmation = true
+                        }
+                    } label: {
+                        Text(displayText)
+                            .foregroundColor(.blue)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 case .image(let alt, let url):
                     VStack(alignment: .leading, spacing: 4) {
                         AsyncImage(url: URL(string: url)) { phase in
