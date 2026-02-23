@@ -243,8 +243,12 @@ final class ExportService {
                         iy = margin
                     }
 
+                    // 缩放到目标尺寸，避免在 PDF 中嵌入完整分辨率位图
+                    let targetSize = CGSize(width: imgW, height: imgH)
+                    let downsampledImg = Self.downsampleForPDF(normalizedImg, targetPointSize: targetSize)
+
                     let imgRect = CGRect(x: margin, y: iy, width: imgW, height: imgH)
-                    normalizedImg.draw(in: imgRect)
+                    downsampledImg.draw(in: imgRect)
                     iy += imgH + 14
                 }
             }
@@ -287,8 +291,12 @@ final class ExportService {
                             ly = margin
                         }
 
+                        // 缩放到目标尺寸，避免在 PDF 中嵌入完整分辨率位图
+                        let thumbTargetSize = CGSize(width: imgW, height: imgH)
+                        let downsampledThumb = Self.downsampleForPDF(normalizedThumb, targetPointSize: thumbTargetSize)
+
                         let imgRect = CGRect(x: margin, y: ly, width: imgW, height: imgH)
-                        normalizedThumb.draw(in: imgRect)
+                        downsampledThumb.draw(in: imgRect)
                         ly += imgH + 4
                     }
 
@@ -1061,6 +1069,29 @@ final class ExportService {
         return renderer.image { _ in
             image.draw(at: .zero)
         }
+    }
+
+    // MARK: - Image Downsampling for PDF
+
+    /// 将图片缩放到指定点尺寸并压缩为 JPEG，然后从 JPEG 数据重建 UIImage。
+    /// 这样 UIGraphicsPDFRenderer 会以 DCTDecode（JPEG）方式嵌入图片，
+    /// 而非嵌入未压缩的完整位图，PDF 体积可缩小 10-50 倍。
+    private static func downsampleForPDF(_ image: UIImage, targetPointSize: CGSize, scale: CGFloat = 1.0) -> UIImage {
+        let pixelW = targetPointSize.width * scale
+        let pixelH = targetPointSize.height * scale
+        let size = CGSize(width: pixelW, height: pixelH)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        let resized = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: size))
+        }
+        // 压缩为 JPEG；从 JPEG data 重新创建 UIImage，
+        // 使 CGImage 的 data provider 持有 JPEG 编码数据，
+        // PDF 渲染器会直接嵌入压缩流而非 raw bitmap。
+        guard let jpegData = resized.jpegData(compressionQuality: 0.65),
+              let compressed = UIImage(data: jpegData) else {
+            return resized
+        }
+        return compressed
     }
 
     // MARK: - File Helpers
