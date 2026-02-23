@@ -305,6 +305,7 @@ struct NoteView: View {
                         Image(systemName: "arrow.uturn.backward")
                             .font(.system(size: 16))
                     }
+                    .accessibilityLabel("撤销")
                     .disabled(!undoRedoManager.canUndo)
 
                     Button {
@@ -313,6 +314,7 @@ struct NoteView: View {
                         Image(systemName: "arrow.uturn.forward")
                             .font(.system(size: 16))
                     }
+                    .accessibilityLabel("重做")
                     .disabled(!undoRedoManager.canRedo)
 
                     Menu {
@@ -331,6 +333,7 @@ struct NoteView: View {
                         Image(systemName: "ellipsis")
                             .font(.system(size: 16))
                     }
+                    .accessibilityLabel("更多操作")
 
                     Button {
                         exitEditMode()
@@ -338,6 +341,7 @@ struct NoteView: View {
                         Image(systemName: (undoRedoManager.canUndo || undoRedoManager.canRedo) ? "checkmark" : "eyes")
                             .font(.system(size: 16))
                     }
+                    .accessibilityLabel("完成")
                 } else {
                     Menu {
                         Button {
@@ -357,6 +361,7 @@ struct NoteView: View {
                         Image(systemName: "ellipsis")
                             .font(.system(size: 16))
                     }
+                    .accessibilityLabel("更多操作")
 
                     Button {
                         enterEditMode()
@@ -364,6 +369,7 @@ struct NoteView: View {
                         Image(systemName: "pencil")
                             .font(.system(size: 16))
                     }
+                    .accessibilityLabel("编辑")
                 }
             }
         }
@@ -540,6 +546,7 @@ struct NoteView: View {
                 HStack(spacing: 2) {
                     Image(systemName: "tag")
                         .font(.caption2)
+                        .accessibilityHidden(true)
                     Text(tag.name)
                         .font(.caption2)
                 }

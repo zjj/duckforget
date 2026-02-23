@@ -31,6 +31,7 @@ extension NoteView {
                         .cornerRadius(8)
                         .contentShape(Rectangle())
                     }
+                    .accessibilityLabel(attachmentDisplayMode == .grid ? "切换到全尺寸视图" : "切换到网格视图")
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
@@ -59,6 +60,7 @@ extension NoteView {
                             .cornerRadius(6)
                             .contentShape(Rectangle())
                     }
+                    .accessibilityLabel(isAttachmentBarCollapsed ? "展开附件栏" : "收起附件栏")
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 6)

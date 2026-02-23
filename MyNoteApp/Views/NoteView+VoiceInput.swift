@@ -29,6 +29,8 @@ extension NoteView {
                     handleVoiceDragEnded(value)
                 }
         )
+        .accessibilityLabel(speechRecognizer.isRecording ? "停止语音输入" : "开始语音输入")
+        .accessibilityAddTraits(.isButton)
     }
     
     var buttonColor: Color {

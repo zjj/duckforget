@@ -44,6 +44,7 @@ struct AttachmentThumbnailView: View {
                     .background(Circle().fill(Color.white))
                     .shadow(color: .black.opacity(0.1), radius: 2)
             }
+            .accessibilityLabel("删除附件")
             .padding(4)
         }
     }
@@ -93,6 +94,7 @@ struct AttachmentThumbnailView: View {
                 Image(systemName: "mappin.and.ellipse")
                     .font(.system(size: 16))
                     .foregroundColor(.red)
+                    .accessibilityHidden(true)
             }
         }
     }
@@ -132,6 +134,7 @@ struct AttachmentThumbnailView: View {
                 .font(.system(size: 30))
                 .foregroundStyle(.white)
                 .shadow(color: .black.opacity(0.3), radius: 3, x: 0, y: 1)
+                .accessibilityHidden(true)
         }
     }
 
@@ -147,6 +150,7 @@ struct AttachmentThumbnailView: View {
                 Image(systemName: "waveform")
                     .font(.system(size: 22))
                     .foregroundColor(.orange)
+                    .accessibilityHidden(true)
             }
 
             Text("录音")
@@ -167,6 +171,7 @@ struct AttachmentThumbnailView: View {
                 Image(systemName: "doc.fill")
                     .font(.system(size: 22))
                     .foregroundColor(.blue)
+                    .accessibilityHidden(true)
             }
 
             Text(fileExtension)

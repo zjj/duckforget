@@ -24,6 +24,7 @@ struct TrashView: View {
                     Image(systemName: "trash")
                         .font(.system(size: 64))
                         .foregroundColor(.secondary.opacity(0.6))
+                        .accessibilityHidden(true)
                     Text("废纸篓是空的")
                         .font(.title2)
                         .foregroundColor(.secondary)
@@ -98,6 +99,7 @@ struct TrashView: View {
                     } label: {
                         Image(systemName: "ellipsis")
                     }
+                    .accessibilityLabel("废纸篓操作")
                 }
             }
         }

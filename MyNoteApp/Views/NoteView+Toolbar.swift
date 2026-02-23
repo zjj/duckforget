@@ -33,6 +33,7 @@ extension NoteView {
                         .foregroundColor(action.color)
                         .frame(maxWidth: .infinity, minHeight: 36)
                     }
+                    .accessibilityLabel(action.title)
 
                     if action != row1.last {
                         Divider()
@@ -63,6 +64,7 @@ extension NoteView {
                         .foregroundColor(action.color)
                         .frame(maxWidth: .infinity, minHeight: 36)
                     }
+                    .accessibilityLabel(action.title)
 
                     if action != row2.last {
                         Divider()
@@ -114,6 +116,7 @@ extension NoteView {
                         .foregroundColor(showExpandedFormatBar ? .accentColor : .secondary)
                         .frame(width: 40, height: 36)
                 }
+                .accessibilityLabel(showExpandedFormatBar ? "收起格式工具栏" : "展开格式工具栏")
 
                 Divider()
                     .frame(height: 24)
@@ -143,6 +146,7 @@ extension NoteView {
                     .foregroundColor(.accentColor)
                     .frame(width: 40, height: 36)
             }
+            .accessibilityLabel("收起键盘")
         }
         .frame(height: 44)
         .background(Color(.systemBackground))
@@ -150,7 +154,8 @@ extension NoteView {
     
     func toolButton(for item: ToolbarItemType) -> some View {
         ToolbarButton(
-            icon: item.icon
+            icon: item.icon,
+            label: item.title
         ) {
             switch item {
             case .camera: showCamera = true
@@ -184,6 +189,7 @@ extension NoteView {
     
     struct ToolbarButton: View {
         let icon: String
+        var label: String = ""
         let action: () -> Void
         
         var body: some View {
@@ -193,6 +199,7 @@ extension NoteView {
                     .foregroundColor(.accentColor)
                     .frame(width: 36, height: 36)
             }
+            .accessibilityLabel(label)
         }
     }
 }

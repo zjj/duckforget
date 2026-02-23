@@ -44,6 +44,7 @@ struct AudioRecorderSheet: View {
                             .font(.system(size: 16, weight: .bold))
                             .foregroundColor(.secondary)
                     }
+                    .accessibilityLabel("取消录音")
                 }
             }
         }
@@ -78,6 +79,7 @@ struct AudioRecorderSheet: View {
             Image(systemName: recorder.isRecording ? "waveform" : "mic.fill")
                 .font(.system(size: 48))
                 .foregroundColor(recorder.isRecording ? .red : Color(.systemGray2))
+                .accessibilityLabel(recorder.isRecording ? "录音中" : "待录音")
         }
     }
 

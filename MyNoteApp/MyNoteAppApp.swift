@@ -38,9 +38,8 @@ struct MyNoteAppApp: App {
 
         // Capture a human-readable description for the alert.
         var desc = "数据库与当前 Schema 不兼容"
-        if let url = try? ModelConfiguration(schema: schema).url {
-            desc += "（\(url.lastPathComponent)）"
-        }
+        let url = ModelConfiguration(schema: schema).url
+        desc += "（\(url.lastPathComponent)）"
         self.migrationError = desc
     }
 
@@ -102,7 +101,7 @@ private struct MigrationErrorModifier: ViewModifier {
 
     private func eraseAndRelaunch() {
         let schema = Schema([NoteItem.self, AttachmentItem.self, TagItem.self])
-        guard let storeURL = try? ModelConfiguration(schema: schema).url else { return }
+        let storeURL = ModelConfiguration(schema: schema).url
         let fm = FileManager.default
         for ext in ["", "-shm", "-wal"] {
             let u = storeURL.deletingPathExtension()

@@ -69,6 +69,7 @@ struct NavigableAttachmentViewerSheet: View {
                             )
                             .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
                     }
+                    .accessibilityLabel("关闭")
                     .padding(.leading, 16)
                     .padding(.top, 16)
                     
@@ -92,6 +93,7 @@ struct NavigableAttachmentViewerSheet: View {
                                 .foregroundColor(.primary.opacity(0.6))
                                 .shadow(radius: 4)
                         }
+                        .accessibilityLabel("上一项")
                         .padding(.leading, 20)
                     }
                     
@@ -109,6 +111,7 @@ struct NavigableAttachmentViewerSheet: View {
                                 .foregroundColor(.primary.opacity(0.6))
                                 .shadow(radius: 4)
                         }
+                        .accessibilityLabel("下一项")
                         .padding(.trailing, 20)
                     }
                 }

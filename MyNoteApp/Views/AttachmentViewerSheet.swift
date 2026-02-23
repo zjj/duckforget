@@ -175,6 +175,7 @@ struct AudioPlayerView: View {
                         .font(.system(size: 28))
                         .foregroundColor(.primary)
                 }
+                .accessibilityLabel("倒退15秒")
 
                 // 播放/暂停
                 Button {
@@ -184,6 +185,7 @@ struct AudioPlayerView: View {
                         .font(.system(size: 64))
                         .foregroundColor(.orange)
                 }
+                .accessibilityLabel(player.isPlaying ? "暂停" : "播放")
 
                 // 前进 15s
                 Button {
@@ -193,6 +195,7 @@ struct AudioPlayerView: View {
                         .font(.system(size: 28))
                         .foregroundColor(.primary)
                 }
+                .accessibilityLabel("快进15秒")
             }
 
             Spacer()

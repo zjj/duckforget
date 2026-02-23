@@ -204,6 +204,7 @@ struct NoteListView: View {
                                     .font(.subheadline)
                                     .padding(.horizontal, 4)
                             }
+                            .accessibilityLabel("按标签过滤")
                         }
 
                         if !searchText.isEmpty {
@@ -214,6 +215,7 @@ struct NoteListView: View {
                                     .foregroundColor(.secondary)
                                     .font(.subheadline)
                             }
+                            .accessibilityLabel("清空搜索")
                         }
                     }
                     .padding(8)
@@ -251,6 +253,7 @@ struct NoteListView: View {
                         Image(systemName: "magnifyingglass")
                             .font(.system(size: 18))
                     }
+                    .accessibilityLabel("搜索")
                 }
 
                 Spacer()
@@ -269,6 +272,7 @@ struct NoteListView: View {
                         .font(.system(size: 22))
                         .fontWeight(.semibold)
                 }
+                .accessibilityLabel("新建记录")
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
