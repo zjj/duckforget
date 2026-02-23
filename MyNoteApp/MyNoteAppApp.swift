@@ -46,7 +46,7 @@ struct MyNoteAppApp: App {
 
     var body: some Scene {
         WindowGroup {
-            DashboardContainerView()
+            AdaptiveRootView()
                 .modelContainer(container)
                 .environment(noteStore)
                 .environment(toolbarSettings)

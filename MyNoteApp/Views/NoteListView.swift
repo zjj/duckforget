@@ -14,6 +14,8 @@ struct NoteListView: View {
     var filterRecentDays: Int? = nil // 筛选最近几天的记录（nil表示不筛选）
     var customTitle: String? = nil // 自定义标题
     var initialSelectedTag: TagItem? = nil // 新增：初始选中的标签
+    /// 非 nil 时启用 Split View 选中模式（iPad sidebar）：点击记录设置绑定而非 push 导航
+    var splitViewSelection: Binding<NoteItem?>? = nil
 
     @Environment(NoteStore.self) var noteStore
     @Query(
@@ -293,6 +295,29 @@ struct NoteListView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    // MARK: - Split View Helper
+
+    /// iPad Split View 模式下点击行选中笔记；iPhone 模式下使用标准 NavigationLink push。
+    @ViewBuilder
+    private func noteLink<Label: View>(note: NoteItem, @ViewBuilder label: () -> Label) -> some View {
+        if let selection = splitViewSelection {
+            Button {
+                selection.wrappedValue = note
+            } label: {
+                label()
+            }
+            .buttonStyle(.plain)
+        } else {
+            NavigationLink {
+                NoteView(note: note, startInEditMode: false)
+                    .environment(noteStore)
+            } label: {
+                label()
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
     // MARK: - 列表
 
     private var notesListView: some View {
@@ -359,14 +384,10 @@ struct NoteListView: View {
     @ViewBuilder
     private func noteRows(_ notes: [NoteItem]) -> some View {
         ForEach(notes) { note in
-            NavigationLink {
-                NoteView(note: note, startInEditMode: false)
-                    .environment(noteStore)
-            } label: {
+            noteLink(note: note) {
                 NoteRowView(note: note)
                     .environment(noteStore)
             }
-            .buttonStyle(.plain)
             .contextMenu {
                 Button(role: .destructive) {
                     noteToDelete = note
@@ -394,13 +415,9 @@ struct NoteListView: View {
     @ViewBuilder
     private func noteGridItems(_ notes: [NoteItem]) -> some View {
         ForEach(notes) { note in
-            NavigationLink {
-                NoteView(note: note, startInEditMode: false)
-                    .environment(noteStore)
-            } label: {
+            noteLink(note: note) {
                 GridNoteCard(note: note)
             }
-            .buttonStyle(.plain)
             .contextMenu {
                 Button(role: .destructive) {
                     noteToDelete = note
