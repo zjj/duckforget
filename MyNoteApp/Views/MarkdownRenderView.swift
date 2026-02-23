@@ -247,30 +247,48 @@ struct MarkdownRenderView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 case .image(let alt, let url):
                     VStack(alignment: .leading, spacing: 4) {
-                        AsyncImage(url: URL(string: url)) { phase in
-                            switch phase {
-                            case .empty:
-                                ProgressView()
-                                    .frame(height: 200)
+                        // Only load local file:// URLs to avoid silent network requests.
+                        // Remote http(s):// image URLs show a static placeholder instead.
+                        if let parsed = URL(string: url), parsed.isFileURL {
+                            AsyncImage(url: parsed) { phase in
+                                switch phase {
+                                case .empty:
+                                    ProgressView()
+                                        .frame(height: 200)
+                                        .frame(maxWidth: .infinity)
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .frame(maxWidth: .infinity)
+                                        .cornerRadius(8)
+                                case .failure:
+                                    HStack {
+                                        Image(systemName: "photo.badge.exclamationmark")
+                                            .foregroundColor(.red)
+                                        Text("图片加载失败")
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .frame(height: 100)
                                     .frame(maxWidth: .infinity)
-                            case .success(let image):
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(maxWidth: .infinity)
-                                    .cornerRadius(8)
-                            case .failure:
-                                HStack {
-                                    Image(systemName: "photo.badge.exclamationmark")
-                                        .foregroundColor(.red)
-                                    Text("Failed to load image")
-                                        .foregroundColor(.secondary)
+                                @unknown default:
+                                    EmptyView()
                                 }
-                                .frame(height: 100)
-                                .frame(maxWidth: .infinity)
-                            @unknown default:
-                                EmptyView()
                             }
+                        } else {
+                            // Remote URL — show placeholder, never make spontaneous network requests
+                            HStack(spacing: 6) {
+                                Image(systemName: "photo")
+                                    .foregroundColor(.secondary)
+                                Text(alt.isEmpty ? url : alt)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                            }
+                            .padding(8)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color(.secondarySystemBackground))
+                            .cornerRadius(8)
                         }
                         if !alt.isEmpty {
                             Text(alt)

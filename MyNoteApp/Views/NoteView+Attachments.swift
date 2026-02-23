@@ -276,48 +276,47 @@ extension NoteView {
     // MARK: 保存视频附件
 
     func saveVideo(_ url: URL) {
-        guard let videoData = try? Data(contentsOf: url) else { return }
+        Task { @MainActor in
+            guard let videoData = try? Data(contentsOf: url) else { return }
 
-        let thumbnailData = Self.generateVideoThumbnail(from: url)
-        let ext = url.pathExtension.isEmpty ? "mp4" : url.pathExtension
+            let thumbnailData = await Self.generateVideoThumbnail(from: url)
+            let ext = url.pathExtension.isEmpty ? "mp4" : url.pathExtension
 
-        let attachment = noteStore.addAttachmentWithThumbnail(
-            to: note,
-            type: .video,
-            data: videoData,
-            thumbnailData: thumbnailData,
-            fileExtension: ext,
-            shouldSave: false
-        )
-        
-        // 记录到undo管理器
-        if let attachmentID = attachment?.id {
-            undoRedoManager.recordAction(.attachmentAdded(attachmentID: attachmentID))
-            previousAttachmentIDs.insert(attachmentID)
-            saveContentInEditMode()
+            let attachment = noteStore.addAttachmentWithThumbnail(
+                to: note,
+                type: .video,
+                data: videoData,
+                thumbnailData: thumbnailData,
+                fileExtension: ext,
+                shouldSave: false
+            )
+
+            // 记录到undo管理器
+            if let attachmentID = attachment?.id {
+                undoRedoManager.recordAction(.attachmentAdded(attachmentID: attachmentID))
+                previousAttachmentIDs.insert(attachmentID)
+                saveContentInEditMode()
+            }
+
+            wasEdited = true
         }
-        
-        wasEdited = true
     }
 
-    /// 从视频生成缩略图
-    static func generateVideoThumbnail(from url: URL) -> Data? {
+    /// 从视频生成缩略图（async，不阻塞线程）
+    static func generateVideoThumbnail(from url: URL) async -> Data? {
         let asset = AVURLAsset(url: url)
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true
         generator.maximumSize = CGSize(width: 200, height: 200)
 
-        var resultData: Data?
-        let semaphore = DispatchSemaphore(value: 0)
-        
-        generator.generateCGImageAsynchronously(for: .zero) { cgImage, _, error in
-            if let cgImage = cgImage {
-                resultData = UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.6)
+        return await withCheckedContinuation { continuation in
+            generator.generateCGImageAsynchronously(for: .zero) { cgImage, _, _ in
+                if let cgImage {
+                    continuation.resume(returning: UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.6))
+                } else {
+                    continuation.resume(returning: nil)
+                }
             }
-            semaphore.signal()
         }
-        
-        semaphore.wait()
-        return resultData
     }
 }
