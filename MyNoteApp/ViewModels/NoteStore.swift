@@ -35,14 +35,14 @@ class NoteStore {
     func createTag(name: String) -> TagItem {
         let tag = TagItem(name: name)
         modelContext.insert(tag)
-        try? modelContext.save()
+        saveContext()
         return tag
     }
 
     /// 重命名标签
     func renameTag(_ tag: TagItem, to newName: String) {
         tag.name = newName
-        try? modelContext.save()
+        saveContext()
     }
 
     /// 删除标签（解除所有记录的关联，不删除记录）
@@ -52,7 +52,7 @@ class NoteStore {
             note.tags.removeAll { $0.id == tag.id }
         }
         modelContext.delete(tag)
-        try? modelContext.save()
+        saveContext()
     }
 
     /// 获取所有标签
@@ -66,7 +66,7 @@ class NoteStore {
         if !note.tags.contains(where: { $0.id == tag.id }) {
             note.tags.append(tag)
             note.updatedAt = Date()
-            try? modelContext.save()
+            saveContext()
         }
     }
 
@@ -74,14 +74,14 @@ class NoteStore {
     func removeTag(_ tag: TagItem, from note: NoteItem) {
         note.tags.removeAll { $0.id == tag.id }
         note.updatedAt = Date()
-        try? modelContext.save()
+        saveContext()
     }
     
     /// 设置记录的标签（替换所有标签）
     func setTags(_ tags: [TagItem], for note: NoteItem) {
         note.tags = tags
         note.updatedAt = Date()
-        try? modelContext.save()
+        saveContext()
     }
 
     // MARK: - Note CRUD
@@ -91,7 +91,7 @@ class NoteStore {
     func createNote(withTags tags: [TagItem] = []) -> NoteItem {
         let note = NoteItem(tags: tags)
         modelContext.insert(note)
-        try? modelContext.save()
+        saveContext()
         // 新创建的笔记通常是空的，不立即索引
         // 当用户输入内容并保存时，updateNote 会触发索引
         return note
@@ -100,7 +100,7 @@ class NoteStore {
     /// 更新记录（标记更新时间并保存）
     func updateNote(_ note: NoteItem) {
         note.updatedAt = Date()
-        try? modelContext.save()
+        saveContext()
         indexNoteInSpotlight(note)
     }
 
@@ -108,7 +108,7 @@ class NoteStore {
     func softDeleteNote(_ note: NoteItem) {
         note.isDeleted = true
         note.deletedAt = Date()
-        try? modelContext.save()
+        saveContext()
         deindexNoteFromSpotlight(note)
     }
 
@@ -117,7 +117,7 @@ class NoteStore {
         note.isDeleted = false
         note.deletedAt = nil
         note.updatedAt = Date()
-        try? modelContext.save()
+        saveContext()
         indexNoteInSpotlight(note)
     }
 
@@ -128,7 +128,7 @@ class NoteStore {
         }
         deindexNoteFromSpotlight(note)
         modelContext.delete(note)
-        try? modelContext.save()
+        saveContext()
     }
 
     /// 清空废纸篓
@@ -215,7 +215,7 @@ class NoteStore {
 
         modelContext.insert(attachment)
         if shouldSave {
-            try? modelContext.save()
+            saveContext()
         }
         return attachment
     }
@@ -234,7 +234,7 @@ class NoteStore {
         modelContext.delete(attachment)
         
         if shouldSave {
-            try? modelContext.save()
+            saveContext()
         }
     }
 
@@ -342,6 +342,17 @@ class NoteStore {
     //        indexNoteInSpotlight(note)
     //    }
     //}
+
+    // MARK: - Persistence
+
+    /// 保存 ModelContext。Debug 下通过 assertionFailure 暴露错误；Release 下打印日志静默处理，避免数据静默丢失。
+    private func saveContext() {
+        do {
+            try modelContext.save()
+        } catch {
+            assertionFailure("[NoteStore] modelContext.save() 失败: \(error)")
+        }
+    }
 
     // MARK: - Private Helpers
 
