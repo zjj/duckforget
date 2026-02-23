@@ -4,7 +4,7 @@ import SwiftUI
 /// 主页容器：使用 TabView 分页，Page 0 是设置/管理页，后续是 dashboard 页
 struct DashboardContainerView: View {
     @Environment(NoteStore.self) var noteStore
-    @StateObject private var dashboardConfig = DashboardConfig()
+    @State private var dashboardConfig = DashboardConfig()
     @EnvironmentObject var deepLinkHandler: DeepLinkHandler
     
     // Page Management State

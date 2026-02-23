@@ -1,9 +1,10 @@
 import SwiftUI
 
 struct ToolbarSortView: View {
-    @EnvironmentObject private var settings: ToolbarSettings
+    @Environment(ToolbarSettings.self) private var settings
 
     var body: some View {
+        @Bindable var settings = settings
         List {
             Section(footer: Text("拖动行可以调整记录编辑器底部工具栏的按钮顺序，使用开关控制按钮是否显示")) {
                 ForEach(

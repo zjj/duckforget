@@ -3,7 +3,7 @@ import SwiftData
 
 struct DashboardDetailView: View {
     @Environment(NoteStore.self) var noteStore
-    @ObservedObject var dashboardConfig: DashboardConfig
+    @Bindable var dashboardConfig: DashboardConfig
     let pageId: UUID
     @Binding var isEditing: Bool
     var availableHeight: CGFloat = 0
@@ -194,7 +194,7 @@ struct DashboardRow: View {
     @Environment(NoteStore.self) var noteStore
     let item: DashboardItem
     let isEditing: Bool
-    @ObservedObject var dashboardConfig: DashboardConfig
+    @Bindable var dashboardConfig: DashboardConfig
     let pageId: UUID
     var availableHeight: CGFloat = 0
     var onFullPageFocused: (() -> Void)? = nil

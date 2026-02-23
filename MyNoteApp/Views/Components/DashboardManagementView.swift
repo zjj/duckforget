@@ -3,8 +3,8 @@ import SwiftUI
 /// The view for managing dashboards (Page 0)
 struct DashboardManagementView: View {
     @Environment(NoteStore.self) var noteStore
-    @ObservedObject var dashboardConfig: DashboardConfig
-    @EnvironmentObject var toolbarSettings: ToolbarSettings
+    @Bindable var dashboardConfig: DashboardConfig
+    @Environment(ToolbarSettings.self) var toolbarSettings
     @Binding var showingAddPageAlert: Bool
     @Binding var showingRenameAlert: Bool
     @Binding var newPageName: String
@@ -25,6 +25,7 @@ struct DashboardManagementView: View {
     @State private var exportTotal: Int = 0
 
     var body: some View {
+        @Bindable var toolbarSettings = toolbarSettings
         List {
             Section(header: 
                 HStack {

@@ -1,9 +1,9 @@
 import SwiftUI
-import Combine
 
-class DashboardConfig: ObservableObject {
-    @Published var pages: [DashboardPage] = []
-    @Published var selectedPageId: UUID?
+@Observable
+class DashboardConfig {
+    var pages: [DashboardPage] = []
+    var selectedPageId: UUID?
     
     // Legacy key for migration
     private let legacyKey = "DashboardConfig"

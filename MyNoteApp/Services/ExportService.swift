@@ -1073,7 +1073,7 @@ final class ExportService {
     }
 
     /// 以笔记创建时间生成文件名，格式：yyyyMMddHHmmss
-    private func creationFilename(for note: NoteExportSnapshot) -> String {
+    private nonisolated func creationFilename(for note: NoteExportSnapshot) -> String {
         let fmt = DateFormatter()
         fmt.dateFormat = "yyyyMMddHHmmss"
         fmt.locale = Locale(identifier: "en_US_POSIX")

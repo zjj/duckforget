@@ -12,7 +12,7 @@ struct NoteView: View {
     @Environment(NoteStore.self) var noteStore
     @Environment(\.dismiss) var dismiss
     @Environment(\.scenePhase) var scenePhase
-    @EnvironmentObject var toolbarSettings: ToolbarSettings
+    @Environment(ToolbarSettings.self) var toolbarSettings
 
     // 编辑模式状态
     @State var isEditMode = false
@@ -53,7 +53,7 @@ struct NoteView: View {
     @State var isAttachmentBarCollapsed = false
 
     // 语音输入
-    @StateObject var speechRecognizer = SpeechRecognizer()
+    @State var speechRecognizer = SpeechRecognizer()
 
     // 编辑器焦点
     @FocusState var editorFocused: Bool

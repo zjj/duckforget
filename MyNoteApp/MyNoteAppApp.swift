@@ -12,7 +12,7 @@ struct MyNoteAppApp: App {
     /// so the user can decide whether to erase data or quit.
     let migrationError: String?
 
-    @StateObject private var toolbarSettings = ToolbarSettings()
+    @State private var toolbarSettings = ToolbarSettings()
     @StateObject private var deepLinkHandler = DeepLinkHandler()
 
     init() {
@@ -49,7 +49,7 @@ struct MyNoteAppApp: App {
             DashboardContainerView()
                 .modelContainer(container)
                 .environment(noteStore)
-                .environmentObject(toolbarSettings)
+                .environment(toolbarSettings)
                 .environmentObject(deepLinkHandler)
                 .onOpenURL { url in
                     if url.scheme == "mynoteapp" && url.host == "create-note" {

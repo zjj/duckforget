@@ -1,11 +1,11 @@
-import Combine
 import AVFoundation
 
 /// 录音服务 - 用于录制音频附件
-class AudioRecorderService: NSObject, ObservableObject {
-    @Published var isRecording = false
-    @Published var recordingDuration: TimeInterval = 0
-    @Published var errorMessage: String?
+@Observable
+class AudioRecorderService: NSObject {
+    var isRecording = false
+    var recordingDuration: TimeInterval = 0
+    var errorMessage: String?
     
     private var audioRecorder: AVAudioRecorder?
     private var timer: Timer?

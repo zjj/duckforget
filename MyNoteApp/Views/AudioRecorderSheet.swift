@@ -5,7 +5,7 @@ struct AudioRecorderSheet: View {
     let note: NoteItem
     @Environment(NoteStore.self) var noteStore
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var recorder = AudioRecorderService()
+    @State private var recorder = AudioRecorderService()
 
     var body: some View {
         NavigationStack {

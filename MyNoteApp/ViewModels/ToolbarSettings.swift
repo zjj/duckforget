@@ -1,5 +1,4 @@
 import SwiftUI
-import Combine
 
 struct ToolbarItemConfig: Identifiable, Codable, Equatable {
     let type: ToolbarItemType
@@ -12,8 +11,9 @@ struct ToolbarItemConfig: Identifiable, Codable, Equatable {
     var title: String { type.title }
 }
 
-class ToolbarSettings: ObservableObject {
-    @Published var configs: [ToolbarItemConfig] = [] {
+@Observable
+class ToolbarSettings {
+    var configs: [ToolbarItemConfig] = [] {
         didSet {
             save()
         }
@@ -25,7 +25,7 @@ class ToolbarSettings: ObservableObject {
     }
     
     // Voice Input Toggle
-    @Published var isVoiceInputEnabled: Bool = true {
+    var isVoiceInputEnabled: Bool = true {
         didSet {
             UserDefaults.standard.set(isVoiceInputEnabled, forKey: "isVoiceInputEnabled")
         }

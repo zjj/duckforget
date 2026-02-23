@@ -1,12 +1,12 @@
-import Combine
 import Speech
 import AVFoundation
 
 /// 语音转文字服务 - 使用 Apple Speech 框架进行实时语音识别
-class SpeechRecognizer: ObservableObject {
-    @Published var isRecording = false
-    @Published var currentTranscript = ""
-    @Published var errorMessage: String?
+@Observable
+class SpeechRecognizer {
+    var isRecording = false
+    var currentTranscript = ""
+    var errorMessage: String?
     
     private var audioEngine = AVAudioEngine()
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
