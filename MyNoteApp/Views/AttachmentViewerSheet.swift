@@ -396,8 +396,8 @@ struct LocationViewer: View {
     }
     
     private func openInMaps(_ coordinate: CLLocationCoordinate2D) {
-        let placemark = MKPlacemark(coordinate: coordinate)
-        let mapItem = MKMapItem(placemark: placemark)
+        let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        let mapItem = MKMapItem(location: location, address: nil)
         mapItem.name = "标记位置"
         mapItem.openInMaps(launchOptions: nil)
     }

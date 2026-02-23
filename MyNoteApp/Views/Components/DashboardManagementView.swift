@@ -303,7 +303,7 @@ struct DashboardManagementView: View {
         // Task.detached or DispatchQueue is needed here.
         Task {
             do {
-                let url = try await service.exportAllNotes(
+                let url = try service.exportAllNotes(
                     startDate: startDate,
                     endDate: endDate,
                     tag: tag

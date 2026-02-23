@@ -72,10 +72,18 @@ struct LocationPickerView: View {
     }
     
     private func reverseGeocode(location: CLLocationCoordinate2D) {
-        let clLocation = CLLocation(latitude: location.latitude, longitude: location.longitude)
-        CLGeocoder().reverseGeocodeLocation(clLocation) { placemarks, error in
-            if let placemark = placemarks?.first {
-                selectedLocationName = placemark.name ?? placemark.thoroughfare ?? "Selected Location"
+        Task {
+            let searchRequest = MKLocalSearch.Request()
+            searchRequest.region = MKCoordinateRegion(center: location, latitudinalMeters: 100, longitudinalMeters: 100)
+            searchRequest.resultTypes = .pointOfInterest
+            
+            let search = MKLocalSearch(request: searchRequest)
+            if let response = try? await search.start(),
+               let item = response.mapItems.first {
+                selectedLocationName = item.name ?? "Selected Location"
+            } else {
+                // Format as coordinates if no POI found nearby
+                selectedLocationName = String(format: "%.4f, %.4f", location.latitude, location.longitude)
             }
         }
     }
