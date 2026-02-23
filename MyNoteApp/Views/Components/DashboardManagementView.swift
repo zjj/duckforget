@@ -298,27 +298,27 @@ struct DashboardManagementView: View {
         exportCurrent = 0
         exportTotal = 0
         let service = ExportService(noteStore: noteStore)
-        DispatchQueue.global(qos: .userInitiated).async {
+        // Regular Task inherits @MainActor from the call site.
+        // exportAllNotes handles background dispatch internally, so no
+        // Task.detached or DispatchQueue is needed here.
+        Task {
             do {
-                let url = try service.exportAllNotes(
+                let url = try await service.exportAllNotes(
                     startDate: startDate,
                     endDate: endDate,
                     tag: tag
                 ) { current, total in
-                    self.exportCurrent = current
-                    self.exportTotal   = total
+                    // Called on @MainActor — direct property access is safe.
+                    exportCurrent = current
+                    exportTotal   = total
                 }
-                DispatchQueue.main.async {
-                    isExporting = false
-                    exportedURL = url
-                    showExportSheet = true
-                }
+                isExporting = false
+                exportedURL = url
+                showExportSheet = true
             } catch {
-                DispatchQueue.main.async {
-                    isExporting = false
-                    exportErrorMessage = error.localizedDescription
-                    showExportError = true
-                }
+                isExporting = false
+                exportErrorMessage = error.localizedDescription
+                showExportError = true
             }
         }
     }
