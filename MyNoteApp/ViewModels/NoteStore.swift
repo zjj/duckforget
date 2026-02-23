@@ -26,6 +26,7 @@ class NoteStore {
         self.modelContext = modelContext
         createAttachmentsDirectoryIfNeeded()
         cleanupExpiredTrash()
+        cleanupEmptyNotes()
     }
 
     // MARK: - Tag CRUD
@@ -138,6 +139,25 @@ class NoteStore {
         for note in trashed {
             permanentlyDeleteNote(note)
         }
+    }
+
+    /// 清理孤立的空笔记（无内容、无附件、未删除的笔记）
+    /// 用于处理从小组件创建但未输入内容、且 NoteView.onDisappear 未正常触发的情况
+    func cleanupEmptyNotes() {
+        let descriptor = FetchDescriptor<NoteItem>(
+            predicate: #Predicate { note in
+                note.isDeleted == false
+            }
+        )
+        guard let notes = try? modelContext.fetch(descriptor) else { return }
+        for note in notes {
+            let contentEmpty = note.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let noAttachments = note.attachments.isEmpty
+            if contentEmpty && noAttachments {
+                modelContext.delete(note)
+            }
+        }
+        saveContext()
     }
 
     /// 清理超过配置天数的废纸篓记录

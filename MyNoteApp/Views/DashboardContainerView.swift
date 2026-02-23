@@ -150,7 +150,10 @@ struct DashboardContainerView: View {
                 deepLinkHandler.reset()
             }
         }
-        .fullScreenCover(isPresented: $showNoteEditor) {
+        .fullScreenCover(isPresented: $showNoteEditor, onDismiss: {
+            noteToNavigate = nil
+            openInEditMode = false
+        }) {
             if let note = noteToNavigate {
                 NavigationStack {
                     NoteView(note: note, startInEditMode: openInEditMode)
@@ -160,8 +163,6 @@ struct DashboardContainerView: View {
                             ToolbarItem(placement: .topBarLeading) {
                                 Button {
                                     showNoteEditor = false
-                                    noteToNavigate = nil
-                                    openInEditMode = false
                                 } label: {
                                     Image(systemName: "chevron.left")
                                         .font(.system(size: 17, weight: .semibold))
@@ -175,8 +176,6 @@ struct DashboardContainerView: View {
                             // Only allow swipe to dismiss if starting from the left edge (simulating navigation back)
                             if value.startLocation.x < 50 && value.translation.width > 100 {
                                 showNoteEditor = false
-                                noteToNavigate = nil
-                                openInEditMode = false
                             }
                         }
                 )
