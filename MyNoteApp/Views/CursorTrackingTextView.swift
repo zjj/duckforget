@@ -54,6 +54,10 @@ struct CursorTrackingTextView: UIViewRepresentable {
             return
         }
 
+        // 输入法合成期间（markedTextRange != nil）不覆盖 UITextView 的文本，
+        // 避免打断拼音/注音等 IME 的候选字显示
+        if uiView.markedTextRange != nil { return }
+
         // 标记正在做程序化更新，避免 delegate 中写回触发循环
         context.coordinator.isUpdatingFromBinding = true
 
@@ -93,6 +97,9 @@ struct CursorTrackingTextView: UIViewRepresentable {
 
         func textViewDidChange(_ textView: UITextView) {
             guard !isUpdatingFromBinding else { return }
+            // 输入法合成期间（markedTextRange != nil）不回写 binding，
+            // 避免将拼音字母作为独立 undo 快照记录到 UndoRedoManager
+            guard textView.markedTextRange == nil else { return }
             parent.text = textView.text
             parent.cursorPosition = textView.selectedRange.location
             notifyUndoState()

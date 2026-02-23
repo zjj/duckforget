@@ -68,6 +68,9 @@ struct MarkdownTextView: UIViewRepresentable {
         // Only update if text differs (external change, e.g. undo or voice input)
         guard uiView.text != text else { return }
 
+        // 输入法合成期间不覆盖 UITextView 的文本，避免打断拼音/注音候选字显示
+        if uiView.markedTextRange != nil { return }
+
         context.coordinator.isUpdatingFromBinding = true
         let saved = uiView.selectedRange
 
@@ -155,6 +158,9 @@ struct MarkdownTextView: UIViewRepresentable {
 
         func textViewDidChange(_ textView: UITextView) {
             guard !isUpdatingFromBinding && !isHighlighting else { return }
+            // 输入法合成期间（markedTextRange != nil）不回写 binding，
+            // 避免将拼音/注音字母作为独立 undo 快照记录到 UndoRedoManager
+            guard textView.markedTextRange == nil else { return }
             renumberLists(textView)
             parent.text = textView.text
             applyHighlighting(textView)
