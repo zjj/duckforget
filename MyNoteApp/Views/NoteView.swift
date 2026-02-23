@@ -1450,9 +1450,9 @@ struct NoteView: View {
         case .code:
             coord.applyInlineFormat(prefix: "`", suffix: "`", placeholder: "代码")
         case .link:
-            coord.applyInlineFormat(prefix: "[", suffix: "](https://example.com)", placeholder: "链接文本")
+            coord.applyInlineFormat(prefix: "[", suffix: "]()", placeholder: "链接文本")
         case .image:
-            coord.applyInlineFormat(prefix: "![", suffix: "](https://example.com/image.jpg)", placeholder: "图片描述")
+            coord.applyInlineFormat(prefix: "![", suffix: "]()", placeholder: "图片描述")
 
         // Block formats: add prefix to line or toggle
         case .h1:
@@ -2056,8 +2056,8 @@ struct FormatMenuSheet: View {
             case .numbered: return "1. 列表项\n"
             case .checkbox: return "- [ ] 待办事项\n"
             case .divider: return "\n---\n"
-            case .link: return "[链接文本](https://example.com)"
-            case .image: return "![图片描述](https://example.com/image.jpg)"
+            case .link: return "[链接文本]()"
+            case .image: return "![图片描述]()"
             }
         }
 
