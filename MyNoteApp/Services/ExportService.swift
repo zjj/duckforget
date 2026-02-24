@@ -300,23 +300,13 @@ final class ExportService {
                         ly += imgH + 4
                     }
 
-                    // 解析并渲染坐标文字
-                    let dataURL = attachment.fileURL
-                    if let jsonData = try? Data(contentsOf: dataURL),
-                       let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-                       let lat = json["latitude"] as? Double,
-                       let lon = json["longitude"] as? Double {
-                        let coordStr = String(format: "📍 %.6f, %.6f", lat, lon)
-                        if ly + 20 > pageRect.height - margin {
-                            ctx.beginPage()
-                            ly = margin
-                        }
-                        (coordStr as NSString).draw(at: CGPoint(x: margin, y: ly), withAttributes: coordAttrs)
-                        ly += 18
-                    } else {
-                        ("📍 位置" as NSString).draw(at: CGPoint(x: margin, y: ly), withAttributes: locationTitleAttrs)
-                        ly += 18
+                    // 仅显示位置标识，不显示具体坐标
+                    if ly + 20 > pageRect.height - margin {
+                        ctx.beginPage()
+                        ly = margin
                     }
+                    ("📍 位置" as NSString).draw(at: CGPoint(x: margin, y: ly), withAttributes: locationTitleAttrs)
+                    ly += 18
                     ly += 10
                 }
             }
@@ -865,14 +855,15 @@ final class ExportService {
                 }
                 // 解析 JSON 获取坐标
                 let dataURL = m.attachment.fileURL
-                if let jsonData = try? Data(contentsOf: dataURL),
-                   let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-                   let lat = json["latitude"] as? Double,
-                   let lon = json["longitude"] as? Double {
-                    attachHTML += "<p class=\"location-coord\">📍 \(String(format: "%.6f, %.6f", lat, lon))</p>\n"
-                } else {
-                    attachHTML += "<p class=\"location-coord\">📍 位置</p>\n"
-                }
+                //if let jsonData = try? Data(contentsOf: dataURL),
+                //   let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+                //   let lat = json["latitude"] as? Double,
+                //   let lon = json["longitude"] as? Double {
+                //    attachHTML += "<p class=\"location-coord\">📍 \(String(format: "%.6f, %.6f", lat, lon))</p>\n"
+                //} else {
+                //    attachHTML += "<p class=\"location-coord\">📍 位置</p>\n"
+                //}
+                attachHTML += "<p class=\"location-coord\">📍 位置</p>\n"
                 attachHTML += "</div>\n"
             } else {
                 attachHTML += "<div class=\"attachment file-attachment\">"
