@@ -111,10 +111,21 @@ extension NoteView {
                         showExpandedFormatBar.toggle()
                     }
                 } label: {
-                    Image(systemName: showExpandedFormatBar ? "chevron.down" : "text.word.spacing")
-                        .font(.system(size: 18))
-                        .foregroundColor(showExpandedFormatBar ? .accentColor : .secondary)
-                        .frame(width: 40, height: 36)
+                    Group {
+                        if showExpandedFormatBar {
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 18))
+                        } else {
+                            VStack(spacing: 1) {
+                                Text("MARK")
+                                    .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                                Text("DOWN")
+                                    .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                            }
+                        }
+                    }
+                    .foregroundColor(.accentColor)
+                    .frame(width: 40, height: 36)
                 }
                 .accessibilityLabel(showExpandedFormatBar ? "收起格式工具栏" : "展开格式工具栏")
 
