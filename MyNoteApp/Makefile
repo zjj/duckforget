@@ -3,7 +3,7 @@ BUNDLE_ID = com.duckforget.MyNoteApp
 SDK = $(shell xcrun --sdk iphonesimulator --show-sdk-path)
 # 自动检测架构 (arm64 或 x86_64)
 ARCH = $(shell uname -m)
-TARGET = $(ARCH)-apple-ios17.0-simulator
+TARGET = $(ARCH)-apple-ios26.0-simulator
 SRC = $(shell find . -name "*.swift")
 DEVICE_NAME = "iPhone 17"
 
