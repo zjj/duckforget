@@ -590,7 +590,7 @@ struct NoteView: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 4)
 
-                    if content.isEmpty && !speechRecognizer.isRecording {
+                    if content.isEmpty && !speechRecognizer.isRecording && !isEditorFocused {
                         HStack {
                             Text("开始输入...")
                                 .foregroundColor(Color(.placeholderText))
