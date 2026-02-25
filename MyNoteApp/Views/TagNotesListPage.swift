@@ -138,7 +138,10 @@ struct TagNotesListPage: View {
                 
                 LazyVStack(spacing: 0) {
                     ForEach(displayed) { note in
-                        NavigationLink(destination: NoteView(note: note, startInEditMode: false).environment(noteStore)) {
+                        NavigationLink {
+                            NoteView(note: note, startInEditMode: false)
+                                .environment(noteStore)
+                        } label: {
                             VStack(spacing: 0) {
                                 NoteRowView(note: note)
                                     .environment(noteStore)
@@ -171,7 +174,10 @@ struct TagNotesListPage: View {
                 // 列表视图
                 List {
                     ForEach(filteredNotes) { note in
-                        NavigationLink(destination: NoteView(note: note, startInEditMode: false).environment(noteStore)) {
+                        NavigationLink {
+                            NoteView(note: note, startInEditMode: false)
+                                .environment(noteStore)
+                        } label: {
                             NoteRowView(note: note)
                                 .environment(noteStore)
                         }
@@ -195,7 +201,10 @@ struct TagNotesListPage: View {
                     ]
                     LazyVGrid(columns: columns, spacing: 12) {
                         ForEach(filteredNotes) { note in
-                            NavigationLink(destination: NoteView(note: note, startInEditMode: false).environment(noteStore)) {
+                            NavigationLink {
+                                NoteView(note: note, startInEditMode: false)
+                                    .environment(noteStore)
+                            } label: {
                                 GridNoteCard(note: note)
                                     .environment(noteStore)
                             }
