@@ -288,7 +288,7 @@ struct DashboardRow: View {
         }
         .navigationDestination(isPresented: $showTagDetail) {
             if let tagName = item.tagName {
-                TagNotesListPage(tagName: tagName)
+                NoteSearchPage(pageTitle: tagName, filterTagName: tagName, headerIcon: "tag.fill")
                     .environment(noteStore)
             }
         }

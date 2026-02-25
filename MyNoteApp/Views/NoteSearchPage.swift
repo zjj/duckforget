@@ -36,6 +36,9 @@ struct NoteSearchPage: View {
     var hideSearchBar: Bool = false // 是否隐藏搜索栏
     var isEmbedded: Bool = false // 是否嵌入在Dashboard中
     var onSearchTap: (() -> Void)? = nil // 点击搜索框的回调（用于跳转）
+    var filterTagName: String? = nil     // 固定过滤的标签名（非 nil 时锁定为 .byTag 模式）
+    var filterStartDate: Date? = nil     // 固定过滤的起始日期（与 filterRecentDays 互斥）
+    var headerIcon: String? = nil        // 嵌入 header 左侧图标（如 "tag.fill"）
     
     @State private var searchText = ""
     @State private var viewMode: ViewMode = .list
@@ -44,12 +47,43 @@ struct NoteSearchPage: View {
     @FocusState private var isSearchFocused: Bool
     
     @Query(sort: \TagItem.sortOrder) private var allTags: [TagItem]
-    
+
+    // MARK: - Filter Mode Computation
+
+    private var effectiveFilterStartDate: Date? {
+        if let days = filterRecentDays {
+            return Calendar.current.date(byAdding: .day, value: -days, to: Date())
+        }
+        return filterStartDate
+    }
+
+    private var effectiveFilterTagName: String? {
+        filterTagName ?? selectedTag?.name
+    }
+
+    private var computedFilterMode: NoteFilterMode {
+        switch (effectiveFilterTagName, effectiveFilterStartDate) {
+        case (let name?, let start?):
+            return .byTagAndDateRange(name: name, start: start, end: Date())
+        case (let name?, nil):
+            return .byTag(name: name)
+        case (nil, let start?):
+            return .dateRange(start: start, end: Date())
+        case (nil, nil):
+            return .all
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // Header for embedded mode
             if isEmbedded {
                 HStack {
+                    if let icon = headerIcon {
+                        Image(systemName: icon)
+                            .foregroundColor(.accentColor)
+                            .font(.largeTitle)
+                    }
                     Text(pageTitle)
                         .font(.largeTitle)
                         .fontWeight(.bold)
@@ -70,7 +104,7 @@ struct NoteSearchPage: View {
                                 Image(systemName: "magnifyingglass")
                                     .foregroundColor(.secondary)
                                 
-                                Text("输入进行搜索...")
+                                Text(filterTagName != nil ? "搜索 \(filterTagName!) 标签" : "输入进行搜索...")
                                     .foregroundColor(.secondary)
                                 Spacer()
                             }
@@ -91,51 +125,56 @@ struct NoteSearchPage: View {
                             Image(systemName: "magnifyingglass")
                                 .foregroundColor(.secondary)
                             
-                            TextField("输入进行搜索...", text: $searchText)
-                                .focused($isSearchFocused)
-                                .submitLabel(.search)
-                            
-                            // 标签选择
-                            if let tag = selectedTag {
-                                // 已选中状态：显示带右上角红色小x的标签，直接点击清空
-                                Button {
-                                    selectedTag = nil
-                                } label: {
-                                    HStack(spacing: 2) {
-                                        Image(systemName: "tag.fill")
-                                            .font(.system(size: 10))
-                                        Text(tag.name)
-                                            .font(.system(size: 10))
-                                            .fontWeight(.medium)
-                                            .lineLimit(1)
-                                    }
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color.accentColor.opacity(0.15))
-                                    .cornerRadius(6)
-                                    .foregroundColor(.accentColor)
-                                    .overlay(alignment: .topTrailing) {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .font(.system(size: 10))
-                                            .foregroundColor(.red)
-                                            .offset(x: 4, y: -4)
-                                    }
-                                }
-                                .padding(.horizontal, 4)
-                            } else {
-                                // 未选中状态：只显示标签图标，点击选择
-                                Menu {
-                                    ForEach(allTags) { tag in
-                                        Button {
-                                            selectedTag = tag
-                                        } label: {
+                            TextField(
+                                filterTagName != nil ? "搜索 \(filterTagName!) 标签" : "输入进行搜索...",
+                                text: $searchText
+                            )
+                            .focused($isSearchFocused)
+                            .submitLabel(.search)
+
+                            // 标签选择（固定标签模式下不显示，标签已由 filterTagName 锁定）
+                            if filterTagName == nil {
+                                if let tag = selectedTag {
+                                    // 已选中状态：显示带右上角红色小x的标签，直接点击清空
+                                    Button {
+                                        selectedTag = nil
+                                    } label: {
+                                        HStack(spacing: 2) {
+                                            Image(systemName: "tag.fill")
+                                                .font(.system(size: 10))
                                             Text(tag.name)
+                                                .font(.system(size: 10))
+                                                .fontWeight(.medium)
+                                                .lineLimit(1)
+                                        }
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(Color.accentColor.opacity(0.15))
+                                        .cornerRadius(6)
+                                        .foregroundColor(.accentColor)
+                                        .overlay(alignment: .topTrailing) {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .font(.system(size: 10))
+                                                .foregroundColor(.red)
+                                                .offset(x: 4, y: -4)
                                         }
                                     }
-                                } label: {
-                                    Image(systemName: allTags.isEmpty ? "tag.slash" : "tag")
-                                        .foregroundColor(.secondary)
-                                        .padding(.horizontal, 4)
+                                    .padding(.horizontal, 4)
+                                } else {
+                                    // 未选中状态：只显示标签图标，点击选择
+                                    Menu {
+                                        ForEach(allTags) { tag in
+                                            Button {
+                                                selectedTag = tag
+                                            } label: {
+                                                Text(tag.name)
+                                            }
+                                        }
+                                    } label: {
+                                        Image(systemName: allTags.isEmpty ? "tag.slash" : "tag")
+                                            .foregroundColor(.secondary)
+                                            .padding(.horizontal, 4)
+                                    }
                                 }
                             }
                             
@@ -170,20 +209,17 @@ struct NoteSearchPage: View {
             }
             
             // Search Results
-            NoteListView(
-                showAllNotes: true, 
-                initialSearchText: searchText, 
-                hideSearchBar: true, 
-                hideBottomBar: true, 
-                hideNavigationTitle: true, 
-                viewMode: viewMode, 
+            NoteQueryContainer(
+                filterMode: computedFilterMode,
+                searchText: searchText,
+                viewMode: viewMode,
                 sortMode: sortMode,
-                filterRecentDays: filterRecentDays,
-                customTitle: pageTitle,
-                initialSelectedTag: selectedTag
+                isEmbedded: isEmbedded,
+                onSearchTap: onSearchTap,
+                filterTagName: effectiveFilterTagName
             )
-                .environment(noteStore)
-                .scrollDismissesKeyboard(.interactively)
+            .environment(noteStore)
+            .scrollDismissesKeyboard(.interactively)
         }
         .onTapGesture {
             isSearchFocused = false
@@ -216,7 +252,8 @@ struct NoteSearchPage: View {
             }
         }
         .onAppear {
-            // Auto focus on open
+            // 只在通用搜索页自动聚焦（固定标签/日期过滤页不需要键盘弹出）
+            guard filterTagName == nil && filterRecentDays == nil && filterStartDate == nil else { return }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 isSearchFocused = true
             }

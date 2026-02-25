@@ -89,7 +89,7 @@ struct TagWidget: View {
         } else {
             VStack(alignment: .leading, spacing: 12) {
                 // 标题区域：点击跳转到完整列表
-                NavigationLink(destination: TagNotesListPage(tagName: tagName).environment(noteStore)) {
+                NavigationLink(destination: NoteSearchPage(pageTitle: tagName, filterTagName: tagName, headerIcon: "tag.fill").environment(noteStore)) {
                     HStack {
                         Image(systemName: "tag.fill")
                             .foregroundColor(.accentColor)
@@ -144,7 +144,7 @@ struct TagWidget: View {
                             }
                             
                             // “+xxx”按钮或查看全部
-                            NavigationLink(destination: TagNotesListPage(tagName: tagName).environment(noteStore)) {
+                            NavigationLink(destination: NoteSearchPage(pageTitle: tagName, filterTagName: tagName, headerIcon: "tag.fill").environment(noteStore)) {
                                 VStack(spacing: 4) {
                                     Spacer()
                                     let remaining = totalNotesCount - displayedNotes.count
@@ -934,7 +934,7 @@ struct TagFullPagePreview: View {
             .padding(.top, 16)
             
             // 搜索框（伪）→ 直接 NavigationLink 跳转
-            NavigationLink(destination: TagNotesListPage(tagName: tagName).environment(noteStore)) {
+            NavigationLink(destination: NoteSearchPage(pageTitle: tagName, filterTagName: tagName, headerIcon: "tag.fill").environment(noteStore)) {
                 HStack(spacing: 12) {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(.secondary)
@@ -984,7 +984,7 @@ struct TagFullPagePreview: View {
                         }
                         
                         if displayedNotes.count > 100 {
-                            NavigationLink(destination: TagNotesListPage(tagName: tagName).environment(noteStore)) {
+                            NavigationLink(destination: NoteSearchPage(pageTitle: tagName, filterTagName: tagName, headerIcon: "tag.fill").environment(noteStore)) {
                                 HStack {
                                     Spacer()
                                     Text("查看全部 \(displayedNotes.count) 条记录")
