@@ -3,6 +3,7 @@ import SwiftUI
 /// 记录列表行视图
 struct NoteRowView: View {
     let note: NoteItem
+    @Environment(\.appTheme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -16,7 +17,7 @@ struct NoteRowView: View {
                 .font(.subheadline)
                 //.fontWeight(.semibold)
                 .lineLimit(2)
-                .foregroundColor(.primary)
+                .foregroundColor(theme.colors.primaryText)
             
             Spacer()
             
@@ -40,7 +41,7 @@ struct NoteRowView: View {
         }
         .frame(minHeight: 100)
         .padding(12)
-        .background(Color(.systemGray6))
+        .background(theme.colors.card)
         .cornerRadius(12)
     }
 
@@ -81,11 +82,11 @@ struct NoteRowView: View {
             if noteAttachments.count > 3 {
                 ZStack {
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(Color(.systemGray5))
+                        .fill(theme.colors.cardSecondary)
                         .frame(width: 60, height: 60)
                     Text("+\(noteAttachments.count - 3)")
                         .font(.headline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(theme.colors.secondaryText)
                 }
             }
         }
@@ -150,13 +151,14 @@ private struct AttachmentRowThumbnail: View {
 
 struct AttachmentMiniIcon: View {
     let type: AttachmentType
+    @Environment(\.appTheme) private var theme
 
     var body: some View {
         Image(systemName: type.iconName)
             .font(.system(size: 10))
             .foregroundColor(.secondary)
             .frame(width: 22, height: 22)
-            .background(Color(.systemGray5))
+            .background(theme.colors.cardSecondary)
             .clipShape(RoundedRectangle(cornerRadius: 4))
     }
 }

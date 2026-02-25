@@ -6,6 +6,7 @@ struct VoiceInputOverlay: View {
     let isRecording: Bool
     let dragOffset: CGFloat
     let shouldCancel: Bool
+    @Environment(\.appTheme) private var theme
     
     var body: some View {
         VStack(spacing: 8) {
@@ -42,7 +43,7 @@ struct VoiceInputOverlay: View {
             .padding(.horizontal, 16) // 左右留边距
             .background(
                 RoundedRectangle(cornerRadius: 20)
-                    .fill(shouldCancel ? Color.red.opacity(0.1) : Color(.systemBackground))
+                    .fill(shouldCancel ? Color.red.opacity(0.1) : theme.colors.surface)
             )
             .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 4)
         }

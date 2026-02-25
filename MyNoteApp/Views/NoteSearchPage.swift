@@ -30,6 +30,7 @@ enum SortMode: String, CaseIterable {
 struct NoteSearchPage: View {
     @Environment(NoteStore.self) var noteStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.appTheme) private var theme
     
     var pageTitle: String = "搜索" // 页面标题
     var filterRecentDays: Int? = nil // 筛选最近几天的记录（nil表示不筛选）
@@ -81,7 +82,7 @@ struct NoteSearchPage: View {
                 HStack {
                     if let icon = headerIcon {
                         Image(systemName: icon)
-                            .foregroundColor(.accentColor)
+                            .foregroundColor(theme.colors.accent)
                             .font(.largeTitle)
                     }
                     Text(pageTitle)
@@ -109,12 +110,12 @@ struct NoteSearchPage: View {
                                 Spacer()
                             }
                             .padding(10)
-                            .background(Color(.systemGray6))
+                            .background(theme.colors.card)
                             .cornerRadius(10)
                         }
                         .padding(.horizontal)
                         .padding(.vertical, 8)
-                        .background(Color(.systemBackground))
+                        .background(theme.colors.surface)
                         .shadow(color: Color.black.opacity(0.05), radius: 2, y: 1)
                     }
                     .buttonStyle(.plain)
@@ -149,9 +150,9 @@ struct NoteSearchPage: View {
                                         }
                                         .padding(.horizontal, 8)
                                         .padding(.vertical, 4)
-                                        .background(Color.accentColor.opacity(0.15))
+                                        .background(theme.colors.accentSoft)
                                         .cornerRadius(6)
-                                        .foregroundColor(.accentColor)
+                                        .foregroundColor(theme.colors.accent)
                                         .overlay(alignment: .topTrailing) {
                                             Image(systemName: "xmark.circle.fill")
                                                 .font(.system(size: 10))
@@ -188,7 +189,7 @@ struct NoteSearchPage: View {
                             }
                         }
                         .padding(10)
-                        .background(Color(.systemGray6))
+                        .background(theme.colors.card)
                         .cornerRadius(10)
                         
                         if isSearchFocused {
@@ -203,7 +204,7 @@ struct NoteSearchPage: View {
                     .padding(.horizontal)
                     .padding(.top, 8)
                     .padding(.bottom, 8)
-                    .background(Color(.systemBackground))
+                    .background(theme.colors.surface)
                     .shadow(color: Color.black.opacity(0.05), radius: 2, y: 1)
                 }
             }

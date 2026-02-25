@@ -5,6 +5,7 @@ struct SearchWidget: View {
     @Environment(NoteStore.self) var noteStore
     let size: WidgetSize
     @Binding var showSearch: Bool
+    @Environment(\.appTheme) private var theme
     
     var body: some View {
         Group {
@@ -24,7 +25,7 @@ struct SearchWidget: View {
             HStack(spacing: 12) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(.accentColor)
+                    .foregroundColor(theme.colors.accent)
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("搜索")
@@ -38,9 +39,9 @@ struct SearchWidget: View {
             }
             .frame(maxWidth: .infinity) // 关键：让HStack填满父容器宽度
             .padding(16)
-            .background(Color(.systemBackground))
+            .background(theme.colors.surface)
             .cornerRadius(16)
-            .shadow(color: Color.black.opacity(0.05), radius: 6, x: 0, y: 3)
+            .shadow(color: theme.colors.shadow, radius: 6, x: 0, y: 3)
         }
         .buttonStyle(.plain)
     }
@@ -54,6 +55,7 @@ struct TagWidget: View {
     let isEditing: Bool
     @Binding var showTagDetail: Bool
     @State private var totalNotesCount: Int = 0
+    @Environment(\.appTheme) private var theme
     
     // 使用 Query 直接查询符合条件的 NoteItem，限制前100条（仅用于展示）
     @Query var notes: [NoteItem]
@@ -92,7 +94,7 @@ struct TagWidget: View {
                 NavigationLink(destination: NoteSearchPage(pageTitle: tagName, filterTagName: tagName, headerIcon: "tag.fill").environment(noteStore)) {
                     HStack {
                         Image(systemName: "tag.fill")
-                            .foregroundColor(.accentColor)
+                            .foregroundColor(theme.colors.accent)
                             .font(.subheadline)
                         Text(tagName)
                             .font(.headline)
@@ -136,7 +138,7 @@ struct TagWidget: View {
                                     }
                                     .padding()
                                     .frame(width: 140, height: 100)
-                                    .background(Color(.systemGray6))
+                                    .background(theme.colors.card)
                                     .cornerRadius(12)
                                 }
                                 .buttonStyle(.plain)
@@ -151,7 +153,7 @@ struct TagWidget: View {
                                     if remaining > 0 {
                                         Text("+\(remaining)")
                                             .font(.headline)
-                                            .foregroundColor(.accentColor)
+                                            .foregroundColor(theme.colors.accent)
                                         Text("查看更多")
                                             .font(.caption2)
                                             .foregroundColor(.secondary)
@@ -160,7 +162,7 @@ struct TagWidget: View {
                                 }
                                 .padding()
                                 .frame(width: 140, height: 100)
-                                .background(Color(.systemGray6).opacity(0.5))
+                                .background(theme.colors.card.opacity(0.5))
                                 .cornerRadius(12)
                             }
                             .buttonStyle(.plain)
@@ -171,9 +173,9 @@ struct TagWidget: View {
                 }
             }
             .padding(.vertical, 8)
-            .background(Color(.systemBackground))
+            .background(theme.colors.surface)
             .cornerRadius(16)
-            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+            .shadow(color: theme.colors.shadow, radius: 5, x: 0, y: 2)
             .task { fetchTotalCount() }
         }
     }
@@ -209,6 +211,7 @@ struct RecentNotesWidget: View {
     @Environment(\.modelContext) private var modelContext
     @Query var notes: [NoteItem]
     @State private var totalNotesCount: Int = 0
+    @Environment(\.appTheme) private var theme
     
     let size: WidgetSize
     let isEditing: Bool
@@ -253,7 +256,7 @@ struct RecentNotesWidget: View {
                 ).environment(noteStore)) {
                     HStack {
                         Image(systemName: "clock.fill")
-                            .foregroundColor(.accentColor)
+                            .foregroundColor(theme.colors.accent)
                             .font(.subheadline)
                         Text("最近记录")
                             .font(.headline)
@@ -297,7 +300,7 @@ struct RecentNotesWidget: View {
                                 }
                                 .padding()
                                 .frame(width: 140, height: 100)
-                                .background(Color(.systemGray6))
+                                .background(theme.colors.card)
                                 .cornerRadius(12)
                             }
                             .buttonStyle(.plain)
@@ -315,7 +318,7 @@ struct RecentNotesWidget: View {
                                 if remaining > 0 {
                                     Text("+\(remaining)")
                                         .font(.headline)
-                                        .foregroundColor(.accentColor)
+                                        .foregroundColor(theme.colors.accent)
                                     Text("查看更多")
                                         .font(.caption2)
                                         .foregroundColor(.secondary)
@@ -325,7 +328,7 @@ struct RecentNotesWidget: View {
                             }
                             .padding()
                             .frame(width: 140, height: 100)
-                            .background(Color(.systemGray6).opacity(0.5))
+                            .background(theme.colors.card.opacity(0.5))
                             .cornerRadius(12)
                         }
                         .buttonStyle(.plain)
@@ -336,9 +339,9 @@ struct RecentNotesWidget: View {
             }
         }
         .padding(.vertical, 8)
-        .background(Color(.systemBackground))
+        .background(theme.colors.surface)
         .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+        .shadow(color: theme.colors.shadow, radius: 5, x: 0, y: 2)
         .task { fetchTotalCount() }
         }
     }
@@ -380,6 +383,7 @@ struct TrashWidget: View {
     
     let size: WidgetSize
     let appSettings = AppSettings.shared
+    @Environment(\.appTheme) private var theme
     
     var displayedNotes: [NoteItem] {
         switch size {
@@ -415,9 +419,9 @@ struct TrashWidget: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(16)
-                .background(Color(.systemBackground))
+                .background(theme.colors.surface)
                 .cornerRadius(16)
-                .shadow(color: Color.black.opacity(0.05), radius: 6, x: 0, y: 3)
+                .shadow(color: theme.colors.shadow, radius: 6, x: 0, y: 3)
             }
             .buttonStyle(.plain)
         }
@@ -440,6 +444,7 @@ struct TrashWidget: View {
 struct TrashCardButton: View {
     let trashedCount: Int
     @Binding var showTrashDetail: Bool
+    @Environment(\.appTheme) private var theme
     
     var body: some View {
         Button {
@@ -462,9 +467,9 @@ struct TrashCardButton: View {
             }
             .frame(maxWidth: .infinity)
             .padding(16)
-            .background(Color(.systemBackground))
+            .background(theme.colors.surface)
             .cornerRadius(16)
-            .shadow(color: Color.black.opacity(0.05), radius: 6, x: 0, y: 3)
+            .shadow(color: theme.colors.shadow, radius: 6, x: 0, y: 3)
         }
         .buttonStyle(.plain)
     }
@@ -732,11 +737,12 @@ struct ReadOnlyAttachmentView: View {
     let attachment: AttachmentItem
     @State private var thumbnailImage: UIImage?
     @Environment(NoteStore.self) var noteStore
+    @Environment(\.appTheme) private var theme
     
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemGray6))
+                .fill(theme.colors.card)
             
             content
         }
@@ -744,7 +750,7 @@ struct ReadOnlyAttachmentView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(Color(.systemGray4), lineWidth: 0.5)
+                .stroke(theme.colors.border, lineWidth: 0.5)
         )
         .onAppear { loadThumbnail() }
     }
@@ -778,7 +784,7 @@ struct ReadOnlyAttachmentView: View {
             VStack(spacing: 8) {
                 Image(systemName: "waveform")
                     .font(.largeTitle)
-                    .foregroundColor(.accentColor)
+                    .foregroundColor(theme.colors.accent)
                 Text("音频")
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -804,7 +810,7 @@ struct ReadOnlyAttachmentView: View {
                         .resizable()
                         .scaledToFill()
                 } else {
-                    Color(.systemGray5)
+                    theme.colors.cardSecondary
                 }
                 
                 ZStack {
@@ -861,6 +867,7 @@ struct ReadOnlyAttachmentView: View {
 /// 搜索组件的全屏预览（嵌入模式）
 struct SearchFullPagePreview: View {
     let onTap: () -> Void
+    @Environment(\.appTheme) private var theme
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -883,7 +890,7 @@ struct SearchFullPagePreview: View {
                     Spacer()
                 }
                 .padding(10)
-                .background(Color(.systemGray6))
+                .background(theme.colors.card)
                 .cornerRadius(10)
                 .padding(.horizontal)
             }
@@ -904,7 +911,7 @@ struct SearchFullPagePreview: View {
             
             Spacer()
         }
-        .background(Color(.systemBackground))
+        .background(theme.colors.surface)
         .contentShape(Rectangle())
         .onTapGesture(perform: onTap)
     }
@@ -913,6 +920,7 @@ struct SearchFullPagePreview: View {
 /// 标签组件的全屏预览（嵌入模式）
 struct TagFullPagePreview: View {
     @Environment(NoteStore.self) var noteStore
+    @Environment(\.appTheme) private var theme
     let tagName: String
     let displayedNotes: [NoteItem]
     var isEditing: Bool = false
@@ -922,7 +930,7 @@ struct TagFullPagePreview: View {
             // 标题
             HStack {
                 Image(systemName: "tag.fill")
-                    .foregroundColor(.accentColor)
+                    .foregroundColor(theme.colors.accent)
                     .font(.subheadline)
                 Text(tagName)
                     .font(.headline)
@@ -944,7 +952,7 @@ struct TagFullPagePreview: View {
                     Spacer()
                 }
                 .padding(12)
-                .background(Color(.systemGray6))
+                .background(theme.colors.card)
                 .cornerRadius(12)
                 .padding(.horizontal)
             }
@@ -989,10 +997,10 @@ struct TagFullPagePreview: View {
                                     Spacer()
                                     Text("查看全部 \(displayedNotes.count) 条记录")
                                         .font(.subheadline)
-                                        .foregroundColor(.accentColor)
+                                        .foregroundColor(theme.colors.accent)
                                     Image(systemName: "chevron.right")
                                         .font(.caption)
-                                        .foregroundColor(.accentColor)
+                                        .foregroundColor(theme.colors.accent)
                                     Spacer()
                                 }
                                 .padding()
@@ -1008,13 +1016,14 @@ struct TagFullPagePreview: View {
             
             Spacer()
         }
-        .background(Color(.systemBackground))
+        .background(theme.colors.surface)
     }
 }
 
 /// 最近记录组件的全屏预览（嵌入模式）
 struct RecentNotesFullPagePreview: View {
     @Environment(NoteStore.self) var noteStore
+    @Environment(\.appTheme) private var theme
     let displayedNotes: [NoteItem]
     var isEditing: Bool = false
     
@@ -1023,7 +1032,7 @@ struct RecentNotesFullPagePreview: View {
             // 标题
             HStack {
                 Image(systemName: "clock.fill")
-                    .foregroundColor(.accentColor)
+                    .foregroundColor(theme.colors.accent)
                     .font(.subheadline)
                 Text("最近记录")
                     .font(.headline)
@@ -1050,7 +1059,7 @@ struct RecentNotesFullPagePreview: View {
                     Spacer()
                 }
                 .padding(10)
-                .background(Color(.systemGray6))
+                .background(theme.colors.card)
                 .cornerRadius(10)
                 .padding(.horizontal)
             }
@@ -1099,10 +1108,10 @@ struct RecentNotesFullPagePreview: View {
                                     Spacer()
                                     Text("查看全部 \(displayedNotes.count) 条记录")
                                         .font(.subheadline)
-                                        .foregroundColor(.accentColor)
+                                        .foregroundColor(theme.colors.accent)
                                     Image(systemName: "chevron.right")
                                         .font(.caption)
-                                        .foregroundColor(.accentColor)
+                                        .foregroundColor(theme.colors.accent)
                                     Spacer()
                                 }
                                 .padding()
@@ -1118,7 +1127,7 @@ struct RecentNotesFullPagePreview: View {
             
             Spacer()
         }
-        .background(Color(.systemBackground))
+        .background(theme.colors.surface)
     }
 }
 
@@ -1126,13 +1135,14 @@ struct RecentNotesFullPagePreview: View {
 struct TagFullPagePreviewStatic: View {
     let tagName: String
     let onTap: () -> Void
+    @Environment(\.appTheme) private var theme
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             // 标题
             HStack {
                 Image(systemName: "tag.fill")
-                    .foregroundColor(.accentColor)
+                    .foregroundColor(theme.colors.accent)
                     .font(.largeTitle)
                 Text(tagName)
                     .font(.largeTitle)
@@ -1153,7 +1163,7 @@ struct TagFullPagePreviewStatic: View {
                     Spacer()
                 }
                 .padding(12)
-                .background(Color(.systemGray6))
+                .background(theme.colors.card)
                 .cornerRadius(12)
                 .padding(.horizontal)
             }
@@ -1178,7 +1188,7 @@ struct TagFullPagePreviewStatic: View {
             
             Spacer()
         }
-        .background(Color(.systemBackground))
+        .background(theme.colors.surface)
         .contentShape(Rectangle())
         .onTapGesture(perform: onTap)
     }

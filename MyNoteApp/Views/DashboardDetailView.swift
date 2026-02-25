@@ -3,6 +3,7 @@ import SwiftData
 
 struct DashboardDetailView: View {
     @Environment(NoteStore.self) var noteStore
+    @Environment(\.appTheme) private var theme
     @Bindable var dashboardConfig: DashboardConfig
     let pageId: UUID
     @Binding var isEditing: Bool
@@ -55,16 +56,16 @@ struct DashboardDetailView: View {
                 let emptyStateContent = VStack(spacing: 16) {
                     Image(systemName: isEditing ? "plus.square.dashed" : "rectangle.on.rectangle.angled")
                         .font(.system(size: 60))
-                        .foregroundColor(isEditing ? .accentColor.opacity(0.6) : .secondary.opacity(0.5))
+                        .foregroundColor(isEditing ? theme.colors.accent.opacity(0.6) : theme.colors.secondaryText.opacity(0.5))
                     
                     Text(isEditing ? "点击添加组件" : "这个仪表盘是空的")
                         .font(.headline)
-                        .foregroundColor(isEditing ? .accentColor : .secondary)
+                        .foregroundColor(isEditing ? theme.colors.accent : theme.colors.secondaryText)
 
                     if !isEditing {
                         Text("点击这里开始定制")
                             .font(.subheadline)
-                            .foregroundColor(.accentColor.opacity(0.8))
+                            .foregroundColor(theme.colors.accent.opacity(0.8))
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -155,7 +156,7 @@ struct DashboardDetailView: View {
                     } label: {
                         Image(systemName: "plus.circle.fill")
                             .font(.system(size: 44))
-                            .foregroundColor(.accentColor)
+                            .foregroundColor(theme.colors.accent)
                             .shadow(radius: 2)
                     }
 
@@ -192,6 +193,7 @@ struct DashboardDetailView: View {
 
 struct DashboardRow: View {
     @Environment(NoteStore.self) var noteStore
+    @Environment(\.appTheme) private var theme
     let item: DashboardItem
     let isEditing: Bool
     @Bindable var dashboardConfig: DashboardConfig
@@ -241,7 +243,7 @@ struct DashboardRow: View {
         // 编辑模式下高亮边框，提示可长按操作
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.accentColor.opacity(isEditing ? 0.5 : 0), lineWidth: 2)
+                .stroke(theme.colors.accent.opacity(isEditing ? 0.5 : 0), lineWidth: 2)
         )
         .clipShape(RoundedRectangle(cornerRadius: 16))
         // 长按弹出上下文菜单（编辑模式下）
@@ -361,16 +363,16 @@ struct DashboardRow: View {
             VStack(spacing: 8) {
                 Image(systemName: "text.pad.header.badge.plus")
                     .font(.system(size: iconSize))
-                    .foregroundColor(.accentColor)
+                    .foregroundColor(theme.colors.accent)
                 if size == .fullPage {
                     Text("全屏模式：直接显示编辑器")
                         .font(.caption)
-                        .foregroundColor(.secondary.opacity(0.7))
+                        .foregroundColor(theme.colors.secondaryText.opacity(0.7))
                 }
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, verticalPadding)
-            .background(Color(.systemGray6))
+            .background(theme.colors.card)
             .cornerRadius(16)
         } else if size == .fullPage {
             // 全屏非编辑：直接内嵌编辑器，可立刻输入
@@ -397,6 +399,7 @@ struct DashboardRow: View {
 /// 发布后自动重置为新记录
 struct InlineNewNoteWidget: View {
     @Environment(NoteStore.self) var noteStore
+    @Environment(\.appTheme) private var theme
     @State private var showEditor = false
     var onFocused: (() -> Void)? = nil
     
@@ -408,24 +411,24 @@ struct InlineNewNoteWidget: View {
             HStack {
                 Image(systemName: "text.pad.header.badge.plus")
                     .font(.headline)
-                    .foregroundColor(.accentColor)
+                    .foregroundColor(theme.colors.accent)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("新建记录")
                         .font(.headline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(theme.colors.secondaryText)
                 }
                 Spacer()
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(Color(.systemBackground))
+            .background(theme.colors.surface)
             
             Divider()
             
             // 模拟内容区域
             ZStack(alignment: .topLeading) {
-                Color(.systemBackground)
+                theme.colors.surface
                 
                 Text("点击输入...")
                     .foregroundColor(.secondary)
@@ -541,6 +544,7 @@ struct NewNoteButton: View {
     let verticalPadding: CGFloat
     var iconSize: CGFloat = 36 // Default size
     @State private var showEditor = false
+    @Environment(\.appTheme) private var theme
     
     var body: some View {
         Button {
@@ -549,17 +553,17 @@ struct NewNoteButton: View {
             VStack(spacing: 12) {
                 Image(systemName: "text.pad.header.badge.plus")
                     .font(.system(size: iconSize))
-                    .foregroundColor(.accentColor)
+                    .foregroundColor(theme.colors.accent)
                     .symbolRenderingMode(.hierarchical)
                     .fontWeight(.bold)
                 
                 Text("点击记录")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.colors.secondaryText)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, verticalPadding)
-            .background(Color(.systemGray6))
+            .background(theme.colors.card)
             .cornerRadius(16)
         }
         .buttonStyle(.plain)

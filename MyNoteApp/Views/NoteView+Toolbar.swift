@@ -98,7 +98,7 @@ extension NoteView {
                 }
             }
         }
-        .background(Color(.systemGray6))
+        .background(theme.colors.card)
     }
 
     // MARK: 底部工具栏
@@ -132,7 +132,7 @@ extension NoteView {
                             }
                         }
                     }
-                    .foregroundColor(.accentColor)
+                    .foregroundColor(theme.colors.accent)
                     .frame(width: 40, height: 36)
                 }
                 .accessibilityLabel(showExpandedFormatBar ? "收起格式工具栏" : "展开格式工具栏")
@@ -162,13 +162,13 @@ extension NoteView {
             } label: {
                 Image(systemName: "keyboard.chevron.compact.down")
                     .font(.system(size: 18))
-                    .foregroundColor(.accentColor)
+                    .foregroundColor(theme.colors.accent)
                     .frame(width: 40, height: 36)
             }
             .accessibilityLabel("收起键盘")
         }
         .frame(height: 44)
-        .background(Color(.systemBackground))
+        .background(theme.colors.surface)
     }
     
     func toolButton(for item: ToolbarItemType) -> some View {
@@ -210,12 +210,13 @@ extension NoteView {
         let icon: String
         var label: String = ""
         let action: () -> Void
+        @Environment(\.appTheme) private var theme
         
         var body: some View {
             Button(action: action) {
                 Image(systemName: icon)
                     .font(.system(size: 18))
-                    .foregroundColor(.accentColor)
+                    .foregroundColor(theme.colors.accent)
                     .frame(width: 36, height: 36)
             }
             .accessibilityLabel(label)

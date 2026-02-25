@@ -4,6 +4,7 @@ import SwiftUI
 /// 主页容器：使用 TabView 分页，Page 0 是设置/管理页，后续是 dashboard 页
 struct DashboardContainerView: View {
     @Environment(NoteStore.self) var noteStore
+    @Environment(\.appTheme) private var theme
     @State private var dashboardConfig = DashboardConfig()
     @EnvironmentObject var deepLinkHandler: DeepLinkHandler
     
@@ -227,7 +228,7 @@ struct DashboardContainerView: View {
             HStack(spacing: 6) {
                 ForEach(Array(dashboardConfig.pages.enumerated()), id: \.element.id) { _, page in
                     Circle()
-                        .fill(page.id == selectedTab ? Color.primary.opacity(0.9) : Color.secondary.opacity(0.3))
+                        .fill(page.id == selectedTab ? theme.colors.primaryText.opacity(0.9) : theme.colors.secondaryText.opacity(0.3))
                         .frame(width: 7, height: 7)
                         .scaleEffect(page.id == selectedTab ? 1.0 : 0.85)
                         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selectedTab)
@@ -248,7 +249,7 @@ struct DashboardContainerView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(Color(.systemBackground))
+        .background(theme.colors.surface)
     }
     
     @ViewBuilder
@@ -265,7 +266,7 @@ struct DashboardContainerView: View {
             } label: {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 24))
-                    .foregroundColor(.accentColor)
+                    .foregroundColor(theme.colors.accent)
                     .frame(minWidth: 44, minHeight: 44)
                     .contentShape(Rectangle())
             }

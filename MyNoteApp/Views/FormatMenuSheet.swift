@@ -4,6 +4,7 @@ import SwiftUI
 
 struct FormatMenuSheet: View {
     let onSelect: (FormatAction) -> Void
+    @Environment(\.appTheme) private var theme
 
     enum FormatAction: String, CaseIterable, Identifiable {
         case h1, h2, h3
@@ -179,9 +180,9 @@ struct FormatMenuSheet: View {
                             }
                             .padding(.horizontal, 4)
                             .padding(.vertical, 6)
-                            .background(Color(.systemBackground))
+                            .background(theme.colors.surface)
                             .cornerRadius(12)
-                            .shadow(color: Color.black.opacity(0.04), radius: 2, x: 0, y: 1)
+                            .shadow(color: theme.colors.shadow, radius: 2, x: 0, y: 1)
                         }
                         .buttonStyle(.plain)
                     }

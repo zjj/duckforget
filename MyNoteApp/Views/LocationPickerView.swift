@@ -4,6 +4,7 @@ import CoreLocation
 
 struct LocationPickerView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.appTheme) private var theme
     
     // Default to San Francisco, but attempt to get current location
     @State private var position: MapCameraPosition = .userLocation(fallback: .automatic)
@@ -48,7 +49,7 @@ struct LocationPickerView: View {
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
                                 .padding()
-                                .background(Color.accentColor)
+                                .background(theme.colors.accent)
                                 .cornerRadius(12)
                         }
                         .padding()

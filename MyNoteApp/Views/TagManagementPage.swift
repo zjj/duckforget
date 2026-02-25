@@ -4,6 +4,7 @@ import SwiftData
 /// 标签管理页面（在设置中）- 添加、重命名、删除标签
 struct TagManagementPage: View {
     @Environment(NoteStore.self) var noteStore
+    @Environment(\.appTheme) private var theme
     @Query(sort: \TagItem.sortOrder) var allTags: [TagItem]
     
     @State private var showingAddTag = false
@@ -77,6 +78,8 @@ struct TagManagementPage: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(theme.colors.background.ignoresSafeArea())
         .navigationTitle("标签管理")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

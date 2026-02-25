@@ -3,6 +3,7 @@ import SwiftUI
 struct AboutView: View {
     let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1"
     let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+    @Environment(\.appTheme) private var theme
     
     var body: some View {
         List {
@@ -70,6 +71,8 @@ struct AboutView: View {
                     .listRowBackground(Color.clear)
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(theme.colors.background.ignoresSafeArea())
         .navigationTitle("关于")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -79,12 +82,13 @@ struct FeatureRow: View {
     let icon: String
     let title: String
     let description: String
+    @Environment(\.appTheme) private var theme
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: icon)
                 .font(.title2)
-                .foregroundColor(.accentColor)
+                .foregroundColor(theme.colors.accent)
                 .frame(width: 30) // Fixed width for alignment
             
             VStack(alignment: .leading, spacing: 4) {

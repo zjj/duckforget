@@ -15,6 +15,7 @@ struct MarkdownTextView: UIViewRepresentable {
     var onLongPress: ((CGPoint) -> Void)?
     var onCoordinatorReady: ((Coordinator) -> Void)?
     var onCursorLineChanged: (() -> Void)?
+    @Environment(\.appTheme) var theme
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -65,6 +66,12 @@ struct MarkdownTextView: UIViewRepresentable {
             uiView.isEditable = isEditable
         }
 
+        // Re-apply highlighting when theme changes
+        if context.coordinator.lastAppliedTheme != theme {
+            context.coordinator.lastAppliedTheme = theme
+            context.coordinator.applyHighlighting(uiView)
+        }
+
         // Only update if text differs (external change, e.g. undo or voice input)
         guard uiView.text != text else { return }
 
@@ -98,6 +105,14 @@ struct MarkdownTextView: UIViewRepresentable {
         var isUpdatingFromBinding = false
         var isHighlighting = false
         private var previousCursorLine: Int = -1
+        var lastAppliedTheme: AppTheme?
+
+        var syntaxUIColor: UIColor {
+            parent.theme == .system ? .systemOrange : UIColor(parent.theme.colors.syntaxKeyword)
+        }
+        var primaryUIColor: UIColor {
+            parent.theme == .system ? .label : UIColor(parent.theme.colors.primaryText)
+        }
 
         // Fonts (cached)
         private let bodyFont = UIFont.preferredFont(forTextStyle: .body)
@@ -612,7 +627,7 @@ struct MarkdownTextView: UIViewRepresentable {
             // 1. Reset everything to body style
             storage.setAttributes([
                 .font: bodyFont,
-                .foregroundColor: UIColor.label
+                .foregroundColor: primaryUIColor
             ], range: fullRange)
 
             // 2. Walk lines
@@ -646,7 +661,7 @@ struct MarkdownTextView: UIViewRepresentable {
                     inCodeBlock.toggle()
                     storage.addAttributes([
                         .font: codeFont,
-                        .foregroundColor: UIColor.systemOrange
+                        .foregroundColor: syntaxUIColor
                     ], range: contentRange)
                     lineStart = NSMaxRange(lineRange)
                     continue
@@ -688,7 +703,7 @@ struct MarkdownTextView: UIViewRepresentable {
         // MARK: - Cursor Line: syntax-aware coloring
 
         private func styleCursorLine(_ storage: NSTextStorage, trimmed: String, range: NSRange) {
-            let syntaxColor = UIColor.systemOrange
+            let syntaxColor = syntaxUIColor
 
             // Headings (check longest first)
             if trimmed.hasPrefix("###### ") {
@@ -796,7 +811,7 @@ struct MarkdownTextView: UIViewRepresentable {
 
         private func applyInlineStyles(_ storage: NSTextStorage, range: NSRange, isCursorLine: Bool) {
             let text = (storage.string as NSString).substring(with: range)
-            let markerColor = isCursorLine ? UIColor.systemOrange.withAlphaComponent(0.7) : UIColor.tertiaryLabel
+            let markerColor = isCursorLine ? syntaxUIColor.withAlphaComponent(0.7) : UIColor.tertiaryLabel
 
             // Bold+Italic: ***text*** (must check before bold/italic)
             applyPattern(storage, text: text, lineStart: range.location,
@@ -845,7 +860,7 @@ struct MarkdownTextView: UIViewRepresentable {
 
         /// Apply link/image patterns with special handling: text styled, brackets/url subdued
         private func applyLinkPattern(_ storage: NSTextStorage, text: String, lineStart: Int, isCursorLine: Bool) {
-            let markerColor = isCursorLine ? UIColor.systemOrange.withAlphaComponent(0.6) : UIColor.tertiaryLabel
+            let markerColor = isCursorLine ? syntaxUIColor.withAlphaComponent(0.6) : UIColor.tertiaryLabel
             let linkColor = UIColor.systemBlue
 
             // Image: ![alt](url)

@@ -7,19 +7,20 @@ struct AttachmentThumbnailView: View {
     var showDeleteButton: Bool = true
     var onDelete: (() -> Void)? = nil
     @Environment(NoteStore.self) var noteStore
+    @Environment(\.appTheme) private var theme
     @State private var thumbnailImage: UIImage?
 
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemGray6))
+                .fill(theme.colors.card)
 
             content
         }
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(Color(.systemGray4), lineWidth: 0.5)
+                .stroke(theme.colors.border, lineWidth: 0.5)
         )
         .overlay(alignment: .topTrailing) {
             deleteButton
@@ -81,7 +82,7 @@ struct AttachmentThumbnailView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
             } else {
-                Color(.systemGray5)
+                theme.colors.cardSecondary
             }
             
             // 地图图标
@@ -126,7 +127,7 @@ struct AttachmentThumbnailView: View {
                     .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
                     .clipped()
             } else {
-                Color(.systemGray5)
+                theme.colors.cardSecondary
             }
 
             // 播放图标

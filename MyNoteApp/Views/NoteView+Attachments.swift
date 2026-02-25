@@ -24,10 +24,10 @@ extension NoteView {
                             Image(systemName: attachmentDisplayMode == .grid ? "square.grid.2x2" : "photo.on.rectangle")
                                 .font(.system(size: 16))
                         }
-                        .foregroundColor(.accentColor)
+                        .foregroundColor(theme.colors.accent)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background(Color.accentColor.opacity(0.1))
+                        .background(theme.colors.accent.opacity(0.1))
                         .cornerRadius(8)
                         .contentShape(Rectangle())
                     }
@@ -35,7 +35,7 @@ extension NoteView {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
-                .background(Color(.systemBackground))
+                .background(theme.colors.surface)
                 .zIndex(1)
             }
 
@@ -53,10 +53,10 @@ extension NoteView {
                     } label: {
                         Image(systemName: isAttachmentBarCollapsed ? "chevron.down" : "chevron.up")
                             .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.accentColor)
+                            .foregroundColor(theme.colors.accent)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 4)
-                            .background(Color.accentColor.opacity(0.1))
+                            .background(theme.colors.accent.opacity(0.1))
                             .cornerRadius(6)
                             .contentShape(Rectangle())
                     }
@@ -64,7 +64,7 @@ extension NoteView {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 6)
-                .background(Color(.systemBackground))
+                .background(theme.colors.surface)
                 .zIndex(1)
             }
             
@@ -83,7 +83,7 @@ extension NoteView {
                 horizontalAttachmentView
             }
         }
-        .background(Color(.systemBackground))
+        .background(theme.colors.surface)
     }
     
     // 网格布局

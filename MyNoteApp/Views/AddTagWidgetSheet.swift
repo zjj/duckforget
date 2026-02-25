@@ -5,6 +5,7 @@ import SwiftData
 struct AddTagWidgetSheet: View {
     @Environment(NoteStore.self) var noteStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.appTheme) private var theme
     
     @Query(sort: \TagItem.sortOrder) var allTags: [TagItem]
     
@@ -43,7 +44,7 @@ struct AddTagWidgetSheet: View {
                     }
                 }
                 .padding(10)
-                .background(Color(.systemGray6))
+                .background(theme.colors.card)
                 .cornerRadius(10)
                 .padding(.horizontal)
                 .padding(.vertical, 8)
@@ -72,7 +73,7 @@ struct AddTagWidgetSheet: View {
                                 }
                                 .padding(.horizontal, 20)
                                 .padding(.vertical, 12)
-                                .background(Color.accentColor)
+                                .background(theme.colors.accent)
                                 .foregroundColor(.white)
                                 .cornerRadius(12)
                             }
@@ -92,7 +93,7 @@ struct AddTagWidgetSheet: View {
                             } label: {
                                 HStack {
                                     Image(systemName: "plus.circle.fill")
-                                        .foregroundColor(.accentColor)
+                                        .foregroundColor(theme.colors.accent)
                                     Text("创建新标签 \"\(searchText)\"")
                                         .foregroundColor(.primary)
                                     Spacer()

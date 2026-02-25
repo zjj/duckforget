@@ -35,7 +35,7 @@ extension NoteView {
     
     var buttonColor: Color {
         if !isVoiceButtonPressed {
-            return .accentColor
+            return theme.colors.accent
         }
         return voiceDragOffset < -80 ? .red : .green
     }

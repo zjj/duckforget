@@ -4,6 +4,7 @@ import Charts
 
 struct StatisticsWidget: View {
     @Environment(NoteStore.self) var noteStore
+    @Environment(\.appTheme) private var theme
     var size: WidgetSize
     
     @Query(sort: \NoteItem.createdAt, order: .reverse) var allNotes: [NoteItem]
@@ -51,7 +52,7 @@ struct StatisticsWidget: View {
                 }
             }
             .padding()
-            .background(Color(.systemBackground))
+            .background(theme.colors.surface)
             .cornerRadius(16)
             .shadow(color: Color.black.opacity(0.05), radius: 6, x: 0, y: 3)
         }
@@ -78,7 +79,7 @@ struct StatisticsWidget: View {
                     .foregroundColor(.secondary)
                 Text("+\(notesCreatedToday)")
                     .font(.headline)
-                    .foregroundColor(.accentColor)
+                    .foregroundColor(theme.colors.accent)
             }
         }
     }
@@ -89,7 +90,7 @@ struct StatisticsWidget: View {
             HStack {
                 Label("本周趋势", systemImage: "chart.bar.fill")
                     .font(.headline)
-                    .foregroundColor(.accentColor)
+                    .foregroundColor(theme.colors.accent)
                 Spacer()
                 Text("\(notesCreatedThisWeek) 条")
                     .font(.subheadline)
@@ -102,7 +103,7 @@ struct StatisticsWidget: View {
                         x: .value("Date", item.date, unit: .day),
                         y: .value("Count", item.count)
                     )
-                    .foregroundStyle(Color.accentColor.gradient)
+                    .foregroundStyle(theme.colors.accent.gradient)
                     .cornerRadius(4)
                 }
                 .chartXAxis {
@@ -175,7 +176,7 @@ struct StatisticsWidget: View {
                     calendarContributionView
                 }
                 .padding()
-                .background(Color(.secondarySystemBackground))
+                .background(theme.colors.cardSecondary)
                 .cornerRadius(12)
                 
                 // Recent Trend
@@ -189,7 +190,7 @@ struct StatisticsWidget: View {
                                 x: .value("Date", item.date, unit: .day),
                                 y: .value("Count", item.count)
                             )
-                            .foregroundStyle(Color.accentColor.gradient)
+                            .foregroundStyle(theme.colors.accent.gradient)
                             .cornerRadius(4)
                             .annotation(position: .top) {
                                 if item.count > 0 {
@@ -208,7 +209,7 @@ struct StatisticsWidget: View {
                     }
                 }
                 .padding()
-                .background(Color(.secondarySystemBackground))
+                .background(theme.colors.cardSecondary)
                 .cornerRadius(12)
                 
                 // Tag Distribution
@@ -248,7 +249,7 @@ struct StatisticsWidget: View {
                     }
                 }
                 .padding()
-                .background(Color(.secondarySystemBackground))
+                .background(theme.colors.cardSecondary)
                 .cornerRadius(12)
             }
             .padding()
@@ -272,7 +273,7 @@ struct StatisticsWidget: View {
                         MonthCalendarView(month: month, allNotes: allNotes)
                             .frame(width: 300) // 设定固定宽度以确保日历显示正常
                             .padding()
-                            .background(Color(.systemBackground))
+                            .background(theme.colors.surface)
                             .cornerRadius(8)
                             .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
                             .id(month)
@@ -306,7 +307,7 @@ struct StatisticsWidget: View {
                 .foregroundColor(color)
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(theme.colors.cardSecondary)
         .cornerRadius(12)
     }
     
@@ -379,9 +380,9 @@ struct StatisticsWidget: View {
     
     private func colorForCount(_ count: Int) -> Color {
         if count == 0 { return Color.gray.opacity(0.2) }
-        if count == 1 { return Color.accentColor.opacity(0.3) }
-        if count <= 3 { return Color.accentColor.opacity(0.6) }
-        return Color.accentColor
+        if count == 1 { return theme.colors.accent.opacity(0.3) }
+        if count <= 3 { return theme.colors.accent.opacity(0.6) }
+        return theme.colors.accent
     }
     
     struct TagStat {
@@ -410,6 +411,7 @@ struct StatisticsWidget: View {
 struct MonthCalendarView: View {
     let month: Date
     let allNotes: [NoteItem]
+    @Environment(\.appTheme) private var theme
     private let calendar = Calendar.current
     
     // Grid Setup
@@ -501,8 +503,8 @@ struct MonthCalendarView: View {
     
     private func colorForCount(_ count: Int) -> Color {
         if count == 0 { return Color(.secondarySystemFill) }
-        if count == 1 { return Color.accentColor.opacity(0.4) }
-        if count <= 3 { return Color.accentColor.opacity(0.7) }
-        return Color.accentColor
+        if count == 1 { return theme.colors.accent.opacity(0.4) }
+        if count <= 3 { return theme.colors.accent.opacity(0.7) }
+        return theme.colors.accent
     }
 }

@@ -14,6 +14,7 @@ struct MyNoteAppApp: App {
 
     @State private var toolbarSettings = ToolbarSettings()
     @StateObject private var deepLinkHandler = DeepLinkHandler()
+    @State private var appSettings = AppSettings.shared
 
     init() {
         let schema = Schema([NoteItem.self, AttachmentItem.self, TagItem.self])
@@ -49,7 +50,13 @@ struct MyNoteAppApp: App {
                 .modelContainer(container)
                 .environment(noteStore)
                 .environment(toolbarSettings)
+                .environment(appSettings)
+                .environment(\.appTheme, appSettings.currentTheme)
                 .environmentObject(deepLinkHandler)
+                .preferredColorScheme(
+                    appSettings.currentTheme == .system ? nil :
+                    (appSettings.currentTheme.colors.isDark ? .dark : .light)
+                )
                 .onOpenURL { url in
                     if url.scheme == "mynoteapp" && url.host == "create-note" {
                         deepLinkHandler.createNewNote()

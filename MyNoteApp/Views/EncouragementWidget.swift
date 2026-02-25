@@ -4,6 +4,7 @@ struct EncouragementWidget: View {
     let content: String
     let size: WidgetSize
     var onTap: (() -> Void)?
+    @Environment(\.appTheme) private var theme
     
     var body: some View {
         Button {
@@ -12,8 +13,8 @@ struct EncouragementWidget: View {
             ZStack {
                 // Background
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(.secondarySystemGroupedBackground))
-                    .shadow(color: Color.black.opacity(0.05), radius: 6, x: 0, y: 3)
+                    .fill(theme.colors.card)
+                    .shadow(color: theme.colors.shadow, radius: 6, x: 0, y: 3)
                 
                 // Content
                 Text(content)
@@ -21,7 +22,7 @@ struct EncouragementWidget: View {
                     .italic()
                     .lineSpacing(6)
                     .multilineTextAlignment(.center)
-                    .foregroundColor(.primary)
+                    .foregroundColor(theme.colors.primaryText)
                     .padding(24)
             }
         }

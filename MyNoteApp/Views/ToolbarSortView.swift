@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ToolbarSortView: View {
     @Environment(ToolbarSettings.self) private var settings
+    @Environment(\.appTheme) private var theme
 
     var body: some View {
         @Bindable var settings = settings
@@ -16,7 +17,7 @@ struct ToolbarSortView: View {
                             Image(systemName: settings.configs[index].type.icon)
                                 .font(.title3)
                                 .frame(width: 24)
-                                .foregroundColor(settings.configs[index].isEnabled ? .accentColor : .secondary)
+                                .foregroundColor(settings.configs[index].isEnabled ? theme.colors.accent : .secondary)
 
                             Text(settings.configs[index].type.title)
                                 .font(.body)
@@ -27,7 +28,7 @@ struct ToolbarSortView: View {
 
                         Toggle("", isOn: $settings.configs[index].isEnabled)
                             .labelsHidden()
-                            .toggleStyle(SwitchToggleStyle(tint: .accentColor))
+                            .toggleStyle(SwitchToggleStyle(tint: theme.colors.accent))
                     }
                 }
                 .onMove(perform: settings.moveNonMarkdown)
@@ -43,7 +44,7 @@ struct ToolbarSortView: View {
                             Image(systemName: settings.configs[markdownIndex].type.icon)
                                 .font(.title3)
                                 .frame(width: 24)
-                                .foregroundColor(settings.configs[markdownIndex].isEnabled ? .accentColor : .secondary)
+                                .foregroundColor(settings.configs[markdownIndex].isEnabled ? theme.colors.accent : .secondary)
 
                             Text(settings.configs[markdownIndex].type.title)
                                 .font(.body)
@@ -54,11 +55,13 @@ struct ToolbarSortView: View {
 
                         Toggle("", isOn: $settings.configs[markdownIndex].isEnabled)
                             .labelsHidden()
-                            .toggleStyle(SwitchToggleStyle(tint: .accentColor))
+                            .toggleStyle(SwitchToggleStyle(tint: theme.colors.accent))
                     }
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(theme.colors.background.ignoresSafeArea())
         .navigationTitle("工具栏")
         .environment(\.editMode, .constant(.active))
     }

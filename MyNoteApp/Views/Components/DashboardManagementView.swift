@@ -5,6 +5,7 @@ struct DashboardManagementView: View {
     @Environment(NoteStore.self) var noteStore
     @Bindable var dashboardConfig: DashboardConfig
     @Environment(ToolbarSettings.self) var toolbarSettings
+    @Environment(\.appTheme) private var theme
     @Binding var showingAddPageAlert: Bool
     @Binding var showingRenameAlert: Bool
     @Binding var newPageName: String
@@ -41,7 +42,7 @@ struct DashboardManagementView: View {
                     } label: {
                         Image(systemName: "ellipsis.circle")
                             .font(.headline)
-                            .foregroundColor(.accentColor)
+                            .foregroundColor(theme.colors.accent)
                     }
                     .padding(.trailing, 8)
                     
@@ -51,7 +52,7 @@ struct DashboardManagementView: View {
                     } label: {
                         Image(systemName: "plus")
                             .font(.headline)
-                            .foregroundColor(.accentColor)
+                            .foregroundColor(theme.colors.accent)
                     }
                 }, footer: 
                     HStack(spacing: 2) {
@@ -64,7 +65,7 @@ struct DashboardManagementView: View {
                             }
                         } label: {
                             Image(systemName: "ellipsis.circle")
-                                .foregroundColor(.accentColor)
+                                .foregroundColor(theme.colors.accent)
                         }
                         Text("添加起点配置。")
                     }
@@ -74,7 +75,7 @@ struct DashboardManagementView: View {
                         // 禁用的左侧点击行为（只是展示）
                         HStack {
                             Image(systemName: "rectangle.grid.1x2")
-                                .foregroundColor(.accentColor)
+                                .foregroundColor(theme.colors.accent)
                             
                             Text(page.name)
                                 .foregroundColor(.primary)
@@ -185,10 +186,16 @@ struct DashboardManagementView: View {
                 Toggle(isOn: $toolbarSettings.isVoiceInputEnabled) {
                     Label("语音转文字", systemImage: "mic.fill")
                 }
-                .toggleStyle(SwitchToggleStyle(tint: .accentColor))
+                .toggleStyle(SwitchToggleStyle(tint: theme.colors.accent))
                 
                 NavigationLink(destination: ToolbarSortView()) {
                     Label("工具栏", systemImage: "arrow.left.arrow.right")
+                }
+            }
+
+            Section(header: Text("外观")) {
+                NavigationLink(destination: ThemeSettingsView()) {
+                    Label("外观主题", systemImage: "paintpalette")
                 }
             }
 
@@ -243,7 +250,7 @@ struct DashboardManagementView: View {
                 if isExporting {
                     Text("正在整理笔记 \(exportCurrent) / \(exportTotal)，请稍候…")
                         .font(.caption)
-                        .foregroundColor(.accentColor)
+                        .foregroundColor(theme.colors.accent)
                 } else {
                     Text("按时间范围或标签筛选笔记，打包为 ZIP 文件导出")
                         .font(.caption)
@@ -257,6 +264,8 @@ struct DashboardManagementView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(theme.colors.background.ignoresSafeArea())
         .alert("确认删除", isPresented: $showDeleteConfirmation) {
             Button("取消", role: .cancel) { }
             Button("删除", role: .destructive) {
@@ -330,6 +339,7 @@ struct DashboardManagementView: View {
 struct ExportFilterSheet: View {
     @Environment(NoteStore.self) var noteStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.appTheme) private var theme
 
     /// 默认开始时间：当年 1 月 1 日
     @State private var startDate: Date = {
@@ -367,6 +377,8 @@ struct ExportFilterSheet: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(theme.colors.background.ignoresSafeArea())
             .navigationTitle("导出笔记")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

@@ -18,6 +18,7 @@ struct NoteListView: View {
     var splitViewSelection: Binding<NoteItem?>? = nil
 
     @Environment(NoteStore.self) var noteStore
+    @Environment(\.appTheme) private var theme
     @Query(
         filter: #Predicate<NoteItem> { $0.isDeleted == false },
         sort: \NoteItem.updatedAt,
@@ -178,9 +179,9 @@ struct NoteListView: View {
                                 }
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 3)
-                                .background(Color.accentColor.opacity(0.15))
+                                .background(theme.colors.accentSoft)
                                 .cornerRadius(5)
-                                .foregroundColor(.accentColor)
+                                .foregroundColor(theme.colors.accent)
                                 .overlay(alignment: .topTrailing) {
                                     Image(systemName: "xmark.circle.fill")
                                         .font(.system(size: 8))
@@ -219,7 +220,7 @@ struct NoteListView: View {
                         }
                     }
                     .padding(8)
-                    .background(Color(.systemGray5))
+                    .background(theme.colors.cardSecondary)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
 
                     Button("取消") {
@@ -277,7 +278,7 @@ struct NoteListView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
         }
-        .background(Color(.systemBackground))
+        .background(theme.colors.surface)
     }
 
     // MARK: - 空状态
@@ -486,6 +487,7 @@ struct NewNoteEditorView: View {
 struct GridNoteCard: View {
     let note: NoteItem
     @Environment(NoteStore.self) var noteStore
+    @Environment(\.appTheme) private var theme
     @State private var thumbnailImage: UIImage?
     
     // 获取第一个可显示缩略图的附件
@@ -517,7 +519,7 @@ struct GridNoteCard: View {
                         )
                     )
             } else {
-                Color(.systemGray6)
+                theme.colors.card
             }
             
             // 文本内容
@@ -535,7 +537,7 @@ struct GridNoteCard: View {
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 7)
                                 .padding(.vertical, 3)
-                                .background(Color.accentColor.opacity(0.85))
+                                .background(theme.colors.accent.opacity(0.85))
                                 .cornerRadius(4)
                         }
                         
@@ -587,7 +589,7 @@ struct GridNoteCard: View {
         }
         .frame(height: 140)
         .frame(maxWidth: .infinity)
-        .background(Color(.systemGray6))
+        .background(theme.colors.card)
         .cornerRadius(12)
         .onAppear {
             loadThumbnail()

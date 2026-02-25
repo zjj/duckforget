@@ -6,6 +6,7 @@ struct TagManagementSheet: View {
     let note: NoteItem
     @Environment(NoteStore.self) var noteStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.appTheme) private var theme
     
     @Query(sort: \TagItem.sortOrder) var allTags: [TagItem]
     
@@ -40,7 +41,7 @@ struct TagManagementSheet: View {
                                     }
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 6)
-                                    .background(Color.accentColor.opacity(0.2))
+                                    .background(theme.colors.accentSoft)
                                     .cornerRadius(16)
                                 }
                             }
@@ -64,7 +65,7 @@ struct TagManagementSheet: View {
                         } label: {
                             HStack {
                                 Image(systemName: selectedTagIds.contains(tag.id) ? "checkmark.circle.fill" : "circle")
-                                    .foregroundColor(selectedTagIds.contains(tag.id) ? .accentColor : .secondary)
+                                    .foregroundColor(selectedTagIds.contains(tag.id) ? theme.colors.accent : .secondary)
                                 
                                 Label {
                                     Text(tag.name)

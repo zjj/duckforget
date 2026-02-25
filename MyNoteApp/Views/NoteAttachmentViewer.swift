@@ -8,6 +8,7 @@ struct NavigableAttachmentViewerSheet: View {
     @Binding var currentIndex: Int
     @Environment(NoteStore.self) var noteStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.appTheme) private var theme
     
     private var currentAttachment: AttachmentItem {
         attachments[safe: currentIndex] ?? attachments.first!
@@ -51,7 +52,7 @@ struct NavigableAttachmentViewerSheet: View {
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
-            .background(Color(.systemBackground))
+            .background(theme.colors.surface)
             
             // 关闭按钮（左上角）
             VStack {
@@ -65,9 +66,9 @@ struct NavigableAttachmentViewerSheet: View {
                             .padding(12)
                             .background(
                                 Circle()
-                                    .fill(Color(.systemBackground).opacity(0.8))
+                                    .fill(theme.colors.surface.opacity(0.8))
                             )
-                            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                            .shadow(color: theme.colors.shadow, radius: 4, x: 0, y: 2)
                     }
                     .accessibilityLabel("关闭")
                     .padding(.leading, 16)
@@ -154,6 +155,7 @@ struct FullSizeAttachmentView: View {
     let noteStore: NoteStore
     @State private var image: UIImage?
     @State private var isLoading = true
+    @Environment(\.appTheme) private var theme
     
     var body: some View {
         Group {
@@ -179,11 +181,11 @@ struct FullSizeAttachmentView: View {
                     .resizable()
                     .scaledToFit()
                     .cornerRadius(12)
-                    .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                    .shadow(color: theme.colors.shadow, radius: 4, x: 0, y: 2)
             } else if isLoading {
                 ZStack {
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(.systemGray6))
+                        .fill(theme.colors.card)
                         .aspectRatio(4/3, contentMode: .fit)
                     
                     ProgressView()
@@ -191,7 +193,7 @@ struct FullSizeAttachmentView: View {
             } else {
                 ZStack {
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(.systemGray6))
+                        .fill(theme.colors.card)
                         .aspectRatio(4/3, contentMode: .fit)
                     
                     Image(systemName: "photo")
@@ -210,10 +212,10 @@ struct FullSizeAttachmentView: View {
                     .resizable()
                     .scaledToFit()
                     .cornerRadius(12)
-                    .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                    .shadow(color: theme.colors.shadow, radius: 4, x: 0, y: 2)
             } else {
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.systemGray6))
+                    .fill(theme.colors.card)
                     .aspectRatio(16/9, contentMode: .fit)
             }
             
@@ -242,7 +244,7 @@ struct FullSizeAttachmentView: View {
             Spacer()
         }
         .padding()
-        .background(Color(.systemGray6))
+        .background(theme.colors.card)
         .cornerRadius(12)
     }
     
@@ -263,7 +265,7 @@ struct FullSizeAttachmentView: View {
             Spacer()
         }
         .padding()
-        .background(Color(.systemGray6))
+        .background(theme.colors.card)
         .cornerRadius(12)
     }
     
@@ -274,10 +276,10 @@ struct FullSizeAttachmentView: View {
                     .resizable()
                     .scaledToFit()
                     .cornerRadius(12)
-                    .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                    .shadow(color: theme.colors.shadow, radius: 4, x: 0, y: 2)
             } else {
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.systemGray6))
+                    .fill(theme.colors.card)
                     .aspectRatio(16/9, contentMode: .fit)
             }
             

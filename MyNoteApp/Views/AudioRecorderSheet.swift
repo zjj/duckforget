@@ -5,6 +5,7 @@ struct AudioRecorderSheet: View {
     let note: NoteItem
     @Environment(NoteStore.self) var noteStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.appTheme) private var theme
     @State private var recorder = AudioRecorderService()
 
     var body: some View {
@@ -58,7 +59,7 @@ struct AudioRecorderSheet: View {
                 .fill(
                     recorder.isRecording
                         ? Color.red.opacity(0.08)
-                        : Color(.systemGray5)
+                        : theme.colors.cardSecondary
                 )
                 .frame(width: 160, height: 160)
 

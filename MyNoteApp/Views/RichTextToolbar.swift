@@ -8,6 +8,7 @@ struct RichTextToolbar: View {
     let onBulletList: () -> Void
     let onNumberedList: () -> Void
     let onDismissKeyboard: () -> Void
+    @Environment(\.appTheme) private var theme
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -32,14 +33,14 @@ struct RichTextToolbar: View {
                 Button(action: onDismissKeyboard) {
                     Image(systemName: "keyboard.chevron.compact.down")
                         .font(.system(size: 16))
-                        .foregroundColor(.accentColor)
+                    .foregroundColor(theme.colors.accent)
                         .frame(width: 36, height: 36)
                 }
             }
             .padding(.horizontal, 8)
         }
         .frame(height: 40)
-        .background(Color(.systemGray6))
+        .background(theme.colors.card)
     }
 
     private func formatButton(icon: String, action: @escaping () -> Void) -> some View {

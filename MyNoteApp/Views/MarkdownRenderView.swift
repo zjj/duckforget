@@ -4,6 +4,7 @@ import SwiftUI
 
 struct MarkdownRenderView: View {
     let content: String
+    @Environment(\.appTheme) private var theme
 
     // 链接跳转确认
     @State private var pendingLinkURL: URL?
@@ -142,14 +143,14 @@ struct MarkdownRenderView: View {
                     .padding(12)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .background(Color(.systemGray6))
+            .background(theme.colors.card)
             .cornerRadius(8)
             .padding(.vertical, 4)
 
         case .blockquote(let text):
             HStack(alignment: .top, spacing: 0) {
                 RoundedRectangle(cornerRadius: 2)
-                    .fill(Color.accentColor)
+                    .fill(theme.colors.accent)
                     .frame(width: 3)
                 inlineText(text)
                     .foregroundColor(.secondary)
@@ -179,7 +180,7 @@ struct MarkdownRenderView: View {
         case .checkbox(let checked, let text):
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: checked ? "checkmark.square.fill" : "square")
-                    .foregroundColor(checked ? .accentColor : .secondary)
+                    .foregroundColor(checked ? theme.colors.accent : theme.colors.secondaryText)
                     .font(.system(size: 15))
                 inlineText(text)
                     .strikethrough(checked, color: .secondary)
@@ -287,7 +288,7 @@ struct MarkdownRenderView: View {
                             }
                             .padding(8)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color(.secondarySystemBackground))
+                            .background(theme.colors.cardSecondary)
                             .cornerRadius(8)
                         }
                         if !alt.isEmpty {

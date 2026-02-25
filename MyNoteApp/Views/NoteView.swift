@@ -13,6 +13,7 @@ struct NoteView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.scenePhase) var scenePhase
     @Environment(ToolbarSettings.self) var toolbarSettings
+    @Environment(\.appTheme) var theme
 
     // 编辑模式状态
     @State var isEditMode = false
@@ -271,6 +272,7 @@ struct NoteView: View {
 
     private var baseView: some View {
         mainZStackContent
+        .background(theme.colors.background.ignoresSafeArea())
         .background {
             GeometryReader { geo in
                 Color.clear
