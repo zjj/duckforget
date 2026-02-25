@@ -89,7 +89,7 @@ struct NoteView: View {
     
     // 当前行待办状态
     @State var currentLineIsTodo = false
-    @State var currentLineIsTodoChecked = false
+    @State var currentLineIsTodoCouldBeChecked = false
     @State var todoToggleButtonPressed = false
 
     // Markdown 编辑器协调器

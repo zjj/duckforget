@@ -20,6 +20,9 @@ extension NoteView {
                         applyFormatAction(action)
                         let generator = UIImpactFeedbackGenerator(style: .light)
                         generator.impactOccurred()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                            updateCurrentLineTodoStatus()
+                        }
                     } label: {
                         Group {
                             if let label = action.customLabel {
@@ -51,6 +54,9 @@ extension NoteView {
                         applyFormatAction(action)
                         let generator = UIImpactFeedbackGenerator(style: .light)
                         generator.impactOccurred()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                            updateCurrentLineTodoStatus()
+                        }
                     } label: {
                         Group {
                             if let label = action.customLabel {
@@ -66,28 +72,30 @@ extension NoteView {
                     }
                     .accessibilityLabel(action.title)
 
+                    // 待办切换按钮：插入在 checkbox 图标之后、分割线图标之前
+                    if action == .checkbox {
+                        Divider()
+                            .frame(height: 24)
+                        
+                        Button {
+                            toggleTodoCheckbox()
+                        } label: {
+                            Text((currentLineIsTodo && currentLineIsTodoCouldBeChecked) ? "[x]" : "[ ]")
+                                .font(.system(size: 14, weight: .medium, design: .monospaced))
+                                .foregroundColor(currentLineIsTodo ? .teal : .gray)
+                                .frame(maxWidth: .infinity, minHeight: 36)
+                                .opacity(todoToggleButtonPressed ? 0.3 : 1.0)
+                                .scaleEffect(todoToggleButtonPressed ? 1.2 : 1.0)
+                        }
+                        .disabled(!currentLineIsTodo)
+                        .animation(.easeInOut(duration: 0.15), value: todoToggleButtonPressed)
+                    }
+
                     if action != row2.last {
                         Divider()
                             .frame(height: 24)
                     }
                 }
-                
-                // 待办切换按钮
-                Divider()
-                    .frame(height: 24)
-                
-                Button {
-                    toggleTodoCheckbox()
-                } label: {
-                    Text(currentLineIsTodoChecked ? "[x]" : "[ ]")
-                        .font(.system(size: 14, weight: .medium, design: .monospaced))
-                        .foregroundColor(currentLineIsTodo ? .teal : .gray)
-                        .frame(maxWidth: .infinity, minHeight: 36)
-                        .opacity(todoToggleButtonPressed ? 0.3 : 1.0)
-                        .scaleEffect(todoToggleButtonPressed ? 1.2 : 1.0)
-                }
-                .disabled(!currentLineIsTodo)
-                .animation(.easeInOut(duration: 0.15), value: todoToggleButtonPressed)
             }
         }
         .background(Color(.systemGray6))

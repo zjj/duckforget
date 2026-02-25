@@ -56,13 +56,13 @@ extension NoteView {
     func updateCurrentLineTodoStatus() {
         guard let coord = markdownCoordinator else {
             currentLineIsTodo = false
-            currentLineIsTodoChecked = false
+            currentLineIsTodoCouldBeChecked = false
             return
         }
         
         let lineText = coord.getCurrentLineText()
         currentLineIsTodo = lineText.hasPrefix("- [ ] ") || lineText.hasPrefix("- [x] ") || lineText.hasPrefix("- [X] ")
-        currentLineIsTodoChecked = lineText.hasPrefix("- [x] ") || lineText.hasPrefix("- [X] ")
+        currentLineIsTodoCouldBeChecked = !lineText.hasPrefix("- [x] ") && !lineText.hasPrefix("- [X] ")
     }
 
     /// 应用格式操作（支持选中文本时包裹、无选中时插入）
