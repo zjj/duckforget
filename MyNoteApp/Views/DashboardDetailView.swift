@@ -297,7 +297,7 @@ struct DashboardRow: View {
         .navigationDestination(isPresented: $showRecentNotesDetail) {
             NoteSearchPage(
                 pageTitle: "最近记录",
-                filterRecentDays: 7,
+                filterRecentDays: 2,
                 hideSearchBar: false
             )
             .environment(noteStore)

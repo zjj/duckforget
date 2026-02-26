@@ -1112,7 +1112,7 @@ struct RecentNotesFullPagePreview: View {
                         if displayedNotes.count > 100 {
                             NavigationLink(destination: NoteSearchPage(
                                 pageTitle: "最近记录",
-                                filterRecentDays: 7,
+                                filterRecentDays: 2,
                                 hideSearchBar: false
                             ).environment(noteStore)) {
                                 HStack {
