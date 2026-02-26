@@ -17,6 +17,13 @@ struct MyNoteAppApp: App {
     @State private var appSettings = AppSettings.shared
 
     init() {
+        #if DEBUG
+        // Prints every SQL statement SwiftData/Core Data executes.
+        // Level 1 = statements, 2 = + row counts, 3 = + bind variables.
+        UserDefaults.standard.set(1, forKey: "com.apple.CoreData.SQLDebug")
+        UserDefaults.standard.set(1, forKey: "com.apple.CoreData.Logging.stderr")
+        #endif
+
         let schema = Schema([NoteItem.self, AttachmentItem.self, TagItem.self])
         let config = ModelConfiguration(schema: schema)
 
