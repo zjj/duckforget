@@ -19,13 +19,45 @@ struct NoteListView: View {
 
     @Environment(NoteStore.self) var noteStore
     @Environment(\.appTheme) private var theme
-    @Query(
-        filter: #Predicate<NoteItem> { $0.isDeleted == false },
-        sort: \NoteItem.updatedAt,
-        order: .reverse
-    ) var allActiveNotes: [NoteItem]
+    
+    // Limit query to most recent 100 notes to prevent freeze on large databases
+    @Query var allActiveNotes: [NoteItem]
     
     @Query(sort: \TagItem.sortOrder) private var allTags: [TagItem]
+    
+    init(
+        showAllNotes: Bool = false,
+        initialSearchText: String = "",
+        hideSearchBar: Bool = false,
+        hideBottomBar: Bool = false,
+        hideNavigationTitle: Bool = false,
+        viewMode: ViewMode = .list,
+        sortMode: SortMode = .dateModified,
+        filterRecentDays: Int? = nil,
+        customTitle: String? = nil,
+        initialSelectedTag: TagItem? = nil,
+        splitViewSelection: Binding<NoteItem?>? = nil
+    ) {
+        self.showAllNotes = showAllNotes
+        self.initialSearchText = initialSearchText
+        self.hideSearchBar = hideSearchBar
+        self.hideBottomBar = hideBottomBar
+        self.hideNavigationTitle = hideNavigationTitle
+        self.viewMode = viewMode
+        self.sortMode = sortMode
+        self.filterRecentDays = filterRecentDays
+        self.customTitle = customTitle
+        self.initialSelectedTag = initialSelectedTag
+        self.splitViewSelection = splitViewSelection
+        
+        // Fetch only recent 100 notes to avoid loading entire database at launch
+        var descriptor = FetchDescriptor<NoteItem>(
+            predicate: #Predicate { !$0.isDeleted }
+        )
+        descriptor.sortBy = [SortDescriptor(\.updatedAt, order: .reverse)]
+        descriptor.fetchLimit = 100
+        _allActiveNotes = Query(descriptor)
+    }
     
     @State private var searchText = ""
     @State private var selectedTag: TagItem? = nil // 新增：当前选中的标签

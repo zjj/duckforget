@@ -4,13 +4,18 @@ import SwiftUI
 /// 废纸篓视图 - 显示最近删除的记录
 struct TrashView: View {
     @Environment(NoteStore.self) var noteStore
-    @Query(
-        filter: #Predicate<NoteItem> { $0.isDeleted == true },
-        sort: \NoteItem.updatedAt,
-        order: .reverse
-    ) var trashedNotes: [NoteItem]
+    @Query var trashedNotes: [NoteItem]
     
     let appSettings = AppSettings.shared
+    
+    init() {
+        var descriptor = FetchDescriptor<NoteItem>(
+            predicate: #Predicate { $0.isDeleted == true }
+        )
+        descriptor.sortBy = [SortDescriptor(\.updatedAt, order: .reverse)]
+        descriptor.fetchLimit = 500  // Limit to most recent 500 trashed notes
+        _trashedNotes = Query(descriptor)
+    }
     
     @State private var noteToDelete: NoteItem?
     @State private var showDeleteConfirmation = false

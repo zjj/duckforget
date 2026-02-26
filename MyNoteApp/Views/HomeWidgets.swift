@@ -375,15 +375,21 @@ struct RecentNotesWidget: View {
 
 struct TrashWidget: View {
     @Environment(NoteStore.self) var noteStore
-    @Query(
-        filter: #Predicate<NoteItem> { $0.isDeleted == true },
-        sort: \NoteItem.deletedAt,
-        order: .reverse
-    ) var trashedNotes: [NoteItem]
+    @Query var trashedNotes: [NoteItem]
     
     let size: WidgetSize
     let appSettings = AppSettings.shared
     @Environment(\.appTheme) private var theme
+    
+    init(size: WidgetSize) {
+        self.size = size
+        var descriptor = FetchDescriptor<NoteItem>(
+            predicate: #Predicate { $0.isDeleted == true }
+        )
+        descriptor.sortBy = [SortDescriptor(\.deletedAt, order: .reverse)]
+        descriptor.fetchLimit = 100  // Limit to most recent 100 trashed notes
+        _trashedNotes = Query(descriptor)
+    }
     
     var displayedNotes: [NoteItem] {
         switch size {
@@ -479,13 +485,18 @@ struct TrashCardButton: View {
 
 struct TrashDetailPage: View {
     @Environment(NoteStore.self) var noteStore
-    @Query(
-        filter: #Predicate<NoteItem> { $0.isDeleted == true },
-        sort: \NoteItem.deletedAt,
-        order: .reverse
-    ) var trashedNotes: [NoteItem]
+    @Query var trashedNotes: [NoteItem]
     
     let appSettings = AppSettings.shared
+    
+    init() {
+        var descriptor = FetchDescriptor<NoteItem>(
+            predicate: #Predicate { $0.isDeleted == true }
+        )
+        descriptor.sortBy = [SortDescriptor(\.deletedAt, order: .reverse)]
+        descriptor.fetchLimit = 500  // Limit to most recent 500 trashed notes
+        _trashedNotes = Query(descriptor)
+    }
     
     @State private var noteToDelete: NoteItem?
     @State private var showDeleteConfirmation = false
