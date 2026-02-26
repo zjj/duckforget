@@ -57,16 +57,18 @@ enum DateSection: String, CaseIterable {
     static func section(for date: Date) -> DateSection {
         let calendar = Calendar.current
         let now = Date()
-        
+
         if calendar.isDateInToday(date) {
             return .today
         } else if calendar.isDateInYesterday(date) {
             return .yesterday
-        } else if let weekAgo = calendar.date(byAdding: .weekOfYear, value: -1, to: now),
-                  date >= weekAgo {
+        } else if let startOfWeek = calendar.dateInterval(of: .weekOfYear, for: now)?.start,
+                  date >= startOfWeek {
+            // 本自然周（周一/周日起，取决于系统地区设置）至昨天的区间
             return .thisWeek
-        } else if let monthAgo = calendar.date(byAdding: .month, value: -1, to: now),
-                  date >= monthAgo {
+        } else if let startOfMonth = calendar.dateInterval(of: .month, for: now)?.start,
+                  date >= startOfMonth {
+            // 本自然月 1 日起至上周末的区间
             return .thisMonth
         } else {
             return .earlier
