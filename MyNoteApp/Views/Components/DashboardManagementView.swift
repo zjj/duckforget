@@ -25,6 +25,12 @@ struct DashboardManagementView: View {
     @State private var exportCurrent: Int = 0
     @State private var exportTotal: Int = 0
 
+    #if DEBUG
+    @State private var isSeeding = false
+    @State private var seedProgress: (Int, Int) = (0, 0)
+    @State private var showDeleteAllConfirm = false
+    #endif
+
     var body: some View {
         @Bindable var toolbarSettings = toolbarSettings
         List {
@@ -257,6 +263,63 @@ struct DashboardManagementView: View {
                         .foregroundColor(.secondary)
                 }
             }
+
+            #if DEBUG
+            Section {
+                // Seed notes
+                Button {
+                    guard !isSeeding else { return }
+                    isSeeding = true
+                    seedProgress = (0, 10_000)
+                    let ctx = noteStore.modelContext
+                    Task {
+                        await DebugDataSeeder.seedNotes(into: ctx) { done, total in
+                            seedProgress = (done, total)
+                        }
+                        isSeeding = false
+                    }
+                } label: {
+                    HStack {
+                        Label("插入 10 000 条测试笔记", systemImage: "doc.badge.plus")
+                            .foregroundColor(.primary)
+                        Spacer()
+                        if isSeeding {
+                            HStack(spacing: 6) {
+                                Text("\(seedProgress.0)/\(seedProgress.1)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .monospacedDigit()
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                            }
+                        }
+                    }
+                }
+                .disabled(isSeeding)
+
+                // Delete all notes
+                Button(role: .destructive) {
+                    showDeleteAllConfirm = true
+                } label: {
+                    Label("删除全部笔记", systemImage: "trash.fill")
+                }
+                .disabled(isSeeding)
+            } header: {
+                Text("🛠 Developer")
+            } footer: {
+                Text("仅在 Debug 构建中可见，Release 版本不包含此区域。")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .alert("确认删除全部", isPresented: $showDeleteAllConfirm) {
+                Button("取消", role: .cancel) {}
+                Button("全部删除", role: .destructive) {
+                    DebugDataSeeder.deleteAllNotes(from: noteStore.modelContext)
+                }
+            } message: {
+                Text("将从数据库中永久移除所有笔记（包括废纸篓），此操作不可撤销。")
+            }
+            #endif
 
             Section(header: Text("其它")) {
                 NavigationLink(destination: AboutView()) {
