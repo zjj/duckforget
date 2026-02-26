@@ -124,20 +124,26 @@ class NoteStore {
 
     /// 永久删除记录及其所有附件文件
     func permanentlyDeleteNote(_ note: NoteItem) {
-        for attachment in note.attachments {
-            removeAttachmentFile(attachment)
-        }
+        let attachmentsToDelete = note.attachments
         deindexNoteFromSpotlight(note)
         modelContext.delete(note)
-        saveContext()
+        // 先保存数据库，成功后再清理物理文件（防止数据库保存失败导致文件丢失）
+        saveContext {
+            attachmentsToDelete.forEach { self.removeAttachmentFile($0) }
+        }
     }
 
-    /// 清空废纸篓
+    /// 清空废纸篓（批量删除，仅一次 modelContext.save()）
     func emptyTrash() {
         let descriptor = FetchDescriptor<NoteItem>(predicate: #Predicate { $0.isDeleted == true })
-        guard let trashed = try? modelContext.fetch(descriptor) else { return }
+        guard let trashed = try? modelContext.fetch(descriptor), !trashed.isEmpty else { return }
+        let allAttachments = trashed.flatMap { $0.attachments }
         for note in trashed {
-            permanentlyDeleteNote(note)
+            deindexNoteFromSpotlight(note)
+            modelContext.delete(note)
+        }
+        saveContext {
+            allAttachments.forEach { self.removeAttachmentFile($0) }
         }
     }
 
@@ -210,14 +216,24 @@ class NoteStore {
         if let thumbnailData = thumbnailData {
             thumbnailFileName = "\(fileID)_thumb.jpg"
             let thumbURL = attachmentsDirectory.appendingPathComponent(thumbnailFileName!)
-            try? thumbnailData.write(to: thumbURL)
+            do {
+                try thumbnailData.write(to: thumbURL)
+            } catch {
+                print("❌ 保存缩略图失败: \(error)")
+                return nil
+            }
         }
 
         let fileURL = attachmentsDirectory.appendingPathComponent(fileName)
         do {
             try data.write(to: fileURL)
         } catch {
-            print("❌ 保存附件失败: \(error)")
+            print("❌ 保存附件数据失败: \(error)")
+            // 回退：如果缩略图已写入但主文件写入失败，则尝试清理缩略图
+            if let thumbName = thumbnailFileName {
+                let thumbURL = attachmentsDirectory.appendingPathComponent(thumbName)
+                try? FileManager.default.removeItem(at: thumbURL)
+            }
             return nil
         }
 
@@ -241,19 +257,13 @@ class NoteStore {
 
     /// 删除附件
     func deleteAttachment(_ attachment: AttachmentItem, shouldSave: Bool = true) {
-        // 如果是自动保存模式，则立即删除物理文件
-        if shouldSave {
-            removeAttachmentFile(attachment)
-        }
-
         if let note = attachment.note {
             note.updatedAt = Date()
         }
-
         modelContext.delete(attachment)
-        
         if shouldSave {
-            saveContext()
+            // 先保存数据库，成功后再删除物理文件（防止破损链接）
+            saveContext { self.removeAttachmentFile(attachment) }
         }
     }
 
@@ -364,11 +374,14 @@ class NoteStore {
 
     // MARK: - Persistence
 
-    /// 保存 ModelContext。Debug 下通过 assertionFailure 暴露错误；Release 下打印日志静默处理，避免数据静默丢失。
-    private func saveContext() {
+    /// 保存 ModelContext。保存成功后执行 onSuccess 回调（用于依赖保存结果的后续操作，例如删除物理文件）。
+    /// Debug 下通过 assertionFailure 暴露错误；Release 下打印日志静默处理，避免数据静默丢失。
+    private func saveContext(onSuccess: (() -> Void)? = nil) {
         do {
             try modelContext.save()
+            onSuccess?()
         } catch {
+            print("❌ [NoteStore] modelContext.save() 失败: \(error)")
             assertionFailure("[NoteStore] modelContext.save() 失败: \(error)")
         }
     }

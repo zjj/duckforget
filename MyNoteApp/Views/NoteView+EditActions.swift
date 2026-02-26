@@ -34,12 +34,16 @@ extension NoteView {
         }
         deletedAttachmentIDs.removeAll()
         
-        // 清空待删除列表
+        // 最终更新内容共并持久化
+        note.content = content
         note.pendingDeletedAttachmentIDs = []
         
         // 清空undo/redo历史（完成编辑后清空）
         undoRedoManager.clear()
         note.undoRedoHistoryData = nil
+        
+        // 统一提交保存（updateNote 内部已调用 saveContext）
+        noteStore.updateNote(note)
         
         // 取消键盘焦点
         markdownCoordinator?.blur()
@@ -126,9 +130,8 @@ extension NoteView {
         // 保存undo/redo历史到数据库
         note.undoRedoHistoryData = undoRedoManager.serializeHistory()
         
-        // 保存到数据库
+        // 保存到数据库（updateNote 内部已调用 saveContext）
         noteStore.updateNote(note)
-        try? noteStore.modelContext.save()
         
         // 更新基准状态
         initialContent = note.content
