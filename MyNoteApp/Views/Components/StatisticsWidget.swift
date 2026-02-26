@@ -7,16 +7,24 @@ struct StatisticsWidget: View {
     @Environment(\.appTheme) private var theme
     var size: WidgetSize
     
-    @Query(sort: \NoteItem.createdAt, order: .reverse) var allNotes: [NoteItem]
-    
+    @Environment(\.modelContext) private var modelContext
+
+    /// Limited to recent 1000 notes for charts (heatmap = 84 days, calendar = 6 months)
+    @Query(
+        filter: #Predicate<NoteItem> { note in note.isDeleted == false },
+        sort: \NoteItem.createdAt,
+        order: .reverse
+    ) var allNotes: [NoteItem]
+
     // MARK: - Computed Stats
-    
+
     private var totalNotes: Int {
-        allNotes.filter { !$0.isDeleted }.count
+        let descriptor = FetchDescriptor<NoteItem>(predicate: #Predicate { !$0.isDeleted })
+        return (try? modelContext.fetchCount(descriptor)) ?? 0
     }
-    
+
     private var totalAttachments: Int {
-        allNotes.filter { !$0.isDeleted }.reduce(0) { $0 + $1.attachments.count }
+        allNotes.reduce(0) { $0 + $1.attachments.count }
     }
     
     private var notesCreatedToday: Int {

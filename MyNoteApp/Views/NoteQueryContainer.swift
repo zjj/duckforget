@@ -14,18 +14,26 @@ enum NoteFilterMode {
 
 // MARK: - NoteQueryContainer
 
-/// 持有动态 @Query，在 DB 层完成 isDeleted / 标签 / 日期 / 第一个词预过滤；
-/// 内存层仅对缩小后的结果集做完整多词匹配，再按 sortMode 排序，最终交给 NoteListContentView 渲染。
+/// 分页流式查询容器：每次从 DB 取 pageSize 条，滚动到底部自动加载下一页。
+/// DB 层完成 isDeleted / 标签 / 日期 / 第一个词预过滤；内存层做完整多词匹配与排序。
 struct NoteQueryContainer: View {
-    @Query var notes: [NoteItem]
-
+    // MARK: Inputs
+    let filterMode: NoteFilterMode
     let searchText: String
     let viewMode: ViewMode
     let sortMode: SortMode
     let isEmbedded: Bool
     let onSearchTap: (() -> Void)?
-    let filterTagName: String? // 用于 NoteListContentView 的空状态文案
+    let filterTagName: String?
+    let pageSize: Int
 
+    // MARK: Pagination state
+    @State private var fetchedNotes: [NoteItem] = []
+    @State private var currentLimit: Int = 0     // grows by pageSize each page
+    @State private var hasMore: Bool = true
+    @State private var isLoadingMore: Bool = false
+
+    @Environment(\.modelContext) private var modelContext
     @Environment(NoteStore.self) var noteStore
 
     init(
@@ -35,98 +43,22 @@ struct NoteQueryContainer: View {
         sortMode: SortMode,
         isEmbedded: Bool = false,
         onSearchTap: (() -> Void)? = nil,
-        filterTagName: String? = nil
+        filterTagName: String? = nil,
+        pageSize: Int = 100
     ) {
+        self.filterMode = filterMode
         self.searchText = searchText
         self.viewMode = viewMode
         self.sortMode = sortMode
         self.isEmbedded = isEmbedded
         self.onSearchTap = onSearchTap
         self.filterTagName = filterTagName
-
-        let firstToken = NoteQueryContainer.extractFirstToken(from: searchText)
-
-        // 穷举 8 种（4 基础模式 × 有/无 firstToken），绕过 #Predicate 不支持动态分支的限制
-        let descriptor: FetchDescriptor<NoteItem>
-        switch (filterMode, firstToken) {
-
-        case (.all, nil):
-            descriptor = FetchDescriptor<NoteItem>(
-                predicate: #Predicate<NoteItem> { $0.isDeleted == false }
-            )
-
-        case (.all, let token?):
-            descriptor = FetchDescriptor<NoteItem>(
-                predicate: #Predicate<NoteItem> { note in
-                    note.isDeleted == false
-                        && note.content.localizedStandardContains(token)
-                }
-            )
-
-        case (.byTag(let name), nil):
-            descriptor = FetchDescriptor<NoteItem>(
-                predicate: #Predicate<NoteItem> { note in
-                    note.isDeleted == false
-                        && note.tags.contains { $0.name == name }
-                }
-            )
-
-        case (.byTag(let name), let token?):
-            descriptor = FetchDescriptor<NoteItem>(
-                predicate: #Predicate<NoteItem> { note in
-                    note.isDeleted == false
-                        && note.tags.contains { $0.name == name }
-                        && note.content.localizedStandardContains(token)
-                }
-            )
-
-        case (.dateRange(let start, let end), nil):
-            descriptor = FetchDescriptor<NoteItem>(
-                predicate: #Predicate<NoteItem> { note in
-                    note.isDeleted == false
-                        && note.updatedAt >= start
-                        && note.updatedAt < end
-                }
-            )
-
-        case (.dateRange(let start, let end), let token?):
-            descriptor = FetchDescriptor<NoteItem>(
-                predicate: #Predicate<NoteItem> { note in
-                    note.isDeleted == false
-                        && note.updatedAt >= start
-                        && note.updatedAt < end
-                        && note.content.localizedStandardContains(token)
-                }
-            )
-
-        case (.byTagAndDateRange(let name, let start, let end), nil):
-            descriptor = FetchDescriptor<NoteItem>(
-                predicate: #Predicate<NoteItem> { note in
-                    note.isDeleted == false
-                        && note.tags.contains { $0.name == name }
-                        && note.updatedAt >= start
-                        && note.updatedAt < end
-                }
-            )
-
-        case (.byTagAndDateRange(let name, let start, let end), let token?):
-            descriptor = FetchDescriptor<NoteItem>(
-                predicate: #Predicate<NoteItem> { note in
-                    note.isDeleted == false
-                        && note.tags.contains { $0.name == name }
-                        && note.updatedAt >= start
-                        && note.updatedAt < end
-                        && note.content.localizedStandardContains(token)
-                }
-            )
-        }
-
-        _notes = Query(descriptor)
+        self.pageSize = pageSize
     }
 
     // MARK: - First-token extraction (DB pre-filter)
 
-    /// 从查询字符串提取第一个词元，供 DB 层两阶段过滤使用（只取第一词缩量；完整多词匹配在内存层完成）
+    /// 从查询字符串提取第一个词元，供 DB 层两阶段过滤使用
     static func extractFirstToken(from query: String) -> String? {
         guard !query.isEmpty else { return nil }
         let tokenizer = NLTokenizer(unit: .word)
@@ -134,9 +66,103 @@ struct NoteQueryContainer: View {
         var first: String?
         tokenizer.enumerateTokens(in: query.startIndex..<query.endIndex) { range, _ in
             first = String(query[range])
-            return false // 只取第一个
+            return false
         }
         return first
+    }
+
+    // MARK: - Descriptor builder (called at fetch time, so Date() is always fresh)
+
+    private func makeDescriptor(limit: Int, offset: Int = 0) -> FetchDescriptor<NoteItem> {
+        let firstToken = NoteQueryContainer.extractFirstToken(from: searchText)
+
+        var descriptor: FetchDescriptor<NoteItem>
+        switch (filterMode, firstToken) {
+        case (.all, nil):
+            descriptor = FetchDescriptor<NoteItem>(
+                predicate: #Predicate { $0.isDeleted == false })
+
+        case (.all, let token?):
+            descriptor = FetchDescriptor<NoteItem>(
+                predicate: #Predicate { note in
+                    note.isDeleted == false && note.content.localizedStandardContains(token)
+                })
+
+        case (.byTag(let name), nil):
+            descriptor = FetchDescriptor<NoteItem>(
+                predicate: #Predicate { note in
+                    note.isDeleted == false && note.tags.contains { $0.name == name }
+                })
+
+        case (.byTag(let name), let token?):
+            descriptor = FetchDescriptor<NoteItem>(
+                predicate: #Predicate { note in
+                    note.isDeleted == false
+                        && note.tags.contains { $0.name == name }
+                        && note.content.localizedStandardContains(token)
+                })
+
+        case (.dateRange(let start, let end), nil):
+            descriptor = FetchDescriptor<NoteItem>(
+                predicate: #Predicate { note in
+                    note.isDeleted == false && note.updatedAt >= start && note.updatedAt < end
+                })
+
+        case (.dateRange(let start, let end), let token?):
+            descriptor = FetchDescriptor<NoteItem>(
+                predicate: #Predicate { note in
+                    note.isDeleted == false
+                        && note.updatedAt >= start && note.updatedAt < end
+                        && note.content.localizedStandardContains(token)
+                })
+
+        case (.byTagAndDateRange(let name, let start, let end), nil):
+            descriptor = FetchDescriptor<NoteItem>(
+                predicate: #Predicate { note in
+                    note.isDeleted == false
+                        && note.tags.contains { $0.name == name }
+                        && note.updatedAt >= start && note.updatedAt < end
+                })
+
+        case (.byTagAndDateRange(let name, let start, let end), let token?):
+            descriptor = FetchDescriptor<NoteItem>(
+                predicate: #Predicate { note in
+                    note.isDeleted == false
+                        && note.tags.contains { $0.name == name }
+                        && note.updatedAt >= start && note.updatedAt < end
+                        && note.content.localizedStandardContains(token)
+                })
+        }
+
+        descriptor.sortBy = [SortDescriptor(\.updatedAt, order: .reverse)]
+        descriptor.fetchLimit = limit
+        descriptor.fetchOffset = offset
+        return descriptor
+    }
+
+    // MARK: - Fetch helpers
+
+    /// 重置并从头加载第一页
+    private func resetAndFetch() {
+        let desc = makeDescriptor(limit: pageSize, offset: 0)
+        let result = (try? modelContext.fetch(desc)) ?? []
+        fetchedNotes = result
+        currentLimit = pageSize
+        // 如果返回条数等于 pageSize，说明可能还有更多
+        hasMore = result.count == pageSize
+        isLoadingMore = false
+    }
+
+    /// 追加加载下一页（用 offset 方式，避免重新发起全量查询）
+    private func loadNextPage() {
+        guard hasMore, !isLoadingMore else { return }
+        isLoadingMore = true
+        let offset = fetchedNotes.count
+        let desc = makeDescriptor(limit: pageSize, offset: offset)
+        let next = (try? modelContext.fetch(desc)) ?? []
+        fetchedNotes.append(contentsOf: next)
+        hasMore = next.count == pageSize
+        isLoadingMore = false
     }
 
     // MARK: - Memory sort + full multi-token filtering
@@ -144,17 +170,16 @@ struct NoteQueryContainer: View {
     private var sortedNotes: [NoteItem] {
         switch sortMode {
         case .dateModified:
-            return notes.sorted { $0.updatedAt > $1.updatedAt }
+            return fetchedNotes.sorted { $0.updatedAt > $1.updatedAt }
         case .dateCreated:
-            return notes.sorted { $0.createdAt > $1.createdAt }
+            return fetchedNotes.sorted { $0.createdAt > $1.createdAt }
         case .title:
-            return notes.sorted {
+            return fetchedNotes.sorted {
                 $0.preview.localizedCaseInsensitiveCompare($1.preview) == .orderedAscending
             }
         }
     }
 
-    /// Token Match：对查询字符串分词，要求所有词元均出现在笔记内容中
     private func noteMatchesQuery(_ note: NoteItem, query: String) -> Bool {
         guard !query.isEmpty else { return true }
         let tokenizer = NLTokenizer(unit: .word)
@@ -164,17 +189,26 @@ struct NoteQueryContainer: View {
             tokens.append(String(query[range]))
             return true
         }
-        guard !tokens.isEmpty else {
-            return note.content.localizedCaseInsensitiveContains(query)
-        }
+        guard !tokens.isEmpty else { return note.content.localizedCaseInsensitiveContains(query) }
         return tokens.allSatisfy { note.content.localizedCaseInsensitiveContains($0) }
     }
 
-    /// DB 已过滤 → 内存完整多词匹配 → 排序后的最终展示列表
     var displayNotes: [NoteItem] {
         let sorted = sortedNotes
         guard !searchText.isEmpty else { return sorted }
         return sorted.filter { noteMatchesQuery($0, query: searchText) }
+    }
+
+    // MARK: - Body
+
+    // filterMode has no Equatable, so we track changes via a string key
+    private var filterKey: String {
+        switch filterMode {
+        case .all: return "all|\(searchText)|\(sortMode)"
+        case .byTag(let n): return "tag:\(n)|\(searchText)|\(sortMode)"
+        case .dateRange(let s, _): return "date:\(s.timeIntervalSince1970)|\(searchText)|\(sortMode)"
+        case .byTagAndDateRange(let n, let s, _): return "tagdate:\(n):\(s.timeIntervalSince1970)|\(searchText)|\(sortMode)"
+        }
     }
 
     var body: some View {
@@ -185,9 +219,15 @@ struct NoteQueryContainer: View {
             isEmbedded: isEmbedded,
             onSearchTap: onSearchTap,
             filterTagName: filterTagName,
-            searchText: searchText
+            searchText: searchText,
+            hasMore: hasMore,
+            isLoadingMore: isLoadingMore,
+            onLoadMore: loadNextPage
         )
         .environment(noteStore)
+        .task(id: filterKey) {
+            resetAndFetch()
+        }
     }
 }
 
@@ -201,8 +241,11 @@ struct NoteListContentView: View {
     let sortMode: SortMode
     var isEmbedded: Bool = false
     var onSearchTap: (() -> Void)? = nil
-    var filterTagName: String? = nil  // 用于空状态文案
-    var searchText: String = ""       // 用于空状态文案判断
+    var filterTagName: String? = nil
+    var searchText: String = ""
+    var hasMore: Bool = false
+    var isLoadingMore: Bool = false
+    var onLoadMore: (() -> Void)? = nil
 
     @Environment(NoteStore.self) var noteStore
     @State private var noteToDelete: NoteItem?
@@ -334,6 +377,7 @@ struct NoteListContentView: View {
                 } else {
                     noteRows(notes)
                 }
+                paginationFooter
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
@@ -364,6 +408,26 @@ struct NoteListContentView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
+
+            paginationFooter
+                .padding(.horizontal, 16)
+        }
+    }
+
+    /// 底部分页触发器：出现在视口即自动加载下一页
+    @ViewBuilder
+    private var paginationFooter: some View {
+        if isLoadingMore {
+            HStack {
+                Spacer()
+                ProgressView()
+                    .padding(.vertical, 12)
+                Spacer()
+            }
+        } else if hasMore {
+            Color.clear
+                .frame(height: 1)
+                .onAppear { onLoadMore?() }
         }
     }
 

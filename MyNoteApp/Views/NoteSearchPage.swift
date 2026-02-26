@@ -216,7 +216,8 @@ struct NoteSearchPage: View {
                 sortMode: sortMode,
                 isEmbedded: isEmbedded,
                 onSearchTap: onSearchTap,
-                filterTagName: effectiveFilterTagName
+                filterTagName: effectiveFilterTagName,
+                pageSize: 100
             )
             .environment(noteStore)
             .scrollDismissesKeyboard(.interactively)

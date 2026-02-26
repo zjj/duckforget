@@ -171,10 +171,14 @@ struct TagNoteCountView: View {
     @Query var notes: [NoteItem]
     
     init(tagName: String) {
-        let filter = #Predicate<NoteItem> { note in
-            !note.isDeleted && note.tags.contains { $0.name == tagName }
-        }
-        _notes = Query(filter: filter)
+        var descriptor = FetchDescriptor<NoteItem>(
+            predicate: #Predicate<NoteItem> { note in
+                !note.isDeleted && note.tags.contains { $0.name == tagName }
+            },
+            sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = 100 // Limit for performance
+        _notes = Query(descriptor)
     }
     
     var body: some View {
