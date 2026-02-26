@@ -45,7 +45,7 @@ struct NoteSearchPage: View {
     @State private var viewMode: ViewMode = .list
     @State private var sortMode: SortMode = .dateModified
     @State private var selectedTag: TagItem? = nil // 新增：当前选中的标签
-    @FocusState private var isSearchFocused: Bool
+    @State private var isSearchFocused: Bool = false
     
     @Query(sort: \TagItem.sortOrder) private var allTags: [TagItem]
 
@@ -126,12 +126,11 @@ struct NoteSearchPage: View {
                             Image(systemName: "magnifyingglass")
                                 .foregroundColor(.secondary)
                             
-                            TextField(
-                                filterTagName != nil ? "搜索 \(filterTagName!) 标签" : "输入进行搜索...",
-                                text: $searchText
+                            SearchTextField(
+                                placeholder: filterTagName != nil ? "搜索 \(filterTagName!) 标签" : "输入进行搜索...",
+                                text: $searchText,
+                                isFocused: $isSearchFocused
                             )
-                            .focused($isSearchFocused)
-                            .submitLabel(.search)
 
                             // 标签选择（固定标签模式下不显示，标签已由 filterTagName 锁定）
                             if filterTagName == nil {
