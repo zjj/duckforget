@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import WidgetKit
 
 /// 应用设置管理类
 @Observable
@@ -16,10 +17,14 @@ class AppSettings {
         }
     }
 
-    /// 当前应用主题，持久化至 UserDefaults
+    /// 当前应用主题，持久化至 UserDefaults（同时写入 App Group 供 Widget 读取）
     var currentTheme: AppTheme {
         didSet {
             UserDefaults.standard.set(currentTheme.rawValue, forKey: appThemeKey)
+            // 写入 App Group，让 Widget Extension 也能读到最新主题
+            UserDefaults(suiteName: SharedDefaults.suiteName)?
+                .set(currentTheme.rawValue, forKey: SharedDefaults.appThemeKey)
+            WidgetCenter.shared.reloadAllTimelines()
         }
     }
     
@@ -29,5 +34,9 @@ class AppSettings {
 
         let storedTheme = UserDefaults.standard.string(forKey: "AppTheme") ?? ""
         self.currentTheme = AppTheme(rawValue: storedTheme) ?? .system
+
+        // 首次启动时同步写入 App Group，确保 Widget 有初始值
+        UserDefaults(suiteName: SharedDefaults.suiteName)?
+            .set(self.currentTheme.rawValue, forKey: SharedDefaults.appThemeKey)
     }
 }
