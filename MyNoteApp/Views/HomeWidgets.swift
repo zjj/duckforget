@@ -71,7 +71,7 @@ struct TagWidget: View {
         }
         var descriptor = FetchDescriptor<NoteItem>(predicate: filter)
         descriptor.sortBy = [SortDescriptor(\.updatedAt, order: .reverse)]
-        descriptor.fetchLimit = 100
+        descriptor.fetchLimit = 50
         _notes = Query(descriptor)
     }
     
@@ -80,7 +80,7 @@ struct TagWidget: View {
         case .small: return Array(notes.prefix(15))
         case .medium: return Array(notes.prefix(15))
         case .large: return Array(notes.prefix(15))
-        case .fullPage: return Array(notes.prefix(100)) // 全屏模式显示前100条
+        case .fullPage: return Array(notes.prefix(50)) // 全屏模式显示前50条
         }
     }
     
@@ -228,7 +228,7 @@ struct RecentNotesWidget: View {
         }
         var descriptor = FetchDescriptor<NoteItem>(predicate: filter)
         descriptor.sortBy = [SortDescriptor(\.updatedAt, order: .reverse)]
-        descriptor.fetchLimit = 100
+        descriptor.fetchLimit = 50
         _notes = Query(descriptor)
     }
     
@@ -238,7 +238,7 @@ struct RecentNotesWidget: View {
         case .small: return Array(notes.prefix(15))
         case .medium: return Array(notes.prefix(15))
         case .large: return Array(notes.prefix(15))
-        case .fullPage: return Array(notes.prefix(100))
+        case .fullPage: return Array(notes.prefix(50))
         }
     }
     

@@ -59,7 +59,7 @@ final class NoteItem {
         id: UUID = UUID(),
         content: String = "",
         createdAt: Date = Date(),
-        updatedAt: Date = Date(),
+        updatedAt: Date? = nil,
         isDeleted: Bool = false,
         deletedAt: Date? = nil,
         attachments: [AttachmentItem] = [],
@@ -68,7 +68,7 @@ final class NoteItem {
         self.id = id
         self.content = content
         self.createdAt = createdAt
-        self.updatedAt = updatedAt
+        self.updatedAt = updatedAt ?? createdAt
         self.isDeleted = isDeleted
         self.deletedAt = deletedAt
         self.attachments = attachments

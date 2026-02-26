@@ -117,7 +117,7 @@ class NoteStore {
     func restoreNote(_ note: NoteItem) {
         note.isDeleted = false
         note.deletedAt = nil
-        note.updatedAt = Date()
+        // 不更新 updatedAt：恢复操作不是内容修改，保留上次真实编辑时间
         saveContext()
         indexNoteInSpotlight(note)
     }

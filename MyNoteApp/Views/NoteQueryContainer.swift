@@ -76,6 +76,17 @@ struct NoteQueryContainer: View {
     private func makeDescriptor(limit: Int, offset: Int = 0) -> FetchDescriptor<NoteItem> {
         let firstToken = NoteQueryContainer.extractFirstToken(from: searchText)
 
+        // DB sort key matches the user's chosen sortMode so pagination fetches the
+        // correct "next page" of notes. Title sort has no DB-level equivalent
+        // (preview is computed), so fall back to updatedAt for the DB pass and
+        // re-sort in memory.
+        let dbSort: SortDescriptor<NoteItem>
+        switch sortMode {
+        case .dateModified: dbSort = SortDescriptor(\.updatedAt, order: .reverse)
+        case .dateCreated:  dbSort = SortDescriptor(\.createdAt, order: .reverse)
+        case .title:        dbSort = SortDescriptor(\.updatedAt, order: .reverse)
+        }
+
         var descriptor: FetchDescriptor<NoteItem>
         switch (filterMode, firstToken) {
         case (.all, nil):
@@ -134,7 +145,7 @@ struct NoteQueryContainer: View {
                 })
         }
 
-        descriptor.sortBy = [SortDescriptor(\.updatedAt, order: .reverse)]
+        descriptor.sortBy = [dbSort]
         descriptor.fetchLimit = limit
         descriptor.fetchOffset = offset
         return descriptor
