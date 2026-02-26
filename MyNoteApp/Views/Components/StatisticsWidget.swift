@@ -9,61 +9,104 @@ struct StatisticsWidget: View {
     
     @Environment(\.modelContext) private var modelContext
 
-    /// Limited to recent 1000 notes for charts (heatmap = 84 days, calendar = 6 months)
-    @Query(
-        filter: #Predicate<NoteItem> { note in note.isDeleted == false },
-        sort: \NoteItem.createdAt,
-        order: .reverse
-    ) var allNotes: [NoteItem]
+    // MARK: - Async-loaded state (replaces @Query to avoid loading all notes)
+    @State private var totalNotes: Int = 0
+    @State private var notesCountByDay: [String: Int] = [:]
+    @State private var tagStats: [TagStat] = []
 
-    // MARK: - Computed Stats
+    private static let dayKeyFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
 
-    private var totalNotes: Int {
-        let descriptor = FetchDescriptor<NoteItem>(predicate: #Predicate { !$0.isDeleted })
-        return (try? modelContext.fetchCount(descriptor)) ?? 0
+    private func dayKey(_ date: Date) -> String {
+        Self.dayKeyFormatter.string(from: date)
     }
 
-    private var totalAttachments: Int {
-        allNotes.reduce(0) { $0 + $1.attachments.count }
-    }
-    
     private var notesCreatedToday: Int {
-        let calendar = Calendar.current
-        return allNotes.filter { !$0.isDeleted && calendar.isDateInToday($0.createdAt) }.count
+        let key = dayKey(Calendar.current.startOfDay(for: Date()))
+        return notesCountByDay[key] ?? 0
     }
     
     private var notesCreatedThisWeek: Int {
         let calendar = Calendar.current
-        let today = Date()
+        let today = calendar.startOfDay(for: Date())
         guard let startOfWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today)) else { return 0 }
-        return allNotes.filter { !$0.isDeleted && $0.createdAt >= startOfWeek }.count
+        let daysCount = max(0, calendar.dateComponents([.day], from: calendar.startOfDay(for: startOfWeek), to: today).day ?? 0)
+        return (0...daysCount)
+            .compactMap { calendar.date(byAdding: .day, value: $0, to: calendar.startOfDay(for: startOfWeek)) }
+            .reduce(0) { $0 + (notesCountByDay[dayKey($1)] ?? 0) }
     }
     
     // MARK: - Views
     
     var body: some View {
-        if size == .fullPage {
-            fullPageView
-                .navigationTitle("统计数据")
-                .background(Color(.systemGroupedBackground))
-        } else {
-            Group {
-                switch size {
-                case .small:
-                    smallView
-                case .medium:
-                    mediumView
-                case .large:
-                    largeView
-                default:
-                    EmptyView()
+        Group {
+            if size == .fullPage {
+                fullPageView
+                    .navigationTitle("统计数据")
+                    .background(Color(.systemGroupedBackground))
+            } else {
+                Group {
+                    switch size {
+                    case .small:
+                        smallView
+                    case .medium:
+                        mediumView
+                    case .large:
+                        largeView
+                    default:
+                        EmptyView()
+                    }
                 }
+                .padding()
+                .background(theme.colors.surface)
+                .cornerRadius(16)
+                .shadow(color: Color.black.opacity(0.05), radius: 6, x: 0, y: 3)
             }
-            .padding()
-            .background(theme.colors.surface)
-            .cornerRadius(16)
-            .shadow(color: Color.black.opacity(0.05), radius: 6, x: 0, y: 3)
         }
+        .onAppear { loadStatistics() }
+    }
+
+    // MARK: - Data Loading
+
+    /// Fetches statistics using database-level fetchCount queries (no objects loaded).
+    private func loadStatistics() {
+        let calendar = Calendar.current
+        
+        // 1. Total count — fetchCount only, zero NoteItem objects loaded
+        let countDesc = FetchDescriptor<NoteItem>(predicate: #Predicate { !$0.isDeleted })
+        totalNotes = (try? modelContext.fetchCount(countDesc)) ?? 0
+
+        // 2. Calendar (90 days ~3 months) — fetchCount per day with date range predicate
+        var dayStats: [String: Int] = [:]
+        for day in 0..<90 {
+            guard let date = calendar.date(byAdding: .day, value: -day, to: Date()) else { continue }
+            let startOfDay = calendar.startOfDay(for: date)
+            guard let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else { continue }
+            
+            let descriptor = FetchDescriptor<NoteItem>(
+                predicate: #Predicate<NoteItem> { note in
+                    !note.isDeleted && note.createdAt >= startOfDay && note.createdAt < endOfDay
+                }
+            )
+            let count = (try? modelContext.fetchCount(descriptor)) ?? 0
+            if count > 0 {
+                dayStats[dayKey(startOfDay)] = count
+            }
+        }
+        notesCountByDay = dayStats
+
+        // 3. Tag distribution — use tag.notes relationship (loads notes but avoids N queries)
+        let tagDesc = FetchDescriptor<TagItem>()
+        let tags = (try? modelContext.fetch(tagDesc)) ?? []
+        tagStats = tags
+            .map { TagStat(tagName: $0.name, count: $0.notes.filter { !$0.isDeleted }.count) }
+            .filter { $0.count > 0 }
+            .sorted { $0.count > $1.count }
+            .prefix(5)
+            .map { $0 }
     }
     
     // MARK: - Small View (Summary)
@@ -148,20 +191,13 @@ struct StatisticsWidget: View {
             
             HStack {
                 VStack(alignment: .leading) {
-                    Text("附件总数")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text("\(totalAttachments)")
-                        .font(.headline)
-                }
-                Spacer()
-                VStack(alignment: .trailing) {
                     Text("最活跃标签")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     Text(mostActiveTag ?? "无")
                         .font(.headline)
                 }
+                Spacer()
             }
         }
     }
@@ -172,8 +208,7 @@ struct StatisticsWidget: View {
             VStack(spacing: 24) {
                 // Summary Cards
                 HStack(spacing: 16) {
-                    summaryCard(title: "总笔记", value: "\(totalNotes)", icon: "doc.text.fill", color: .blue)
-                    summaryCard(title: "总附件", value: "\(totalAttachments)", icon: "paperclip", color: .orange)
+                    summaryCard(title: "总笔记", value: "\(totalNotes)", icon: "doc.text.fill", color: theme.colors.accent)
                 }
                 
                 // Contribution Heatmap (Calendar Style)
@@ -268,8 +303,8 @@ struct StatisticsWidget: View {
         let calendar = Calendar.current
         let today = Date()
         
-        // 生成最近 6 个月
-        let months = (0..<6).compactMap { i in
+        // 生成最近 3 个月
+        let months = (0..<3).compactMap { i in
             calendar.date(byAdding: .month, value: -i, to: today)
         }.reversed()
         let monthArray = Array(months)
@@ -277,8 +312,9 @@ struct StatisticsWidget: View {
         return ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 16) {
+                    let countByDay = notesCountByDay
                     ForEach(monthArray, id: \.self) { month in
-                        MonthCalendarView(month: month, allNotes: allNotes)
+                        MonthCalendarView(month: month, notesCountByDay: countByDay)
                             .frame(width: 300) // 设定固定宽度以确保日历显示正常
                             .padding()
                             .background(theme.colors.surface)
@@ -327,63 +363,33 @@ struct StatisticsWidget: View {
     }
     
     private func getLast7DaysStats() -> [DateStat] {
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        var stats: [DateStat] = []
-        
-        for i in 0..<7 {
-            if let date = calendar.date(byAdding: .day, value: -i, to: today) {
-                let count = allNotes.filter { !$0.isDeleted && calendar.isDate($0.createdAt, inSameDayAs: date) }.count
-                stats.append(DateStat(date: date, count: count))
-            }
-        }
-        return stats.reversed()
+        buildDayStats(days: 7)
     }
     
     private func getLast15DaysStats() -> [DateStat] {
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        var stats: [DateStat] = []
-        
-        for i in 0..<15 {
-            if let date = calendar.date(byAdding: .day, value: -i, to: today) {
-                let count = allNotes.filter { !$0.isDeleted && calendar.isDate($0.createdAt, inSameDayAs: date) }.count
-                stats.append(DateStat(date: date, count: count))
-            }
-        }
-        return stats.reversed()
+        buildDayStats(days: 15)
     }
 
     private func getLast30DaysStats() -> [DateStat] {
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        var stats: [DateStat] = []
-        
-        for i in 0..<30 {
-            if let date = calendar.date(byAdding: .day, value: -i, to: today) {
-                let count = allNotes.filter { !$0.isDeleted && calendar.isDate($0.createdAt, inSameDayAs: date) }.count
-                stats.append(DateStat(date: date, count: count))
-            }
-        }
-        return stats.reversed()
+        buildDayStats(days: 30)
     }
     
     private func getContributionData() -> [DateStat] {
-        // Last 12 weeks * 7 days = 84 days
+        buildDayStats(days: 84, reversed: false)
+    }
+
+    /// Builds per-day stats using a single O(N) dictionary lookup instead of
+    /// repeating an O(N) filter for every day.
+    private func buildDayStats(days: Int, reversed: Bool = true) -> [DateStat] {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
-        var stats: [DateStat] = []
-        
-        // Align to end of week
-        // 简单起见，取最近 84 天
-        for i in 0..<84 {
-            if let date = calendar.date(byAdding: .day, value: -(83 - i), to: today) {
-                let count = allNotes.filter { !$0.isDeleted && calendar.isDate($0.createdAt, inSameDayAs: date) }.count
-                stats.append(DateStat(date: date, count: count))
-            }
+        let countByDay = notesCountByDay
+        let stats = (0..<days).compactMap { i -> DateStat? in
+            let offset = reversed ? -i : -(days - 1 - i)
+            guard let date = calendar.date(byAdding: .day, value: offset, to: today) else { return nil }
+            return DateStat(date: date, count: countByDay[dayKey(date)] ?? 0)
         }
-        // Should sort by date? loop is already sorted
-        return stats
+        return reversed ? stats.reversed() : stats
     }
     
     private func colorForCount(_ count: Int) -> Color {
@@ -399,16 +405,7 @@ struct StatisticsWidget: View {
     }
     
     private func getTagStats() -> [TagStat] {
-        var counts: [String: Int] = [:]
-        for note in allNotes where !note.isDeleted {
-            for tag in note.tags {
-                counts[tag.name, default: 0] += 1
-            }
-        }
-        return counts.map { TagStat(tagName: $0.key, count: $0.value) }
-            .sorted { $0.count > $1.count }
-            .prefix(5)
-            .map { $0 }
+        tagStats
     }
     
     private var mostActiveTag: String? {
@@ -418,9 +415,16 @@ struct StatisticsWidget: View {
 
 struct MonthCalendarView: View {
     let month: Date
-    let allNotes: [NoteItem]
+    /// Pre-aggregated map of "yyyy-MM-dd" → note count, passed from parent.
+    let notesCountByDay: [String: Int]
     @Environment(\.appTheme) private var theme
     private let calendar = Calendar.current
+
+    private static let dayKeyFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
     
     // Grid Setup
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
@@ -432,35 +436,16 @@ struct MonthCalendarView: View {
     }
     
     private var days: [Date?] {
-        // Build the calendar grid
         guard let monthInterval = calendar.dateInterval(of: .month, for: month) else { return [] }
         let firstDay = monthInterval.start
-        
-        let range = calendar.range(of: .day, in: .month, for: firstDay)!
-        let numDays = range.count
-        
-        // Sunday=1, Monday=2...
+        let numDays = calendar.range(of: .day, in: .month, for: firstDay)?.count ?? 0
         let firstWeekday = calendar.component(.weekday, from: firstDay)
-        
-        var daysArray: [Date?] = []
-        
-        // Add placeholders for empty slots before the 1st of the month
-        for _ in 1..<firstWeekday {
-            daysArray.append(nil)
-        }
-        
-        for day in 1...numDays {
-            if let date = calendar.date(byAdding: .day, value: day - 1, to: firstDay) {
-                daysArray.append(date)
-            }
-        }
-        
-        // Pad to ensure 6 rows (42 days) for consistent height
-        while daysArray.count < 42 {
-            daysArray.append(nil)
-        }
-        
-        return daysArray
+
+        // Leading nil placeholders + actual dates + trailing nil padding (42 = 6 rows × 7 cols)
+        let leadingNils = Array(repeating: nil as Date?, count: firstWeekday - 1)
+        let monthDays: [Date?] = (0..<numDays).compactMap { calendar.date(byAdding: .day, value: $0, to: firstDay) }
+        let trailingNils = Array(repeating: nil as Date?, count: max(0, 42 - leadingNils.count - monthDays.count))
+        return leadingNils + monthDays + trailingNils
     }
     
     var body: some View {
@@ -487,14 +472,23 @@ struct MonthCalendarView: View {
                         let count = countForDate(date)
                         let dayNum = calendar.component(.day, from: date)
                         
-                        ZStack {
+                        ZStack(alignment: .topLeading) {
                             RoundedRectangle(cornerRadius: 6)
                                 .fill(colorForCount(count))
                                 .aspectRatio(1, contentMode: .fit)
                             
                             Text("\(dayNum)")
-                                .font(.caption2)
-                                .foregroundColor(count > 0 ? .white : .primary)
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(count > 0 ? .white.opacity(0.85) : .primary)
+                                .padding([.top, .leading], 3)
+                            
+                            if count > 0 {
+                                Text("\(count)")
+                                    .font(.system(size: 11, weight: .black))
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    .padding(.bottom, 2)
+                            }
                         }
                     } else {
                         Color.clear
@@ -506,7 +500,8 @@ struct MonthCalendarView: View {
     }
     
     private func countForDate(_ date: Date) -> Int {
-        allNotes.filter { !$0.isDeleted && calendar.isDate($0.createdAt, inSameDayAs: date) }.count
+        let key = Self.dayKeyFormatter.string(from: date)
+        return notesCountByDay[key] ?? 0
     }
     
     private func colorForCount(_ count: Int) -> Color {
