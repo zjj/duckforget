@@ -72,7 +72,7 @@ final class DebugDataSeeder {
                 let note = NoteItem(
                     content: randomContent(),
                     createdAt: Date(timeIntervalSinceNow: -Double.random(in: 0 ... timeRange)),
-                    updatedAt: Date(timeIntervalSinceNow: -Double.random(in: 0 ... 86_400))
+                    updatedAt: Date(timeIntervalSinceNow: -Double.random(in: 0 ... timeRange))
                 )
                 modelContext.insert(note)
             }
