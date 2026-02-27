@@ -172,47 +172,46 @@ final class ExportService {
             divPath.stroke()
             y += 14
 
-            // ---- 正文（支持自动换页，渲染 Markdown 格式）----
-            // 注意：CTFrameDraw 使用 Core Graphics 原生坐标系（原点在左下，Y 轴向上），
-            // 而 UIGraphicsPDFRenderer 上下文已对 Y 轴做了翻转（UIKit 坐标系）。
-            // 因此需要：
-            //   1. 在每次 CTFrameDraw 前 save/翻转/restore CG 上下文；
-            //   2. 将绘制区域 (UIKit rect) 转换为 CG 坐标系中对应的 rect。
-            let attrContent = markdownAttributedString(for: note.content)
+            // ---- 正文（支持自动换页，渲染 Markdown 格式；表格用 Core Graphics 绘制）----
+            let segments = parsePDFSegments(note.content)
+            for segment in segments {
+                switch segment {
+                case .text(let attrStr):
+                    guard attrStr.length > 0 else { break }
+                    let framesetter = CTFramesetterCreateWithAttributedString(attrStr)
+                    var charIndex = 0
+                    while charIndex < attrStr.length {
+                        var availableHeight = pageRect.height - y - margin
+                        if availableHeight < 20 {
+                            ctx.beginPage(); y = margin
+                            availableHeight = pageRect.height - y - margin
+                        }
+                        let cgRect = CGRect(x: margin, y: margin,
+                                            width: contentWidth, height: availableHeight)
+                        let path = CGPath(rect: cgRect, transform: nil)
+                        let frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(charIndex, 0), path, nil)
 
-            let framesetter = CTFramesetterCreateWithAttributedString(attrContent)
-            var charIndex = 0
-            while charIndex < attrContent.length {
-                let availableHeight = pageRect.height - y - margin
+                        let cgCtx = ctx.cgContext
+                        cgCtx.saveGState()
+                        cgCtx.translateBy(x: 0, y: pageRect.height)
+                        cgCtx.scaleBy(x: 1, y: -1)
+                        cgCtx.textMatrix = .identity
+                        CTFrameDraw(frame, cgCtx)
+                        cgCtx.restoreGState()
 
-                // CG 坐标系中的等价区域：
-                //   UIKit bottom edge (y + availableHeight = pageH - margin)
-                //     → CG y = pageH - (pageH - margin) = margin
-                //   height 不变
-                let cgRect = CGRect(x: margin, y: margin,
-                                    width: contentWidth, height: availableHeight)
-                let path = CGPath(rect: cgRect, transform: nil)
-                let frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(charIndex, 0), path, nil)
+                        let visibleRange = CTFrameGetVisibleStringRange(frame)
+                        if visibleRange.length == 0 { break }
+                        if let newY = yAfterCTFrame(frame, pageHeight: pageRect.height) { y = newY }
+                        charIndex += visibleRange.length
+                        if charIndex < attrStr.length {
+                            ctx.beginPage(); y = margin
+                        }
+                    }
 
-                // 翻转上下文：undo UIKit flip → 恢复 CG 原生坐标（原点左下，Y 向上）
-                let cgCtx = ctx.cgContext
-                cgCtx.saveGState()
-                cgCtx.translateBy(x: 0, y: pageRect.height)
-                cgCtx.scaleBy(x: 1, y: -1)
-                // 重置 textMatrix：NSString.draw(in:) 等 UIKit 绘制方法会修改 textMatrix
-                // 以补偿 UIKit 坐标系翻转，CTFrameDraw 在 CG 坐标系下需要 identity textMatrix，
-                // 否则文字会被二次翻转导致镜像。
-                cgCtx.textMatrix = .identity
-                CTFrameDraw(frame, cgCtx)
-                cgCtx.restoreGState()
-
-                let visibleRange = CTFrameGetVisibleStringRange(frame)
-                if visibleRange.length == 0 { break }
-                charIndex += visibleRange.length
-
-                if charIndex < attrContent.length {
-                    ctx.beginPage()
-                    y = margin
+                case .table(let headers, let rows):
+                    drawPDFTable(ctx, headers: headers, rows: rows,
+                                 x: margin, y: &y,
+                                 width: contentWidth, pageRect: pageRect, margin: margin)
                 }
             }
             y = pageRect.height - margin // reset to bottom of page for image logic below
@@ -320,7 +319,7 @@ final class ExportService {
     private func markdownAttributedString(for content: String) -> NSAttributedString {
         let baseFontSize: CGFloat = 13
         let bodyFont  = UIFont.systemFont(ofSize: baseFontSize)
-        let codeFont  = UIFont.monospacedSystemFont(ofSize: baseFontSize * 0.9, weight: .regular)
+        let codeFont  = UIFont.monospacedSystemFont(ofSize: baseFontSize * 0.88, weight: .regular)
         let h1Font    = UIFont.systemFont(ofSize: baseFontSize * 1.6,  weight: .bold)
         let h2Font    = UIFont.systemFont(ofSize: baseFontSize * 1.35, weight: .bold)
         let h3Font    = UIFont.systemFont(ofSize: baseFontSize * 1.15, weight: .semibold)
@@ -329,19 +328,22 @@ final class ExportService {
 
         let result = NSMutableAttributedString()
         let lines   = content.components(separatedBy: "\n")
-        var inCodeBlock = false
-        var codeLines: [String] = []
+        var i = 0
 
-        func appendLine(_ text: String, font: UIFont, color: UIColor = bodyColor) {
+        func append(_ text: String, font: UIFont, color: UIColor = bodyColor, afterSpacing: CGFloat = 2) {
+            let para = NSMutableParagraphStyle()
+            para.paragraphSpacing = afterSpacing
+            para.lineSpacing = 1
             result.append(NSAttributedString(
                 string: text + "\n",
-                attributes: [.font: font, .foregroundColor: color]
+                attributes: [.font: font, .foregroundColor: color, .paragraphStyle: para]
             ))
         }
 
         // 剥离行内 Markdown 语法，保留文字
         func stripInline(_ text: String) -> String {
             var s = text
+            s = s.replacingOccurrences(of: "\\*\\*\\*(.+?)\\*\\*\\*", with: "$1", options: .regularExpression)
             s = s.replacingOccurrences(of: "\\*\\*(.+?)\\*\\*",  with: "$1", options: .regularExpression)
             s = s.replacingOccurrences(of: "\\*(.+?)\\*",         with: "$1", options: .regularExpression)
             s = s.replacingOccurrences(of: "~~(.+?)~~",           with: "$1", options: .regularExpression)
@@ -351,46 +353,352 @@ final class ExportService {
             return s
         }
 
-        for line in lines {
+        // 计算字符串在等宽字体中的显示宽度（CJK 字符占 2 格）
+        func displayWidth(_ s: String) -> Int {
+            s.unicodeScalars.reduce(0) { acc, scalar in
+                let v = scalar.value
+                let wide = (v >= 0x1100 && v <= 0x115F) ||
+                           (v >= 0x2E80 && v <= 0x9FFF) ||
+                           (v >= 0xAC00 && v <= 0xD7AF) ||
+                           (v >= 0xF900 && v <= 0xFAFF) ||
+                           (v >= 0xFF00 && v <= 0xFF60) ||
+                           (v >= 0xFFE0 && v <= 0xFFE6)
+                return acc + (wide ? 2 : 1)
+            }
+        }
+
+        func parseTableCells(_ row: String) -> [String] {
+            var cells = row.components(separatedBy: "|")
+            if cells.first?.trimmingCharacters(in: .whitespaces).isEmpty == true { cells.removeFirst() }
+            if cells.last?.trimmingCharacters(in: .whitespaces).isEmpty == true  { cells.removeLast() }
+            return cells.map { $0.trimmingCharacters(in: .whitespaces) }
+        }
+
+        func isSeparatorRow(_ row: String) -> Bool {
+            let cells = parseTableCells(row)
+            guard !cells.isEmpty else { return false }
+            return cells.allSatisfy { cell in
+                !cell.isEmpty &&
+                cell.replacingOccurrences(of: "-", with: "")
+                    .replacingOccurrences(of: ":", with: "")
+                    .replacingOccurrences(of: " ", with: "")
+                    .isEmpty
+            }
+        }
+
+        // 渲染带边框的表格（Unicode box-drawing 字符 + 等宽字体）
+        func renderTable(_ tableLines: [String]) {
+            guard !tableLines.isEmpty else { return }
+
+            let headerCells = parseTableCells(tableLines[0]).map { stripInline($0) }
+            let bodyStart   = tableLines.count > 1 && isSeparatorRow(tableLines[1]) ? 2 : 1
+            var bodyRows: [[String]] = []
+            for j in bodyStart ..< tableLines.count {
+                bodyRows.append(parseTableCells(tableLines[j]).map { stripInline($0) })
+            }
+
+            let numCols = max(headerCells.count, bodyRows.map { $0.count }.max() ?? 0)
+            guard numCols > 0 else { return }
+
+            // 每列最小宽度 = 3，取标题与所有数据中的最大显示宽度
+            var colWidths = Array(repeating: 3, count: numCols)
+            for (c, t) in headerCells.enumerated() where c < numCols {
+                colWidths[c] = max(colWidths[c], displayWidth(t))
+            }
+            for row in bodyRows {
+                for (c, t) in row.enumerated() where c < numCols {
+                    colWidths[c] = max(colWidths[c], displayWidth(t))
+                }
+            }
+
+            // 文本居左，右侧填充空格至列宽
+            func padCell(_ text: String, _ colWidth: Int) -> String {
+                let spaces = max(0, colWidth - displayWidth(text))
+                return " " + text + String(repeating: " ", count: spaces + 1)
+            }
+
+            // 生成水平分隔线
+            func hLine(left: String, mid: String, fill: Character, right: String) -> String {
+                let parts = colWidths.map { String(repeating: fill, count: $0 + 2) }
+                return left + parts.joined(separator: mid) + right
+            }
+
+            func dataRow(_ cells: [String]) -> String {
+                var out = "│"
+                for c in 0 ..< numCols {
+                    let t = c < cells.count ? cells[c] : ""
+                    out += padCell(t, colWidths[c]) + "│"
+                }
+                return out
+            }
+
+            let top    = hLine(left: "┌", mid: "┬", fill: "─", right: "┐")
+            let divSep = hLine(left: "├", mid: "┼", fill: "─", right: "┤")
+            let bottom = hLine(left: "└", mid: "┴", fill: "─", right: "┘")
+
+            append(top,                      font: codeFont, color: grayColor,  afterSpacing: 0)
+            append(dataRow(headerCells),     font: codeFont, color: bodyColor,  afterSpacing: 0)
+            append(divSep,                   font: codeFont, color: grayColor,  afterSpacing: 0)
+            for (ri, row) in bodyRows.enumerated() {
+                let isLast = ri == bodyRows.count - 1
+                append(dataRow(row), font: codeFont, color: bodyColor, afterSpacing: 0)
+                if isLast { append(bottom, font: codeFont, color: grayColor, afterSpacing: 6) }
+            }
+            if bodyRows.isEmpty { append(bottom, font: codeFont, color: grayColor, afterSpacing: 6) }
+        }
+
+        while i < lines.count {
+            let line = lines[i]
+
             // 代码块围栏
             if line.hasPrefix("```") || line.hasPrefix("~~~") {
-                if inCodeBlock {
-                    result.append(NSAttributedString(
-                        string: codeLines.joined(separator: "\n") + "\n",
-                        attributes: [.font: codeFont, .foregroundColor: grayColor]
-                    ))
-                    codeLines = []; inCodeBlock = false
-                } else {
-                    inCodeBlock = true
+                let fence = line.hasPrefix("```") ? "```" : "~~~"
+                var codeLines: [String] = []
+                i += 1
+                while i < lines.count && !lines[i].hasPrefix(fence) {
+                    codeLines.append(lines[i])
+                    i += 1
                 }
+                i += 1 // skip closing fence
+                append(codeLines.joined(separator: "\n"), font: codeFont, color: grayColor, afterSpacing: 4)
                 continue
             }
-            if inCodeBlock { codeLines.append(line); continue }
+
+            // 表格行已由 parsePDFSegments 提取并交由 drawPDFTable 绘制，此处跳过
+            if line.hasPrefix("|") {
+                while i < lines.count && lines[i].hasPrefix("|") { i += 1 }
+                continue
+            }
 
             // 块级元素
-            if      line.hasPrefix("### ") { appendLine(stripInline(String(line.dropFirst(4))), font: h3Font) }
-            else if line.hasPrefix("## ")  { appendLine(stripInline(String(line.dropFirst(3))), font: h2Font) }
-            else if line.hasPrefix("# ")   { appendLine(stripInline(String(line.dropFirst(2))), font: h1Font) }
-            else if line.hasPrefix("> ")   { appendLine("│ " + stripInline(String(line.dropFirst(2))), font: bodyFont, color: grayColor) }
+            if      line.hasPrefix("### ") { append(stripInline(String(line.dropFirst(4))), font: h3Font) }
+            else if line.hasPrefix("## ")  { append(stripInline(String(line.dropFirst(3))), font: h2Font) }
+            else if line.hasPrefix("# ")   { append(stripInline(String(line.dropFirst(2))), font: h1Font) }
+            else if line.hasPrefix("> ")   { append("│ " + stripInline(String(line.dropFirst(2))), font: bodyFont, color: grayColor) }
             else if line.hasPrefix("- [x] ") || line.hasPrefix("- [X] ") {
-                appendLine("☑ " + stripInline(String(line.dropFirst(6))), font: bodyFont)
+                append("☑ " + stripInline(String(line.dropFirst(6))), font: bodyFont)
             } else if line.hasPrefix("- [ ] ") {
-                appendLine("☐ " + stripInline(String(line.dropFirst(6))), font: bodyFont)
+                append("☐ " + stripInline(String(line.dropFirst(6))), font: bodyFont)
             } else if line.hasPrefix("- ") || line.hasPrefix("* ") || line.hasPrefix("+ ") {
-                appendLine("• " + stripInline(String(line.dropFirst(2))), font: bodyFont)
+                append("• " + stripInline(String(line.dropFirst(2))), font: bodyFont)
             } else {
-                appendLine(stripInline(line), font: bodyFont)
+                append(stripInline(line), font: bodyFont)
+            }
+
+            i += 1
+        }
+
+        return result
+    }
+
+    // MARK: - PDF Segment Helpers
+
+    private func stripMarkdownInline(_ text: String) -> String {
+        var s = text
+        s = s.replacingOccurrences(of: "\\*\\*\\*(.+?)\\*\\*\\*", with: "$1", options: .regularExpression)
+        s = s.replacingOccurrences(of: "\\*\\*(.+?)\\*\\*",       with: "$1", options: .regularExpression)
+        s = s.replacingOccurrences(of: "\\*(.+?)\\*",             with: "$1", options: .regularExpression)
+        s = s.replacingOccurrences(of: "~~(.+?)~~",               with: "$1", options: .regularExpression)
+        s = s.replacingOccurrences(of: "`([^`]+)`",               with: "$1", options: .regularExpression)
+        s = s.replacingOccurrences(of: "!\\[.*?\\]\\(.*?\\)",    with: "",   options: .regularExpression)
+        s = s.replacingOccurrences(of: "\\[(.+?)\\]\\(.*?\\)",   with: "$1", options: .regularExpression)
+        return s
+    }
+
+    private enum PDFContentSegment {
+        case text(NSAttributedString)
+        case table(headers: [String], rows: [[String]])
+    }
+
+    private func parsePDFSegments(_ content: String) -> [PDFContentSegment] {
+        let lines = content.components(separatedBy: "\n")
+        var segments: [PDFContentSegment] = []
+        var textLines: [String] = []
+        var i = 0
+
+        func flushText() {
+            while textLines.last?.trimmingCharacters(in: .whitespaces).isEmpty == true { textLines.removeLast() }
+            if !textLines.isEmpty {
+                segments.append(.text(markdownAttributedString(for: textLines.joined(separator: "\n"))))
+                textLines = []
             }
         }
 
-        // 冲刷未关闭的代码块
-        if !codeLines.isEmpty {
-            result.append(NSAttributedString(
-                string: codeLines.joined(separator: "\n") + "\n",
-                attributes: [.font: codeFont, .foregroundColor: grayColor]
-            ))
+        func splitCells(_ row: String) -> [String] {
+            var cells = row.components(separatedBy: "|")
+            if cells.first?.trimmingCharacters(in: .whitespaces).isEmpty == true { cells.removeFirst() }
+            if cells.last?.trimmingCharacters(in: .whitespaces).isEmpty  == true { cells.removeLast() }
+            return cells.map { $0.trimmingCharacters(in: .whitespaces) }
         }
-        return result
+
+        func isSep(_ row: String) -> Bool {
+            let cells = splitCells(row)
+            guard !cells.isEmpty else { return false }
+            return cells.allSatisfy {
+                !$0.isEmpty &&
+                $0.replacingOccurrences(of: "-", with: "")
+                  .replacingOccurrences(of: ":", with: "")
+                  .replacingOccurrences(of: " ", with: "").isEmpty
+            }
+        }
+
+        while i < lines.count {
+            let line = lines[i]
+            if line.hasPrefix("|") {
+                flushText()
+                var tableLines: [String] = []
+                while i < lines.count && lines[i].hasPrefix("|") { tableLines.append(lines[i]); i += 1 }
+                guard !tableLines.isEmpty else { continue }
+                let headers   = splitCells(tableLines[0]).map { stripMarkdownInline($0) }
+                let bodyStart = (tableLines.count > 1 && isSep(tableLines[1])) ? 2 : 1
+                let rows      = (bodyStart..<tableLines.count).map { splitCells(tableLines[$0]).map { stripMarkdownInline($0) } }
+                segments.append(.table(headers: headers, rows: rows))
+            } else {
+                textLines.append(line)
+                i += 1
+            }
+        }
+        flushText()
+        return segments
+    }
+
+    /// Returns the UIKit-Y position immediately below the last rendered line of a CTFrame.
+    private func yAfterCTFrame(_ frame: CTFrame, pageHeight: CGFloat) -> CGFloat? {
+        let cfLines = CTFrameGetLines(frame)
+        let count   = CFArrayGetCount(cfLines)
+        guard count > 0 else { return nil }
+        var origins = Array(repeating: CGPoint.zero, count: count)
+        CTFrameGetLineOrigins(frame, CFRangeMake(0, 0), &origins)
+        // origins are in CG coords (Y from bottom). Last entry = last (bottom) line.
+        let lastOrigin = origins[count - 1]
+        let lastLine   = unsafeBitCast(CFArrayGetValueAtIndex(cfLines, count - 1), to: CTLine.self)
+        var descent: CGFloat = 0
+        CTLineGetTypographicBounds(lastLine, nil, &descent, nil)
+        // Convert: UIKit Y = pageHeight – CG Y
+        let bottomOfLineInCG = lastOrigin.y - descent
+        return pageHeight - bottomOfLineInCG + 6 // 6 pt leading
+    }
+
+    /// Draws a table using Core Graphics within the PDF renderer and advances `y`.
+    private func drawPDFTable(
+        _ ctx: UIGraphicsPDFRendererContext,
+        headers: [String], rows: [[String]],
+        x: CGFloat, y: inout CGFloat,
+        width: CGFloat, pageRect: CGRect, margin: CGFloat
+    ) {
+        let cellH:      CGFloat = 24
+        let cellFont   = UIFont.systemFont(ofSize: 11, weight: .regular)
+        let headerFont = UIFont.systemFont(ofSize: 11, weight: .semibold)
+        let numCols = max(headers.count, rows.map { $0.count }.max() ?? 0)
+        guard numCols > 0 else { return }
+        // Floor the column width so all columns share exact pixel-aligned boundaries
+        let colW    = floor(width / CGFloat(numCols))
+        let tableW  = colW * CGFloat(numCols)
+        let insetX: CGFloat = 6
+        let lineW:  CGFloat = 0.5
+
+        let headerBg    = UIColor(red: 0.918, green: 0.918, blue: 0.937, alpha: 1)
+        let evenRowBg   = UIColor.white
+        let oddRowBg    = UIColor(red: 0.972, green: 0.972, blue: 0.980, alpha: 1)
+        let borderColor = UIColor(red: 0.745, green: 0.745, blue: 0.765, alpha: 1)
+        let textColor   = UIColor.black
+
+        let allRows: [(cells: [String], font: UIFont, bg: UIColor)] =
+            [(headers, headerFont, headerBg)] +
+            rows.enumerated().map { ri, row in (row, cellFont, ri % 2 == 0 ? evenRowBg : oddRowBg) }
+
+        // Start new page if the header + at least one data row won't fit
+        if y + cellH * CGFloat(min(allRows.count, 2)) > pageRect.height - margin {
+            ctx.beginPage()
+            y = margin
+        }
+
+        let cgCtx = ctx.cgContext
+
+        // ---- Draw rows (fills + text), page-breaking as needed ----
+        var rowStartY       = y
+        var pageTableTopY   = y   // Y of the first row on the current PDF page
+        var rowsOnThisPage  = 0
+
+        for rowData in allRows {
+            if rowStartY + cellH > pageRect.height - margin {
+                // Flush the grid for the portion on the current page …
+                drawGridLines(cgCtx, x: x, topY: pageTableTopY, tableW: tableW,
+                              numCols: numCols, colW: colW, rowCount: rowsOnThisPage,
+                              cellH: cellH, lineW: lineW, color: borderColor)
+                // … then start a fresh page
+                ctx.beginPage()
+                y            = margin
+                rowStartY    = margin
+                pageTableTopY = margin
+                rowsOnThisPage = 0
+            }
+
+            // Fill row background
+            let rowRect = CGRect(x: x, y: rowStartY, width: tableW, height: cellH)
+            rowData.bg.setFill()
+            cgCtx.fill(rowRect)
+
+            // Draw cell text
+            for c in 0 ..< numCols {
+                let cellX    = x + CGFloat(c) * colW
+                let text     = c < rowData.cells.count ? rowData.cells[c] : ""
+                let textY    = rowStartY + (cellH - rowData.font.lineHeight) / 2
+                let textRect = CGRect(x: cellX + insetX, y: textY,
+                                      width: colW - insetX * 2, height: cellH)
+                (text as NSString).draw(in: textRect, withAttributes: [
+                    .font: rowData.font, .foregroundColor: textColor
+                ])
+            }
+            rowStartY      += cellH
+            rowsOnThisPage += 1
+        }
+
+        // ---- Flush grid for the last (or only) page ----
+        drawGridLines(cgCtx, x: x, topY: pageTableTopY, tableW: tableW,
+                      numCols: numCols, colW: colW, rowCount: rowsOnThisPage,
+                      cellH: cellH, lineW: lineW, color: borderColor)
+
+        y = rowStartY + 10 // spacing after table
+    }
+
+    /// Draws a clean grid (outer border + all internal lines) using explicit CGPath.
+    private func drawGridLines(
+        _ cgCtx: CGContext,
+        x: CGFloat, topY: CGFloat,
+        tableW: CGFloat, numCols: Int, colW: CGFloat,
+        rowCount: Int, cellH: CGFloat,
+        lineW: CGFloat, color: UIColor
+    ) {
+        guard rowCount > 0 else { return }
+        cgCtx.saveGState()
+        cgCtx.setStrokeColor(color.cgColor)
+        cgCtx.setLineWidth(lineW)
+        cgCtx.setLineCap(.square)
+
+        let totalH = cellH * CGFloat(rowCount)
+        let path   = CGMutablePath()
+
+        // Outer rectangle
+        path.addRect(CGRect(x: x, y: topY, width: tableW, height: totalH))
+
+        // Internal horizontal lines (between rows)
+        for r in 1 ..< rowCount {
+            let lineY = topY + CGFloat(r) * cellH
+            path.move(to: CGPoint(x: x, y: lineY))
+            path.addLine(to: CGPoint(x: x + tableW, y: lineY))
+        }
+
+        // Internal vertical lines (between columns)
+        for c in 1 ..< numCols {
+            let lineX = x + CGFloat(c) * colW
+            path.move(to: CGPoint(x: lineX, y: topY))
+            path.addLine(to: CGPoint(x: lineX, y: topY + totalH))
+        }
+
+        cgCtx.addPath(path)
+        cgCtx.strokePath()
+        cgCtx.restoreGState()
     }
 
     // MARK: - TXT
@@ -835,8 +1143,7 @@ final class ExportService {
             note.tagNames.map { "<span class=\"tag\">#\(escapeHTML($0))</span>" }.joined() +
             "</div>"
 
-        let contentHTML = escapeHTML(note.content)
-            .replacingOccurrences(of: "\n", with: "<br>\n")
+        let contentHTML = markdownToHTML(note.content)
 
         let imageTypes: Set<AttachmentType> = [.photo, .drawing, .scannedDocument]
         var attachHTML = ""
@@ -898,6 +1205,19 @@ final class ExportService {
             }
             hr { border: none; border-top: 1px solid #e5e5ea; margin: 16px 0; }
             .content { font-size: 16px; line-height: 1.8; }
+            .content h1 { font-size: 1.6em; font-weight: 700; margin: 0.6em 0 0.3em; }
+            .content h2 { font-size: 1.35em; font-weight: 700; margin: 0.6em 0 0.3em; }
+            .content h3 { font-size: 1.15em; font-weight: 600; margin: 0.6em 0 0.3em; }
+            .content blockquote { border-left: 3px solid #e5e5ea; margin: 8px 0; padding: 4px 12px; color: #8e8e93; }
+            .content pre { background: #f2f2f7; border-radius: 8px; padding: 12px 14px; overflow-x: auto; font-size: 0.88em; }
+            .content code { font-family: ui-monospace, SFMono-Regular, monospace; background: #f2f2f7; padding: 1px 4px; border-radius: 4px; font-size: 0.88em; }
+            .content pre code { background: none; padding: 0; }
+            .content ul, .content ol { padding-left: 1.5em; margin: 6px 0; }
+            .content table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 0.95em; }
+            .content table th, .content table td { border: 1px solid #d1d1d6; padding: 8px 12px; text-align: left; }
+            .content table thead th { background: #f2f2f7; font-weight: 600; }
+            .content table tbody tr:nth-child(even) { background: #fafafa; }
+            .content del { text-decoration: line-through; color: #8e8e93; }
             .attachments {
               margin-top: 28px;
               display: grid;
@@ -931,6 +1251,119 @@ final class ExportService {
         </body>
         </html>
         """
+    }
+
+    // MARK: - Markdown → HTML
+
+    private func markdownToHTML(_ content: String) -> String {
+        let lines = content.components(separatedBy: "\n")
+        var html = ""
+        var i = 0
+
+        func renderInline(_ raw: String) -> String {
+            var s = escapeHTML(raw)
+            s = s.replacingOccurrences(of: "\\*\\*\\*(.+?)\\*\\*\\*",  with: "<strong><em>$1</em></strong>", options: .regularExpression)
+            s = s.replacingOccurrences(of: "\\*\\*(.+?)\\*\\*",       with: "<strong>$1</strong>",         options: .regularExpression)
+            s = s.replacingOccurrences(of: "__(.+?)__",               with: "<strong>$1</strong>",         options: .regularExpression)
+            s = s.replacingOccurrences(of: "\\*(.+?)\\*",             with: "<em>$1</em>",                 options: .regularExpression)
+            s = s.replacingOccurrences(of: "~~(.+?)~~",               with: "<del>$1</del>",               options: .regularExpression)
+            s = s.replacingOccurrences(of: "`([^`]+)`",               with: "<code>$1</code>",             options: .regularExpression)
+            s = s.replacingOccurrences(of: "!\\[([^\\]]*)\\]\\(([^)]+)\\)", with: "<img src=\"$2\" alt=\"$1\">", options: .regularExpression)
+            s = s.replacingOccurrences(of: "\\[([^\\]]+)\\]\\(([^)]+)\\)",  with: "<a href=\"$2\">$1</a>",    options: .regularExpression)
+            return s
+        }
+
+        func parseTableRow(_ row: String) -> [String] {
+            var cells = row.components(separatedBy: "|")
+            if cells.first?.trimmingCharacters(in: .whitespaces).isEmpty == true { cells.removeFirst() }
+            if cells.last?.trimmingCharacters(in: .whitespaces).isEmpty == true { cells.removeLast() }
+            return cells.map { $0.trimmingCharacters(in: .whitespaces) }
+        }
+
+        func isSeparatorRow(_ row: String) -> Bool {
+            let cells = parseTableRow(row)
+            guard !cells.isEmpty else { return false }
+            return cells.allSatisfy { cell in
+                !cell.isEmpty &&
+                cell.replacingOccurrences(of: "-", with: "")
+                    .replacingOccurrences(of: ":", with: "")
+                    .replacingOccurrences(of: " ", with: "")
+                    .isEmpty
+            }
+        }
+
+        while i < lines.count {
+            let line = lines[i]
+
+            // Code fence
+            if line.hasPrefix("```") || line.hasPrefix("~~~") {
+                let fence = line.hasPrefix("```") ? "```" : "~~~"
+                var codeLines: [String] = []
+                i += 1
+                while i < lines.count && !lines[i].hasPrefix(fence) {
+                    codeLines.append(escapeHTML(lines[i]))
+                    i += 1
+                }
+                i += 1 // skip closing fence
+                html += "<pre><code>\(codeLines.joined(separator: "\n"))</code></pre>\n"
+                continue
+            }
+
+            // Table: consecutive lines starting with |
+            if line.hasPrefix("|") {
+                var tableLines: [String] = []
+                while i < lines.count && lines[i].hasPrefix("|") {
+                    tableLines.append(lines[i])
+                    i += 1
+                }
+                guard tableLines.count >= 2 else {
+                    for tl in tableLines { html += "<p>\(renderInline(tl))</p>\n" }
+                    continue
+                }
+                let headers = parseTableRow(tableLines[0])
+                let bodyStart = (tableLines.count > 1 && isSeparatorRow(tableLines[1])) ? 2 : 1
+                html += "<table>\n<thead>\n<tr>"
+                for h in headers { html += "<th>\(renderInline(h))</th>" }
+                html += "</tr>\n</thead>\n<tbody>\n"
+                for j in bodyStart..<tableLines.count {
+                    let cells = parseTableRow(tableLines[j])
+                    html += "<tr>"
+                    for cell in cells { html += "<td>\(renderInline(cell))</td>" }
+                    html += "</tr>\n"
+                }
+                html += "</tbody>\n</table>\n"
+                continue
+            }
+
+            // Headings
+            if line.hasPrefix("### ") {
+                html += "<h3>\(renderInline(String(line.dropFirst(4))))</h3>\n"
+            } else if line.hasPrefix("## ") {
+                html += "<h2>\(renderInline(String(line.dropFirst(3))))</h2>\n"
+            } else if line.hasPrefix("# ") {
+                html += "<h1>\(renderInline(String(line.dropFirst(2))))</h1>\n"
+            } else if line.hasPrefix("---") && line.replacingOccurrences(of: "-", with: "").isEmpty {
+                html += "<hr>\n"
+            } else if line.hasPrefix("> ") {
+                html += "<blockquote>\(renderInline(String(line.dropFirst(2))))</blockquote>\n"
+            } else if line.hasPrefix("- [x] ") || line.hasPrefix("- [X] ") {
+                html += "<ul class=\"task-list\"><li>\u{2611} \(renderInline(String(line.dropFirst(6))))</li></ul>\n"
+            } else if line.hasPrefix("- [ ] ") {
+                html += "<ul class=\"task-list\"><li>\u{2610} \(renderInline(String(line.dropFirst(6))))</li></ul>\n"
+            } else if line.hasPrefix("- ") || line.hasPrefix("* ") || line.hasPrefix("+ ") {
+                html += "<ul><li>\(renderInline(String(line.dropFirst(2))))</li></ul>\n"
+            } else if line.range(of: "^\\d+\\. ", options: .regularExpression) != nil {
+                let text = line.replacingOccurrences(of: "^\\d+\\. ", with: "", options: .regularExpression)
+                html += "<ol><li>\(renderInline(text))</li></ol>\n"
+            } else if line.trimmingCharacters(in: .whitespaces).isEmpty {
+                html += "<br>\n"
+            } else {
+                html += "<p>\(renderInline(line))</p>\n"
+            }
+
+            i += 1
+        }
+        return html
     }
 
     private func escapeHTML(_ str: String) -> String {
