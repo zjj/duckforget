@@ -13,6 +13,7 @@ struct FormatMenuSheet: View {
         case quote, bullet, numbered, checkbox
         case divider
         case link, image
+        case tablePipe
 
         var id: String { rawValue }
 
@@ -33,6 +34,7 @@ struct FormatMenuSheet: View {
             case .divider: return "分割线"
             case .link: return "链接"
             case .image: return "图片"
+            case .tablePipe: return "表格分隔"
             }
         }
 
@@ -53,6 +55,7 @@ struct FormatMenuSheet: View {
             case .divider: return "minus"
             case .link: return "link"
             case .image: return "photo"
+            case .tablePipe: return "tablecells"
             }
         }
 
@@ -62,6 +65,7 @@ struct FormatMenuSheet: View {
             case .h1: return "#"
             case .h2: return "##"
             case .h3: return "###"
+            case .tablePipe: return "|"
             default: return nil
             }
         }
@@ -83,6 +87,7 @@ struct FormatMenuSheet: View {
             case .divider: return "---"
             case .link: return "[文本](url)"
             case .image: return "![图片](url)"
+            case .tablePipe: return "| 列1 | 列2 |"
             }
         }
 
@@ -104,6 +109,7 @@ struct FormatMenuSheet: View {
             case .divider: return "\n---\n"
             case .link: return "[链接文本]()"
             case .image: return "![图片描述]()"
+            case .tablePipe: return "|"
             }
         }
 
@@ -117,6 +123,7 @@ struct FormatMenuSheet: View {
             case .divider: return .gray
             case .link: return .indigo
             case .image: return .pink
+            case .tablePipe: return .cyan
             }
         }
     }

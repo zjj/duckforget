@@ -111,6 +111,7 @@ extension NoteView {
             coord.insertBlockAtCursor("```\n代码块\n```")
         case .divider:
             coord.insertBlockAtCursor("---\n")
-        }
-    }
+        case .tablePipe:
+            coord.insertTextAtCursor("|")
+        }    }
 }
