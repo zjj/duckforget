@@ -62,6 +62,12 @@ struct MarkdownTextView: UIViewRepresentable {
     func updateUIView(_ uiView: UITextView, context: Context) {
         context.coordinator.parent = self
 
+        // Ensure delegate is always set correctly (e.g. after Settings changes cause
+        // SwiftUI to re-invoke updateUIView, UIKit may have cleared the delegate).
+        if uiView.delegate !== context.coordinator {
+            uiView.delegate = context.coordinator
+        }
+
         if uiView.isEditable != isEditable {
             uiView.isEditable = isEditable
         }
@@ -280,8 +286,8 @@ struct MarkdownTextView: UIViewRepresentable {
 
             // ── Table handling ──────────────────────────────────────────────────
             if line.contains("|") {
-                // lineRange includes the trailing '\n'; the last non-newline char is at length-2
-                let lineContentEnd = lineRange.location + max(0, lineRange.length - 1)
+                // Use actual line text length so EOF lines (without trailing '\n') are handled correctly.
+                let lineContentEnd = lineRange.location + (line as NSString).length
                 let cursorAtLineStart = range.location == lineRange.location
                 let cursorAtLineEnd   = range.location == lineContentEnd
 
@@ -293,19 +299,19 @@ struct MarkdownTextView: UIViewRepresentable {
                     if cursorAtLineStart {
                         // Shift separator (and everything below) down: plain newline
                         return true
-                    } else if cursorAtLineEnd {
-                        // Insert empty data row after separator
+                    } else {
+                        // Any non-start position on a separator row → insert empty data row after it
                         let cells  = Array(repeating: "  ", count: colCount).joined(separator: " | ")
                         let newRow = "| " + cells + " |"
+                        // Move cursor to line end first so we insert after the whole line
+                        textView.selectedRange = NSRange(location: lineRange.location + (line as NSString).length, length: 0)
                         insertAtCursor(textView, "\n" + newRow)
-                        let cursorPos     = textView.selectedRange.location
+                        let cursorPos      = textView.selectedRange.location
                         let firstCellStart = cursorPos - (newRow as NSString).length + 2
                         if firstCellStart >= 0 {
                             textView.selectedRange = NSRange(location: firstCellStart, length: 0)
                         }
                         return false
-                    } else {
-                        return true // cursor in middle: plain newline
                     }
                 }
 
@@ -340,12 +346,14 @@ struct MarkdownTextView: UIViewRepresentable {
                     if cursorAtLineStart {
                         // Shift entire table down: plain newline before header
                         return true
-                    } else if cursorAtLineEnd {
-                        // Insert separator row + first empty data row after header
+                    } else {
+                        // Any non-start position on a header row → insert separator + first data row
                         let dashCells    = Array(repeating: " --- ", count: colCount).joined(separator: "|")
                         let separatorRow = "|" + dashCells + "|"
                         let emptyCells   = Array(repeating: "  ", count: colCount).joined(separator: " | ")
                         let dataRow      = "| " + emptyCells + " |"
+                        // Move cursor to line end first so we insert after the whole header line
+                        textView.selectedRange = NSRange(location: lineRange.location + (line as NSString).length, length: 0)
                         insertAtCursor(textView, "\n" + separatorRow + "\n" + dataRow)
                         let cursorPos      = textView.selectedRange.location
                         let firstCellStart = cursorPos - (dataRow as NSString).length + 2
@@ -353,8 +361,6 @@ struct MarkdownTextView: UIViewRepresentable {
                             textView.selectedRange = NSRange(location: firstCellStart, length: 0)
                         }
                         return false
-                    } else {
-                        return true // cursor in middle: plain newline
                     }
                 }
 
@@ -367,10 +373,13 @@ struct MarkdownTextView: UIViewRepresentable {
                     replaceRange(textView, range: NSRange(location: lineRange.location, length: 0),
                                  with: newRow + "\n", cursorAt: lineRange.location + 2)
                     return false
-                } else if cursorAtLineEnd {
-                    // Append new empty row after current row
+                } else {
+                    // Cursor anywhere on the row (middle or end) → append new empty row after this row.
+                    // Moving the cursor to line end first ensures the insert position is always after
+                    // the current row, regardless of where within the cell the cursor was.
                     let cells  = Array(repeating: "  ", count: colCount).joined(separator: " | ")
                     let newRow = "| " + cells + " |"
+                    textView.selectedRange = NSRange(location: lineRange.location + (line as NSString).length, length: 0)
                     insertAtCursor(textView, "\n" + newRow)
                     let cursorPos      = textView.selectedRange.location
                     let firstCellStart = cursorPos - (newRow as NSString).length + 2
@@ -378,8 +387,6 @@ struct MarkdownTextView: UIViewRepresentable {
                         textView.selectedRange = NSRange(location: firstCellStart, length: 0)
                     }
                     return false
-                } else {
-                    return true // cursor in middle: plain newline
                 }
             }
 
