@@ -222,30 +222,43 @@ struct MarkdownRenderView: View {
         }
     }
     
+    /// Build a single AttributedString from inline text+link segments so they flow together.
+    private func buildInlineAttributedString(from segments: [InlineSegment]) -> AttributedString {
+        var result = AttributedString("")
+        for segment in segments {
+            switch segment {
+            case .text(let attr):
+                result += attr
+            case .link(let displayText, let url):
+                var linkAttr = AttributedString(displayText)
+                linkAttr.foregroundColor = .blue
+                if let parsed = URL(string: url) {
+                    linkAttr.link = parsed
+                }
+                result += linkAttr
+            case .image:
+                break
+            }
+        }
+        return result
+    }
+
     @ViewBuilder
     private func flowLayout(segments: [InlineSegment]) -> some View {
-        // Group consecutive text segments together, render links and images separately
+        // Group inline (text+link) segments together; images break the flow into separate blocks
         VStack(alignment: .leading, spacing: 4) {
             ForEach(Array(groupSegments(segments).enumerated()), id: \.offset) { _, group in
                 switch group {
-                case .combinedText(let textSegments):
-                    let combined = textSegments.reduce(into: Text("")) { result, attr in
-                        result = Text("\(result)\(Text(attr))")
-                    }
-                    combined
+                case .inlineContent(let inlineSegments):
+                    let combined = buildInlineAttributedString(from: inlineSegments)
+                    Text(combined)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .fixedSize(horizontal: false, vertical: true)
-                case .link(let displayText, let url):
-                    Button {
-                        if let parsed = URL(string: url) {
-                            pendingLinkURL = parsed
+                        .environment(\.openURL, OpenURLAction { url in
+                            pendingLinkURL = url
                             showLinkConfirmation = true
-                        }
-                    } label: {
-                        Text(displayText)
-                            .foregroundColor(.blue)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                            return .handled
+                        })
                 case .image(let alt, let url):
                     VStack(alignment: .leading, spacing: 4) {
                         // Only load local file:// URLs to avoid silent network requests.
@@ -305,37 +318,31 @@ struct MarkdownRenderView: View {
     }
     
     private enum SegmentGroup {
-        case combinedText([AttributedString])
-        case link(displayText: String, url: String)
+        /// Consecutive text and link segments rendered inline in a single Text view
+        case inlineContent([InlineSegment])
         case image(alt: String, url: String)
     }
     
-    /// Group consecutive text segments together
+    /// Group segments so that text + links flow inline together; images break the flow.
     private func groupSegments(_ segments: [InlineSegment]) -> [SegmentGroup] {
         var groups: [SegmentGroup] = []
-        var currentTextSegments: [AttributedString] = []
+        var currentInline: [InlineSegment] = []
         
         for segment in segments {
             switch segment {
-            case .text(let attr):
-                currentTextSegments.append(attr)
-            case .link(let displayText, let url):
-                if !currentTextSegments.isEmpty {
-                    groups.append(.combinedText(currentTextSegments))
-                    currentTextSegments = []
-                }
-                groups.append(.link(displayText: displayText, url: url))
+            case .text, .link:
+                currentInline.append(segment)
             case .image(let alt, let url):
-                if !currentTextSegments.isEmpty {
-                    groups.append(.combinedText(currentTextSegments))
-                    currentTextSegments = []
+                if !currentInline.isEmpty {
+                    groups.append(.inlineContent(currentInline))
+                    currentInline = []
                 }
                 groups.append(.image(alt: alt, url: url))
             }
         }
         
-        if !currentTextSegments.isEmpty {
-            groups.append(.combinedText(currentTextSegments))
+        if !currentInline.isEmpty {
+            groups.append(.inlineContent(currentInline))
         }
         
         return groups
