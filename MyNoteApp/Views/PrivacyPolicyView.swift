@@ -9,7 +9,7 @@ struct PrivacyPolicyView: View {
                         .font(.title)
                         .fontWeight(.bold)
                     
-                    Text("更新日期：2026年2月19日")
+                    Text("更新日期：2026年2月27日")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     
@@ -19,15 +19,39 @@ struct PrivacyPolicyView: View {
                 Group {
                     Text("1. 信息收集")
                         .font(.headline)
-                    Text("记不住鸭 是一款本地优先的笔记应用。我们不会将您的笔记内容、录音、图片等数据上传至我们的服务器。所有数据均存储在您的设备本地。")
+                    Text("记不住鸭 是一款本地优先的笔记应用。我们不会将您的任何文档内容、录音、图片等数据上传至我们的服务器。所有数据均存储在您的设备本地。")
                 
                     Text("2. 数据使用")
                         .font(.headline)
-                    Text("我们收集的任何非个人统计数据（如崩溃报告、性能数据）仅用于改进应用体验，不会用于识别个人身份。")
+                    Text("我们不收集、不使用、也不共享您的个人信息。我们不会通过任何第三方SDK收集您的数据，也不会将您的数据用于广告投放或其他商业用途。")
                 
-                    Text("3. 权限说明")
+                    Text("3. App 权限使用说明")
                         .font(.headline)
-                    Text("• 麦克风：需要访问麦克风以进行语音输入和录音。\n• 语音识别：需要语音识别权限以将语音转为文字。\n• 相机：需要访问相机以拍摄照片或录像。\n• 位置信息：需要您的位置权限以在记录中插入当前位置。\n• 照片库：需要访问照片库以选择照片或视频。")
+                    
+                    Text("3.1 相册/照片库权限")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    Text("我们会在您主动选择时申请访问相册权限，用于从本地设备选择图片插入到文档中。您的图片仅在本地使用，不会未经授权上传、共享或泄露。")
+                    
+                    Text("3.2 相机权限")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    Text("我们会申请相机权限，用于拍摄照片并插入到文档内容中，仅在您主动使用拍照功能时调用，不会后台拍摄或收集影像数据。")
+                    
+                    Text("3.3 麦克风权限")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    Text("我们会申请麦克风权限，用于语音录制、语音识别，将录音或识别的内容插入文档，仅在您主动开启录音或语音输入时使用，不会后台录音。")
+                    
+                    Text("3.4 语音识别权限")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    Text("我们会使用语音识别能力，将您的语音内容转换为文字输入到文档中，语音数据仅用于实时转换，不会被存储或上传。")
+                    
+                    Text("3.5 位置权限（地图服务）")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    Text("我们会在使用地图、位置标记功能时申请位置权限，用于在文档中插入展示地图信息、标记位置。您可随时在系统设置中关闭位置授权，关闭后不影响 App 其他功能使用。")
                     
                     Text("4. 第三方服务")
                         .font(.headline)
