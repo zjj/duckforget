@@ -112,6 +112,6 @@ extension NoteView {
         case .divider:
             coord.insertBlockAtCursor("---\n")
         case .tablePipe:
-            coord.insertTextAtCursor("|")
+            coord.insertTextAtCursor("| ") // keep a blank after | for easier typing
         }    }
 }
