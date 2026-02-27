@@ -11,6 +11,10 @@ struct MarkdownRenderView: View {
     @State private var showLinkConfirmation = false
 
     // Parsed block model
+    private enum TableAlignment {
+        case left, center, right, none
+    }
+
     private enum Block {
         case heading(level: Int, text: String)
         case codeBlock(lang: String, code: String)
@@ -19,6 +23,7 @@ struct MarkdownRenderView: View {
         case numbered(index: String, text: String)
         case checkbox(checked: Bool, text: String)
         case divider
+        case table(headers: [String], alignments: [TableAlignment], rows: [[String]])
         case paragraph(text: String)
         case blank
     }
@@ -84,6 +89,26 @@ struct MarkdownRenderView: View {
                 let idx = String(prefix.dropLast(2))
                 let text = String(line[matchRange.upperBound...])
                 result.append(.numbered(index: idx + ".", text: text))
+
+            // Table: first line has |, second line is separator (|---|)
+            } else if isTableRow(line) && i + 1 < lines.count && isTableSeparator(lines[i + 1]) {
+                let headers = parseTableCells(line)
+                let separatorCells = parseTableCells(lines[i + 1])
+                let alignments: [TableAlignment] = separatorCells.map { cell in
+                    let t = cell.trimmingCharacters(in: .whitespaces)
+                    if t.hasPrefix(":") && t.hasSuffix(":") { return .center }
+                    if t.hasSuffix(":") { return .right }
+                    if t.hasPrefix(":") { return .left }
+                    return .none
+                }
+                var rows: [[String]] = []
+                i += 2
+                while i < lines.count && isTableRow(lines[i]) {
+                    rows.append(parseTableCells(lines[i]))
+                    i += 1
+                }
+                result.append(.table(headers: headers, alignments: alignments, rows: rows))
+                continue
 
             // Divider
             } else if line == "---" || line == "***" || line == "___" {
@@ -187,6 +212,10 @@ struct MarkdownRenderView: View {
                     .foregroundColor(checked ? .secondary : .primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+
+        case .table(let headers, let alignments, let rows):
+            tableView(headers: headers, alignments: alignments, rows: rows)
+                .padding(.vertical, 4)
 
         case .divider:
             Divider()
@@ -524,6 +553,111 @@ struct MarkdownRenderView: View {
         }
         
         return AttributedString(nsAttr)
+    }
+
+    // MARK: - Table Rendering
+
+    private func tableView(headers: [String], alignments: [TableAlignment], rows: [[String]]) -> some View {
+        let colCount = max(max(headers.count, 1), rows.map(\.count).max() ?? 1)
+        let aligns = alignments + Array(repeating: TableAlignment.none, count: max(0, colCount - alignments.count))
+        let headerBg = theme.colors.card
+        let evenBg   = theme.colors.card
+        let oddBg    = theme.colors.cardSecondary
+        let divColor = Color(UIColor.separator)
+
+        return ScrollView(.horizontal, showsIndicators: false) {
+            Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 0) {
+                // ── Header row ──
+                GridRow {
+                    ForEach(0..<colCount, id: \.self) { col in
+                        inlineText(col < headers.count ? headers[col] : "")
+                            .font(.subheadline.weight(.semibold))
+                            .frame(minWidth: 72, maxWidth: .infinity,
+                                   alignment: frameAlignment(aligns[col]))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 7)
+                            .background(headerBg)
+                            .overlay(alignment: .trailing) {
+                                if col < colCount - 1 {
+                                    divColor.frame(width: 0.5)
+                                }
+                            }
+                    }
+                }
+                // ── Header / body divider ──
+                GridRow {
+                    divColor.frame(height: 1)
+                        .gridCellColumns(colCount)
+                }
+                // ── Data rows ──
+                ForEach(Array(rows.enumerated()), id: \.offset) { rowIdx, row in
+                    GridRow {
+                        ForEach(0..<colCount, id: \.self) { col in
+                            let bg = rowIdx % 2 == 0 ? evenBg : oddBg
+                            inlineText(col < row.count ? row[col] : "")
+                                .font(.subheadline)
+                                .frame(minWidth: 72, maxWidth: .infinity,
+                                       alignment: frameAlignment(aligns[col]))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(bg)
+                                .overlay(alignment: .trailing) {
+                                    if col < colCount - 1 {
+                                        divColor.frame(width: 0.5)
+                                    }
+                                }
+                        }
+                    }
+                    if rowIdx < rows.count - 1 {
+                        GridRow {
+                            divColor.opacity(0.4).frame(height: 0.5)
+                                .gridCellColumns(colCount)
+                        }
+                    }
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(divColor, lineWidth: 0.5)
+            )
+        }
+    }
+
+    private func frameAlignment(_ a: TableAlignment) -> Alignment {
+        switch a {
+        case .center: return .center
+        case .right: return .trailing
+        default: return .leading
+        }
+    }
+
+    // MARK: - Table Helpers
+
+    private func isTableRow(_ line: String) -> Bool {
+        let t = line.trimmingCharacters(in: .whitespaces)
+        return t.contains("|") && !t.isEmpty
+    }
+
+    private func isTableSeparator(_ line: String) -> Bool {
+        let t = line.trimmingCharacters(in: .whitespaces)
+        guard t.contains("|") else { return false }
+        // All cells must match /^:?-+:?$/ after trimming
+        let cells = parseTableCells(line)
+        guard !cells.isEmpty else { return false }
+        return cells.allSatisfy { cell in
+            let c = cell.trimmingCharacters(in: .whitespaces)
+            guard !c.isEmpty else { return false }
+            let stripped = c.trimmingCharacters(in: CharacterSet(charactersIn: ":"))
+            return stripped.allSatisfy { $0 == "-" } && !stripped.isEmpty
+        }
+    }
+
+    private func parseTableCells(_ line: String) -> [String] {
+        var t = line.trimmingCharacters(in: .whitespaces)
+        if t.hasPrefix("|") { t = String(t.dropFirst()) }
+        if t.hasSuffix("|") { t = String(t.dropLast()) }
+        return t.components(separatedBy: "|").map { $0.trimmingCharacters(in: .whitespaces) }
     }
 
     private func headingFont(_ level: Int) -> Font {

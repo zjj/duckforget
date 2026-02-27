@@ -278,6 +278,75 @@ struct MarkdownTextView: UIViewRepresentable {
                 return false
             }
 
+            // Table separator row: Enter → insert empty data row
+            if line.contains("|") && isTableSeparatorLine(line) {
+                let colCount = max(1, tableColumnCount(line))
+                let cells = Array(repeating: "  ", count: colCount).joined(separator: " | ")
+                let newRow = "| " + cells + " |"
+                insertAtCursor(textView, "\n" + newRow)
+                let cursorPos = textView.selectedRange.location
+                let firstCellStart = cursorPos - (newRow as NSString).length + 2
+                if firstCellStart >= 0 {
+                    textView.selectedRange = NSRange(location: firstCellStart, length: 0)
+                }
+                return false
+            }
+
+            // Table row
+            if line.contains("|") && !isTableSeparatorLine(line) {
+                let colCount = max(1, tableColumnCount(line))
+
+                // Detect header row: previous line is NOT a table row
+                let isHeaderRow: Bool = {
+                    if lineRange.location == 0 { return true }
+                    let prevRange = nsText.lineRange(for: NSRange(location: lineRange.location - 1, length: 0))
+                    let prevLine = nsText.substring(with: prevRange).trimmingCharacters(in: .newlines)
+                    return !prevLine.contains("|")
+                }()
+
+                // Check if current row is empty (all cells blank)
+                let isEmptyDataRow: Bool = {
+                    if isHeaderRow { return false }
+                    var t = line.trimmingCharacters(in: .whitespaces)
+                    if t.hasPrefix("|") { t = String(t.dropFirst()) }
+                    if t.hasSuffix("|") { t = String(t.dropLast()) }
+                    return t.components(separatedBy: "|").allSatisfy { $0.trimmingCharacters(in: .whitespaces).isEmpty }
+                }()
+
+                if isEmptyDataRow {
+                    // Empty data row + Enter → delete the empty row, then insert a newline to exit table
+                    replaceRange(textView, range: NSRange(location: lineRange.location, length: lineRange.length), with: "", cursorAt: lineRange.location)
+                    insertAtCursor(textView, "\n")
+                    return false
+                }
+
+                if isHeaderRow {
+                    // Insert separator row + empty data row
+                    let dashCells = Array(repeating: " --- ", count: colCount).joined(separator: "|")
+                    let separatorRow = "|" + dashCells + "|"
+                    let emptyCells = Array(repeating: "  ", count: colCount).joined(separator: " | ")
+                    let dataRow = "| " + emptyCells + " |"
+                    insertAtCursor(textView, "\n" + separatorRow + "\n" + dataRow)
+                    // Place cursor in first cell of data row
+                    let cursorPos = textView.selectedRange.location
+                    let firstCellStart = cursorPos - (dataRow as NSString).length + 2
+                    if firstCellStart >= 0 {
+                        textView.selectedRange = NSRange(location: firstCellStart, length: 0)
+                    }
+                } else {
+                    // Data row: insert new row with same column count
+                    let cells = Array(repeating: "  ", count: colCount).joined(separator: " | ")
+                    let newRow = "| " + cells + " |"
+                    insertAtCursor(textView, "\n" + newRow)
+                    let cursorPos = textView.selectedRange.location
+                    let firstCellStart = cursorPos - (newRow as NSString).length + 2
+                    if firstCellStart >= 0 {
+                        textView.selectedRange = NSRange(location: firstCellStart, length: 0)
+                    }
+                }
+                return false
+            }
+
             // Headings: do NOT continue
             // Default text: normal Enter behavior
             return true
@@ -316,6 +385,39 @@ struct MarkdownTextView: UIViewRepresentable {
                 if cursorInLine == prefixLen {
                     let pfxRange = NSRange(location: lineStart, length: prefixLen)
                     replaceRange(textView, range: pfxRange, with: "", cursorAt: lineStart)
+                    return false
+                }
+            }
+
+            // Table rows: smart delete
+            if line.contains("|") {
+                let isHeaderRow: Bool = {
+                    if lineRange.location == 0 { return true }
+                    let prevRange = nsText.lineRange(for: NSRange(location: lineRange.location - 1, length: 0))
+                    let prevLine = nsText.substring(with: prevRange).trimmingCharacters(in: .newlines)
+                    return !prevLine.contains("|")
+                }()
+
+                let isEmptyDataRow: Bool = {
+                    if isHeaderRow { return false }
+                    var t = line.trimmingCharacters(in: .whitespaces)
+                    if t.hasPrefix("|") { t = String(t.dropFirst()) }
+                    if t.hasSuffix("|") { t = String(t.dropLast()) }
+                    return t.components(separatedBy: "|").allSatisfy { $0.trimmingCharacters(in: .whitespaces).isEmpty }
+                }()
+
+                // Delete empty data row when cursor is at first cell start (cursorInLine == 2, after "| ")
+                // or when cursor is at line end for any non-header row
+                let atFirstCell = isEmptyDataRow && cursorInLine == 2
+                let atLineEnd = !isHeaderRow && cursorInLine == (line as NSString).length
+
+                if atFirstCell || atLineEnd {
+                    // Delete the line itself (location..location+length covers content + trailing \n).
+                    // Cursor lands at lineRange.location, which after deletion is the start of the
+                    // following content — visually staying at the deleted row's original position.
+                    let deleteRange = NSRange(location: lineRange.location, length: lineRange.length)
+                    let cursorAfter = lineRange.location
+                    replaceRange(textView, range: deleteRange, with: "", cursorAt: cursorAfter)
                     return false
                 }
             }
@@ -741,6 +843,14 @@ struct MarkdownTextView: UIViewRepresentable {
                 }
             } else if trimmed == "---" || trimmed == "***" || trimmed == "___" {
                 storage.addAttribute(.foregroundColor, value: UIColor.systemGray2, range: range)
+            } else if trimmed.contains("|") {
+                // Table row: color each | with syntaxColor
+                let isSep = isTableSeparatorLine(trimmed)
+                if isSep {
+                    storage.addAttribute(.foregroundColor, value: UIColor.systemGray2, range: range)
+                } else {
+                    colorTablePipes(storage, line: trimmed, lineStart: range.location, color: syntaxColor)
+                }
             }
         }
 
@@ -804,6 +914,17 @@ struct MarkdownTextView: UIViewRepresentable {
                 }
             } else if trimmed == "---" || trimmed == "***" || trimmed == "___" {
                 storage.addAttribute(.foregroundColor, value: UIColor.systemGray3, range: range)
+            } else if trimmed.contains("|") {
+                // Table separator row: muted + small font
+                if isTableSeparatorLine(trimmed) {
+                    storage.addAttributes([
+                        .foregroundColor: UIColor.systemGray3,
+                        .font: smallPrefixFont
+                    ], range: range)
+                } else {
+                    // Normal table row: color pipes subtle
+                    colorTablePipes(storage, line: trimmed, lineStart: range.location, color: UIColor.tertiaryLabel)
+                }
             }
         }
 
@@ -945,6 +1066,41 @@ struct MarkdownTextView: UIViewRepresentable {
         }
 
         // MARK: - Line Utilities
+
+        private func isTableSeparatorLine(_ line: String) -> Bool {
+            var t = line.trimmingCharacters(in: .whitespaces)
+            guard t.contains("|") else { return false }
+            if t.hasPrefix("|") { t = String(t.dropFirst()) }
+            if t.hasSuffix("|") { t = String(t.dropLast()) }
+            let cells = t.components(separatedBy: "|")
+            guard !cells.isEmpty else { return false }
+            return cells.allSatisfy { cell in
+                let c = cell.trimmingCharacters(in: .whitespaces)
+                guard !c.isEmpty else { return false }
+                let stripped = c.trimmingCharacters(in: CharacterSet(charactersIn: ":"))
+                return stripped.allSatisfy { $0 == "-" } && !stripped.isEmpty
+            }
+        }
+
+        private func colorTablePipes(_ storage: NSTextStorage, line: String, lineStart: Int, color: UIColor) {
+            let nsLine = line as NSString
+            var pos = 0
+            while pos < nsLine.length {
+                if nsLine.character(at: pos) == ("|" as NSString).character(at: 0) {
+                    let absRange = NSRange(location: lineStart + pos, length: 1)
+                    storage.addAttribute(.foregroundColor, value: color, range: absRange)
+                }
+                pos += 1
+            }
+        }
+
+        private func tableColumnCount(_ line: String) -> Int {
+            var t = line.trimmingCharacters(in: .whitespaces)
+            if t.hasPrefix("|") { t = String(t.dropFirst()) }
+            if t.hasSuffix("|") { t = String(t.dropLast()) }
+            let cells = t.components(separatedBy: "|")
+            return cells.count
+        }
 
         private func lineIndex(at location: Int, in text: NSString) -> Int {
             var idx = 0
