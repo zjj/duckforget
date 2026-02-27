@@ -278,33 +278,48 @@ struct MarkdownTextView: UIViewRepresentable {
                 return false
             }
 
-            // Table separator row: Enter → insert empty data row
-            if line.contains("|") && isTableSeparatorLine(line) {
+            // ── Table handling ──────────────────────────────────────────────────
+            if line.contains("|") {
+                // lineRange includes the trailing '\n'; the last non-newline char is at length-2
+                let lineContentEnd = lineRange.location + max(0, lineRange.length - 1)
+                let cursorAtLineStart = range.location == lineRange.location
+                let cursorAtLineEnd   = range.location == lineContentEnd
+
+                let isSepRow = isTableSeparatorLine(line)
                 let colCount = max(1, tableColumnCount(line))
-                let cells = Array(repeating: "  ", count: colCount).joined(separator: " | ")
-                let newRow = "| " + cells + " |"
-                insertAtCursor(textView, "\n" + newRow)
-                let cursorPos = textView.selectedRange.location
-                let firstCellStart = cursorPos - (newRow as NSString).length + 2
-                if firstCellStart >= 0 {
-                    textView.selectedRange = NSRange(location: firstCellStart, length: 0)
+
+                // ── Separator row ───────────────────────────────────────────
+                if isSepRow {
+                    if cursorAtLineStart {
+                        // Shift separator (and everything below) down: plain newline
+                        return true
+                    } else if cursorAtLineEnd {
+                        // Insert empty data row after separator
+                        let cells  = Array(repeating: "  ", count: colCount).joined(separator: " | ")
+                        let newRow = "| " + cells + " |"
+                        insertAtCursor(textView, "\n" + newRow)
+                        let cursorPos     = textView.selectedRange.location
+                        let firstCellStart = cursorPos - (newRow as NSString).length + 2
+                        if firstCellStart >= 0 {
+                            textView.selectedRange = NSRange(location: firstCellStart, length: 0)
+                        }
+                        return false
+                    } else {
+                        return true // cursor in middle: plain newline
+                    }
                 }
-                return false
-            }
 
-            // Table row
-            if line.contains("|") && !isTableSeparatorLine(line) {
-                let colCount = max(1, tableColumnCount(line))
+                // ── Non-separator table row (header or data) ────────────────
 
-                // Detect header row: previous line is NOT a table row
+                // Detect header row: the line above is not a table row
                 let isHeaderRow: Bool = {
                     if lineRange.location == 0 { return true }
                     let prevRange = nsText.lineRange(for: NSRange(location: lineRange.location - 1, length: 0))
-                    let prevLine = nsText.substring(with: prevRange).trimmingCharacters(in: .newlines)
+                    let prevLine  = nsText.substring(with: prevRange).trimmingCharacters(in: .newlines)
                     return !prevLine.contains("|")
                 }()
 
-                // Check if current row is empty (all cells blank)
+                // Detect empty data row (all cells blank) — always exits table regardless of cursor
                 let isEmptyDataRow: Bool = {
                     if isHeaderRow { return false }
                     var t = line.trimmingCharacters(in: .whitespaces)
@@ -314,37 +329,58 @@ struct MarkdownTextView: UIViewRepresentable {
                 }()
 
                 if isEmptyDataRow {
-                    // Empty data row + Enter → delete the empty row, then insert a newline to exit table
-                    replaceRange(textView, range: NSRange(location: lineRange.location, length: lineRange.length), with: "", cursorAt: lineRange.location)
+                    // Empty data row + Enter → delete row and exit table
+                    replaceRange(textView, range: NSRange(location: lineRange.location, length: lineRange.length),
+                                 with: "", cursorAt: lineRange.location)
                     insertAtCursor(textView, "\n")
                     return false
                 }
 
                 if isHeaderRow {
-                    // Insert separator row + empty data row
-                    let dashCells = Array(repeating: " --- ", count: colCount).joined(separator: "|")
-                    let separatorRow = "|" + dashCells + "|"
-                    let emptyCells = Array(repeating: "  ", count: colCount).joined(separator: " | ")
-                    let dataRow = "| " + emptyCells + " |"
-                    insertAtCursor(textView, "\n" + separatorRow + "\n" + dataRow)
-                    // Place cursor in first cell of data row
-                    let cursorPos = textView.selectedRange.location
-                    let firstCellStart = cursorPos - (dataRow as NSString).length + 2
-                    if firstCellStart >= 0 {
-                        textView.selectedRange = NSRange(location: firstCellStart, length: 0)
+                    if cursorAtLineStart {
+                        // Shift entire table down: plain newline before header
+                        return true
+                    } else if cursorAtLineEnd {
+                        // Insert separator row + first empty data row after header
+                        let dashCells    = Array(repeating: " --- ", count: colCount).joined(separator: "|")
+                        let separatorRow = "|" + dashCells + "|"
+                        let emptyCells   = Array(repeating: "  ", count: colCount).joined(separator: " | ")
+                        let dataRow      = "| " + emptyCells + " |"
+                        insertAtCursor(textView, "\n" + separatorRow + "\n" + dataRow)
+                        let cursorPos      = textView.selectedRange.location
+                        let firstCellStart = cursorPos - (dataRow as NSString).length + 2
+                        if firstCellStart >= 0 {
+                            textView.selectedRange = NSRange(location: firstCellStart, length: 0)
+                        }
+                        return false
+                    } else {
+                        return true // cursor in middle: plain newline
                     }
-                } else {
-                    // Data row: insert new row with same column count
-                    let cells = Array(repeating: "  ", count: colCount).joined(separator: " | ")
+                }
+
+                // ── Regular data row ────────────────────────────────────────
+                if cursorAtLineStart {
+                    // Insert a new empty row BEFORE the current row; current row shifts down
+                    let cells  = Array(repeating: "  ", count: colCount).joined(separator: " | ")
+                    let newRow = "| " + cells + " |"
+                    // Insert "newRow\n" at the very start of this line
+                    replaceRange(textView, range: NSRange(location: lineRange.location, length: 0),
+                                 with: newRow + "\n", cursorAt: lineRange.location + 2)
+                    return false
+                } else if cursorAtLineEnd {
+                    // Append new empty row after current row
+                    let cells  = Array(repeating: "  ", count: colCount).joined(separator: " | ")
                     let newRow = "| " + cells + " |"
                     insertAtCursor(textView, "\n" + newRow)
-                    let cursorPos = textView.selectedRange.location
+                    let cursorPos      = textView.selectedRange.location
                     let firstCellStart = cursorPos - (newRow as NSString).length + 2
                     if firstCellStart >= 0 {
                         textView.selectedRange = NSRange(location: firstCellStart, length: 0)
                     }
+                    return false
+                } else {
+                    return true // cursor in middle: plain newline
                 }
-                return false
             }
 
             // Headings: do NOT continue
