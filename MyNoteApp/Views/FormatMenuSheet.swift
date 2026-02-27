@@ -11,8 +11,8 @@ struct FormatMenuSheet: View {
         case bold, italic, strikethrough
         case code, codeBlock
         case quote, bullet, numbered, checkbox
-        case divider
         case link, image
+        case divider
         case tablePipe
 
         var id: String { rawValue }
