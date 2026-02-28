@@ -253,7 +253,15 @@ extension NoteView {
                 let thumbSize = CGSize(width: 200, height: 200)
                 let renderer = UIGraphicsImageRenderer(size: thumbSize)
                 let thumbImage = renderer.image { _ in
-                    image.draw(in: CGRect(origin: .zero, size: thumbSize))
+                    // 等比缩放（aspect fill）+ 居中裁切，不拉伸图片
+                    let sz = image.size
+                    guard sz.width > 0, sz.height > 0 else { return }
+                    let scale = max(thumbSize.width / sz.width, thumbSize.height / sz.height)
+                    let scaledW = sz.width * scale
+                    let scaledH = sz.height * scale
+                    let x = (thumbSize.width  - scaledW) / 2
+                    let y = (thumbSize.height - scaledH) / 2
+                    image.draw(in: CGRect(x: x, y: y, width: scaledW, height: scaledH))
                 }
                 return (imageData, thumbImage.jpegData(compressionQuality: 0.6))
             }.value
