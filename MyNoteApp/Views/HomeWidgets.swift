@@ -1219,15 +1219,10 @@ struct WidgetNoteCard: View {
     }
 
     var body: some View {
-        if size == .large || size == .fullPage {
-            // large：与列表网格卡片样式一致，固定高度 128pt
-            NoteRowView(note: note)
-                .environment(noteStore)
-                .frame(width: cardWidth, height: 128, alignment: .top)
-                .clipped()
-        } else {
+        if size == .small {
+            // small：紧凑文字卡
             Group {
-                if let att = visualAttachment, size != .small {
+                if let att = visualAttachment {
                     photoCard(attachment: att)
                 } else {
                     textCard
@@ -1236,6 +1231,12 @@ struct WidgetNoteCard: View {
             .frame(width: cardWidth, height: cardHeight)
             .background(theme.colors.card)
             .clipShape(RoundedRectangle(cornerRadius: 10))
+        } else {
+            // medium / large：与列表网格卡片样式一致，固定尺寸裁切
+            NoteRowView(note: note)
+                .environment(noteStore)
+                .frame(width: cardWidth, height: cardHeight, alignment: .top)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
 
