@@ -10,6 +10,8 @@ enum NoteFilterMode {
     case byTag(name: String)
     case dateRange(start: Date, end: Date)
     case byTagAndDateRange(name: String, start: Date, end: Date)
+    /// 按 createdAt 精确日期范围过滤（用于月历点击某天）
+    case createdDateRange(start: Date, end: Date)
 }
 
 // MARK: - NoteQueryContainer
@@ -143,6 +145,20 @@ struct NoteQueryContainer: View {
                         && note.updatedAt >= start && note.updatedAt < end
                         && note.content.localizedStandardContains(token)
                 })
+
+        case (.createdDateRange(let start, let end), nil):
+            descriptor = FetchDescriptor<NoteItem>(
+                predicate: #Predicate { note in
+                    note.isDeleted == false && note.createdAt >= start && note.createdAt < end
+                })
+
+        case (.createdDateRange(let start, let end), let token?):
+            descriptor = FetchDescriptor<NoteItem>(
+                predicate: #Predicate { note in
+                    note.isDeleted == false
+                        && note.createdAt >= start && note.createdAt < end
+                        && note.content.localizedStandardContains(token)
+                })
         }
 
         descriptor.sortBy = [dbSort]
@@ -219,6 +235,7 @@ struct NoteQueryContainer: View {
         case .byTag(let n): return "tag:\(n)|\(searchText)|\(sortMode)"
         case .dateRange(let s, _): return "date:\(s.timeIntervalSince1970)|\(searchText)|\(sortMode)"
         case .byTagAndDateRange(let n, let s, _): return "tagdate:\(n):\(s.timeIntervalSince1970)|\(searchText)|\(sortMode)"
+        case .createdDateRange(let s, _): return "created:\(s.timeIntervalSince1970)|\(searchText)|\(sortMode)"
         }
     }
 

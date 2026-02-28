@@ -78,7 +78,8 @@ struct DashboardDetailView: View {
                         .tag,
                         .recentNotes,
                         .search,
-                        .trash
+                        .trash,
+                        .calendar
                     ]
                     Menu {
                         ForEach(orderedTypes, id: \.self) { type in
@@ -129,7 +130,8 @@ struct DashboardDetailView: View {
                             .tag,
                             .recentNotes,
                             .search,
-                            .trash
+                            .trash,
+                            .calendar
                         ]
                         ForEach(orderedTypes, id: \.self) { type in
                             Button(action: {
@@ -213,31 +215,34 @@ struct DashboardRow: View {
         availableHeight > 0 ? availableHeight - 32 : 600
     }
     
-    var body: some View {
-        // Widget Content
-        Group {
-            switch item.type {
-            case .search:
-                SearchWidget(size: item.size, showSearch: $showSearchDetail)
-            case .tag:
-                if let tagName = item.tagName {
-                    TagWidget(tagName: tagName, size: item.size == .fullPage ? .fullPage : .large, isEditing: isEditing, showTagDetail: $showTagDetail)
-                } else {
-                    Text("标签未设置")
-                        .foregroundColor(.secondary)
-                }
-            case .recentNotes:
-                RecentNotesWidget(size: item.size == .fullPage ? .fullPage : .large, isEditing: isEditing, showRecentNotes: $showRecentNotesDetail)
-            case .newNote:
-                newNoteCard(size: item.size)
-            case .trash:
-                TrashWidget(size: item.size)
-            case .statistics:
-                StatisticsWidget(size: item.size)
-            case .encouragement:
-                EncouragementWidget(content: item.content ?? DashboardItem.defaultEncouragement, size: item.size)
+    @ViewBuilder
+    private var widgetContent: some View {
+        switch item.type {
+        case .search:
+            SearchWidget(size: item.size, showSearch: $showSearchDetail)
+        case .tag:
+            if let tagName = item.tagName {
+                TagWidget(tagName: tagName, size: item.size == .fullPage ? .fullPage : .large, isEditing: isEditing, showTagDetail: $showTagDetail)
+            } else {
+                Text("标签未设置").foregroundColor(.secondary)
             }
+        case .recentNotes:
+            RecentNotesWidget(size: item.size == .fullPage ? .fullPage : .large, isEditing: isEditing, showRecentNotes: $showRecentNotesDetail)
+        case .newNote:
+            newNoteCard(size: item.size)
+        case .trash:
+            TrashWidget(size: item.size)
+        case .statistics:
+            StatisticsWidget(size: item.size)
+        case .encouragement:
+            EncouragementWidget(content: item.content ?? DashboardItem.defaultEncouragement, size: item.size)
+        case .calendar:
+            CalendarWidget(size: item.size, isEditing: isEditing)
         }
+    }
+
+    var body: some View {
+        widgetContent
         .frame(minHeight: item.size == .fullPage ? fullPageHeight : nil)
         .allowsHitTesting(!isEditing)
         // 编辑模式下高亮边框，提示可长按操作
@@ -249,7 +254,7 @@ struct DashboardRow: View {
         // 长按弹出上下文菜单（编辑模式下）
         .contextMenu(isEditing ? ContextMenu {
             // 调整大小
-            if item.type != .trash && item.type != .encouragement {
+            if item.type != .trash && item.type != .encouragement && item.type != .calendar {
                 Menu {
                     Picker("调整大小", selection: Binding(
                         get: { item.size },

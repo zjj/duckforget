@@ -10,6 +10,7 @@ enum WidgetType: String, Codable, CaseIterable, Identifiable {
     case trash
     case encouragement
     case statistics
+    case calendar
     
     var id: String { rawValue }
     
@@ -21,8 +22,7 @@ enum WidgetType: String, Codable, CaseIterable, Identifiable {
         case .search: return "搜索"
         case .trash: return "废纸篓"
         case .encouragement: return "鼓励语录"
-        case .statistics: return "统计"
-        }
+        case .statistics: return "统计"        case .calendar: return "月历"        }
     }
     
     var iconName: String {
@@ -34,6 +34,7 @@ enum WidgetType: String, Codable, CaseIterable, Identifiable {
         case .trash: return "trash"
         case .encouragement: return "heart.text.square"
         case .statistics: return "chart.bar.xaxis"
+        case .calendar: return "calendar"
         }
     }
 }

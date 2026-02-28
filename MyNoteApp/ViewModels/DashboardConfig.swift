@@ -124,6 +124,9 @@ class DashboardConfig {
             if type == .encouragement {
                 newItem.size = .small // Default size for encouragement is small
             }
+            if type == .calendar {
+                newItem.size = .large // Calendar is always large
+            }
             newItem.tagName = tagName
             newItem.content = content
             pages[index].items.append(newItem)
