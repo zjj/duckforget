@@ -189,7 +189,7 @@ struct NoteRowView: View {
 
 // MARK: - 卡片内容预览（按块解析 Markdown + 底部渐隐）
 
-private struct NoteCardPreview: View {
+struct NoteCardPreview: View {
     let content: String
     @Environment(\.appTheme) private var theme
 
