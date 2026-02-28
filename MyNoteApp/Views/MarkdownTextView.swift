@@ -247,22 +247,32 @@ struct MarkdownTextView: UIViewRepresentable {
 
             // === Continue list/quote ===
 
+            let cursorAtLineStart = range.location == lineRange.location
+
             if line.hasPrefix("- [ ] ") || line.hasPrefix("- [x] ") || line.hasPrefix("- [X] ") {
+                // Cursor at line start: plain newline (no list marker on new line)
+                if cursorAtLineStart { return true }
                 insertAtCursor(textView, "\n- [ ] ")
                 return false
             }
 
             if line.hasPrefix("- ") {
+                // Cursor at line start: plain newline (no list marker on new line)
+                if cursorAtLineStart { return true }
                 insertAtCursor(textView, "\n- ")
                 return false
             }
 
             if line.hasPrefix("* ") {
+                // Cursor at line start: plain newline (no list marker on new line)
+                if cursorAtLineStart { return true }
                 insertAtCursor(textView, "\n* ")
                 return false
             }
 
             if line.hasPrefix("+ ") {
+                // Cursor at line start: plain newline (no list marker on new line)
+                if cursorAtLineStart { return true }
                 insertAtCursor(textView, "\n+ ")
                 return false
             }
@@ -274,6 +284,33 @@ struct MarkdownTextView: UIViewRepresentable {
                 let numRange = match.range(at: 1)
                 let numPart = (line as NSString).substring(with: numRange)
                 if let num = Int(numPart) {
+                    if cursorAtLineStart {
+                        // Check whether this is the first line of the ordered list block
+                        let isFirstListLine: Bool = {
+                            guard lineRange.location > 0 else { return true }
+                            let prevRange = nsText.lineRange(for: NSRange(location: lineRange.location - 1, length: 0))
+                            let prevLine = nsText.substring(with: prevRange)
+                            let orderedPattern = try? NSRegularExpression(pattern: #"^\d+\. "#)
+                            return orderedPattern?.firstMatch(
+                                in: prevLine,
+                                range: NSRange(location: 0, length: (prevLine as NSString).length)
+                            ) == nil
+                        }()
+
+                        if isFirstListLine {
+                            // First line: plain newline before the list block
+                            return true
+                        } else {
+                            // Non-first line: insert blank line to split the list into two;
+                            // renumberLists will reset the second list's numbering from 1.
+                            replaceRange(textView, range: NSRange(location: lineRange.location, length: 0),
+                                         with: "\n", cursorAt: lineRange.location)
+                            renumberLists(textView)
+                            parent.text = textView.text
+                            applyHighlighting(textView)
+                            return false
+                        }
+                    }
                     insertAtCursor(textView, "\n\(num + 1). ")
                     return false
                 }
