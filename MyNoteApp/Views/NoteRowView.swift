@@ -60,6 +60,7 @@ struct NoteRowView: View {
             }
         }
         .padding(12)
+        .frame(minHeight: 140)
         .background(theme.colors.card)
         .cornerRadius(12)
     }
