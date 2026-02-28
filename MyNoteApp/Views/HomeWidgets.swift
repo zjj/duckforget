@@ -636,8 +636,8 @@ struct TrashNoteDetailView: View {
                 .padding(.horizontal)
                 .padding(.top, 8)
                 
-                Divider()
-                    .padding(.horizontal)
+                //Divider()
+                //    .padding(.horizontal)
                 
                 // 内容区域（只读）
                 Text(note.content.isEmpty ? "（无内容）" : note.content)
@@ -941,8 +941,8 @@ struct TagFullPagePreview: View {
             .buttonStyle(.plain)
             .disabled(isEditing)
             
-            Divider()
-                .padding(.top, 8)
+            //Divider()
+            //    .padding(.top, 8)
             
             // 记录预览（最多显示100条）
             if displayedNotes.isEmpty {
@@ -1048,8 +1048,8 @@ struct RecentNotesFullPagePreview: View {
             .buttonStyle(.plain)
             .disabled(isEditing)
             
-            Divider()
-                .padding(.top, 8)
+            //Divider()
+            //    .padding(.top, 8)
             
             // 记录预览（最多显示100条）
             if displayedNotes.isEmpty {
