@@ -5,6 +5,7 @@ import SwiftUI
 /// 记录列表行视图（自适应内容 + 附件的卡片样式）
 struct NoteRowView: View {
     let note: NoteItem
+    var showDateFooter: Bool = true
     @Environment(\.appTheme) private var theme
     @Environment(NoteStore.self) private var noteStore
 
@@ -48,11 +49,14 @@ struct NoteRowView: View {
             }
 
             // ── 底部日期 ──────────────────────────────────────
-            HStack {
-                Spacer()
-                Text(note.updatedAt.formattedAbsolute)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+            if showDateFooter {
+                Spacer(minLength: 0)
+                HStack {
+                    Spacer()
+                    Text(note.updatedAt.formattedAbsolute)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
             }
         }
         .padding(12)

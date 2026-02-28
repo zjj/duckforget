@@ -57,10 +57,26 @@ struct WidgetNoteCard: View {
             .background(theme.colors.card)
             .clipShape(RoundedRectangle(cornerRadius: 10))
         } else {
-            // medium / large：与列表网格卡片样式一致，固定尺寸裁切
-            NoteRowView(note: note)
+            // medium / large：固定高度裁切，日期始终固定在右下角
+            NoteRowView(note: note, showDateFooter: false)
                 .environment(noteStore)
                 .frame(width: cardWidth, height: cardHeight, alignment: .top)
+                .background(theme.colors.card)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(alignment: .bottomTrailing) {
+                    Text(note.updatedAt.formattedAbsolute)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 6)
+                        .background(
+                            LinearGradient(
+                                colors: [theme.colors.card.opacity(0), theme.colors.card],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                }
                 .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
