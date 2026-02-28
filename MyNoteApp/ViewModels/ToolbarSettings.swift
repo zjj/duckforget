@@ -30,6 +30,13 @@ class ToolbarSettings {
             UserDefaults.standard.set(isVoiceInputEnabled, forKey: "isVoiceInputEnabled")
         }
     }
+
+    // Large Icon Mode (粗大手指模式)
+    var isLargeToolbarIcons: Bool = false {
+        didSet {
+            UserDefaults.standard.set(isLargeToolbarIcons, forKey: "isLargeToolbarIcons")
+        }
+    }
     
     private let userDefaultsKey = "toolbarOrder"
     private let legacyDefaultsKey = "toolbarOrderLegacy" // If we want to keep old key separate, or just overwrite?
@@ -45,6 +52,11 @@ class ToolbarSettings {
             isVoiceInputEnabled = UserDefaults.standard.bool(forKey: "isVoiceInputEnabled")
         } else {
             isVoiceInputEnabled = true
+        }
+
+        // Load large icon mode (default false)
+        if UserDefaults.standard.object(forKey: "isLargeToolbarIcons") != nil {
+            isLargeToolbarIcons = UserDefaults.standard.bool(forKey: "isLargeToolbarIcons")
         }
 
         let savedData = UserDefaults.standard.string(forKey: userDefaultsKey)

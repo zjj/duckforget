@@ -7,6 +7,12 @@ extension NoteView {
     // MARK: 展开的格式工具栏（2行图标布局）
     
     var expandedFormatToolbar: some View {
+        let isLarge = toolbarSettings.isLargeToolbarIcons
+        let iconSize: CGFloat = isLarge ? 21 : 16
+        let labelSize: CGFloat = isLarge ? 17 : 14
+        let rowMinHeight: CGFloat = isLarge ? 48 : 36
+        let dividerHeight: CGFloat = isLarge ? 32 : 24
+
         let allFormats = FormatMenuSheet.FormatAction.allCases.filter { $0 != .image }
         let halfCount = (allFormats.count + 1) / 2
         let row1 = Array(allFormats.prefix(halfCount))
@@ -27,20 +33,20 @@ extension NoteView {
                         Group {
                             if let label = action.customLabel {
                                 Text(label)
-                                    .font(.system(size: 14, weight: .bold, design: .monospaced))
+                                    .font(.system(size: labelSize, weight: .bold, design: .monospaced))
                             } else {
                                 Image(systemName: action.icon)
-                                    .font(.system(size: 16))
+                                    .font(.system(size: iconSize))
                             }
                         }
                         .foregroundColor(action.color)
-                        .frame(maxWidth: .infinity, minHeight: 36)
+                        .frame(maxWidth: .infinity, minHeight: rowMinHeight)
                     }
                     .accessibilityLabel(action.title)
 
                     if action != row1.last {
                         Divider()
-                            .frame(height: 24)
+                            .frame(height: dividerHeight)
                     }
                 }
             }
@@ -61,29 +67,29 @@ extension NoteView {
                         Group {
                             if let label = action.customLabel {
                                 Text(label)
-                                    .font(.system(size: 14, weight: .bold, design: .monospaced))
+                                    .font(.system(size: labelSize, weight: .bold, design: .monospaced))
                             } else {
                                 Image(systemName: action.icon)
-                                    .font(.system(size: 16))
+                                    .font(.system(size: iconSize))
                             }
                         }
                         .foregroundColor(action.color)
-                        .frame(maxWidth: .infinity, minHeight: 36)
+                        .frame(maxWidth: .infinity, minHeight: rowMinHeight)
                     }
                     .accessibilityLabel(action.title)
 
                     // 待办切换按钮：插入在 checkbox 图标之后、分割线图标之前
                     if action == .checkbox {
                         Divider()
-                            .frame(height: 24)
+                            .frame(height: dividerHeight)
                         
                         Button {
                             toggleTodoCheckbox()
                         } label: {
                             Text((currentLineIsTodo && currentLineIsTodoCouldBeChecked) ? "[x]" : "[ ]")
-                                .font(.system(size: 14, weight: .medium, design: .monospaced))
+                                .font(.system(size: labelSize, weight: .medium, design: .monospaced))
                                 .foregroundColor(currentLineIsTodo ? .teal : .gray)
-                                .frame(maxWidth: .infinity, minHeight: 36)
+                                .frame(maxWidth: .infinity, minHeight: rowMinHeight)
                                 .opacity(todoToggleButtonPressed ? 0.3 : 1.0)
                                 .scaleEffect(todoToggleButtonPressed ? 1.2 : 1.0)
                         }
@@ -93,7 +99,7 @@ extension NoteView {
 
                     if action != row2.last {
                         Divider()
-                            .frame(height: 24)
+                            .frame(height: dividerHeight)
                     }
                 }
             }
@@ -109,7 +115,15 @@ extension NoteView {
     }
 
     var bottomToolbar: some View {
-        HStack(spacing: 0) {
+        let isLarge = toolbarSettings.isLargeToolbarIcons
+        let toolbarHeight: CGFloat = isLarge ? 56 : 44
+        let iconSize: CGFloat = isLarge ? 24 : 18
+        let fixedButtonWidth: CGFloat = isLarge ? 52 : 40
+        let fixedButtonFrameHeight: CGFloat = isLarge ? 48 : 36
+        let dividerHeight: CGFloat = isLarge ? 32 : 24
+        let markdownFontSize: CGFloat = isLarge ? 11 : 9
+
+        return HStack(spacing: 0) {
             // 左侧固定：Markdown 格式按钮（展开/收起格式栏），仅在 Markdown 启用时显示
             if isMarkdownToolbarEnabled {
                 Button {
@@ -122,29 +136,29 @@ extension NoteView {
                     Group {
                         if showExpandedFormatBar {
                             Image(systemName: "chevron.down")
-                                .font(.system(size: 18))
+                                .font(.system(size: iconSize))
                         } else {
                             VStack(spacing: 1) {
                                 Text("MARK")
-                                    .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                                    .font(.system(size: markdownFontSize, weight: .semibold, design: .monospaced))
                                 Text("DOWN")
-                                    .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                                    .font(.system(size: markdownFontSize, weight: .semibold, design: .monospaced))
                             }
                         }
                     }
                     .foregroundColor(theme.colors.accent)
-                    .frame(width: 40, height: 36)
+                    .frame(width: fixedButtonWidth, height: fixedButtonFrameHeight)
                 }
                 .accessibilityLabel(showExpandedFormatBar ? "收起格式工具栏" : "展开格式工具栏")
 
                 Divider()
-                    .frame(height: 24)
+                    .frame(height: dividerHeight)
                     .padding(.horizontal, 4)
             }
             
             // 中间可滚动工具栏
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                HStack(spacing: isLarge ? 12 : 8) {
                     ForEach(toolbarSettings.activeItems.filter { $0 != .markdown }) { item in
                         toolButton(for: item)
                     }
@@ -153,7 +167,7 @@ extension NoteView {
             }
             
             Divider()
-                .frame(height: 24)
+                .frame(height: dividerHeight)
                 .padding(.horizontal, 4)
             
             // 右侧固定：键盘收起按钮
@@ -161,13 +175,13 @@ extension NoteView {
                 markdownCoordinator?.blur()
             } label: {
                 Image(systemName: "keyboard.chevron.compact.down")
-                    .font(.system(size: 18))
+                    .font(.system(size: iconSize))
                     .foregroundColor(theme.colors.accent)
-                    .frame(width: 40, height: 36)
+                    .frame(width: fixedButtonWidth, height: fixedButtonFrameHeight)
             }
             .accessibilityLabel("收起键盘")
         }
-        .frame(height: 44)
+        .frame(height: toolbarHeight)
         .background(theme.colors.surface)
     }
     
@@ -211,13 +225,17 @@ extension NoteView {
         var label: String = ""
         let action: () -> Void
         @Environment(\.appTheme) private var theme
+        @Environment(ToolbarSettings.self) private var toolbarSettings
+
+        private var iconSize: CGFloat { toolbarSettings.isLargeToolbarIcons ? 24 : 18 }
+        private var frameSize: CGFloat { toolbarSettings.isLargeToolbarIcons ? 48 : 36 }
         
         var body: some View {
             Button(action: action) {
                 Image(systemName: icon)
-                    .font(.system(size: 18))
+                    .font(.system(size: iconSize))
                     .foregroundColor(theme.colors.accent)
-                    .frame(width: 36, height: 36)
+                    .frame(width: frameSize, height: frameSize)
             }
             .accessibilityLabel(label)
         }

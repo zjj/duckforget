@@ -7,6 +7,34 @@ struct ToolbarSortView: View {
     var body: some View {
         @Bindable var settings = settings
         List {
+            Section(
+                header: Text("辅助功能"),
+                footer: Text("开启后工具栏图标将变大，更适合手指较粗的用户使用")
+            ) {
+                HStack {
+                    HStack(spacing: 12) {
+                        Image(systemName: "hand.point.up.left")
+                            .font(.title3)
+                            .frame(width: 24)
+                            .foregroundColor(settings.isLargeToolbarIcons ? theme.colors.accent : .secondary)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("粗大手指")
+                                .font(.body)
+                            Text("增大工具栏图标尺寸")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
+                    Spacer()
+
+                    Toggle("", isOn: $settings.isLargeToolbarIcons)
+                        .labelsHidden()
+                        .toggleStyle(SwitchToggleStyle(tint: theme.colors.accent))
+                }
+            }
+
             Section(footer: Text("拖动行可以调整记录编辑器底部工具栏的按钮顺序，使用开关控制按钮是否显示")) {
                 ForEach(
                     settings.configs.indices.filter { settings.configs[$0].type != .markdown },
