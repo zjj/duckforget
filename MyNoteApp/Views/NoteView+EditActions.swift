@@ -215,9 +215,21 @@ extension NoteView {
         let isStillEmpty = content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                             && currentAttachments.isEmpty
         if wasEmptyOnLoad && isStillEmpty {
-            noteStore.permanentlyDeleteNote(note)
+            // 笔记从未有过内容：直接从 ModelContext 中移除即可。
+            // createNote 不再立即 save，所以该笔记可能从未写入数据库，
+            // 无需走 permanentlyDeleteNote 的文件清理流程。
+            noteStore.modelContext.delete(note)
+            try? noteStore.modelContext.save()
             return
         }
+        
+        // 执行实际的附件删除（与 exitEditMode 保持一致）
+        for attachmentID in deletedAttachmentIDs {
+            if let attachment = noteStore.getAttachments(for: note).first(where: { $0.id == attachmentID }) {
+                noteStore.deleteAttachment(attachment, shouldSave: false)
+            }
+        }
+        deletedAttachmentIDs.removeAll()
         
         // 最终保存（确保所有内容都持久化）
         if content != note.content {
@@ -225,9 +237,9 @@ extension NoteView {
             note.updatedAt = Date()
         }
         
-        // 保存编辑状态（保留undo/redo历史，下次可继续使用）
-        note.pendingDeletedAttachmentIDs = Array(deletedAttachmentIDs)
-        note.undoRedoHistoryData = undoRedoManager.serializeHistory()
+        // 清空 undo/redo 历史
+        note.pendingDeletedAttachmentIDs = []
+        note.undoRedoHistoryData = nil
         
         // 统一保存
         try? noteStore.modelContext.save()

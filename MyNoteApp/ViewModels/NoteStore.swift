@@ -87,13 +87,13 @@ class NoteStore {
     // MARK: - Note CRUD
 
     /// 创建新记录
+    /// 注意：仅将记录插入 ModelContext（内存），不立即持久化。
+    /// 首次有实际内容时（updateNote / saveContentInEditMode）才会触发真正的 save。
+    /// 这样若用户立即返回、未输入任何内容，数据库中不会留下空记录。
     @discardableResult
     func createNote(withTags tags: [TagItem] = []) -> NoteItem {
         let note = NoteItem(tags: tags)
         modelContext.insert(note)
-        saveContext()
-        // 新创建的笔记通常是空的，不立即索引
-        // 当用户输入内容并保存时，updateNote 会触发索引
         return note
     }
 

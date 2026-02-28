@@ -281,23 +281,6 @@ struct NoteView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
-        .overlay(alignment: .leading) {
-            if isEditMode {
-                Color.clear
-                    .frame(width: 20)
-                    .contentShape(Rectangle())
-                    .gesture(
-                        DragGesture(minimumDistance: 20, coordinateSpace: .local)
-                            .onEnded { value in
-                                guard value.startLocation.x < 20 else { return }
-                                if value.translation.width > 60
-                                    && abs(value.translation.height) < abs(value.translation.width) {
-                                    exitEditMode()
-                                }
-                            }
-                    )
-            }
-        }
         .toolbar {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
                 if isEditMode {
