@@ -251,17 +251,18 @@ struct DashboardRow: View {
             // 调整大小
             if item.type != .trash && item.type != .encouragement {
                 Menu {
-                    Button("小 (Compact)", systemImage: "rectangle.grid.1x2") {
-                        updateSize(.small)
-                    }
-                    Button("中 (Standard)", systemImage: "rectangle.grid.2x2") {
-                        updateSize(.medium)
-                    }
-                    Button("大 (Large)", systemImage: "rectangle.grid.3x2") {
-                        updateSize(.large)
-                    }
-                    Button("全屏 (Full Page)", systemImage: "rectangle.expand.vertical") {
-                        updateSize(.fullPage)
+                    Picker("调整大小", selection: Binding(
+                        get: { item.size },
+                        set: { updateSize($0) }
+                    )) {
+                        Label("小 (Compact)", systemImage: "rectangle.grid.1x2")
+                            .tag(WidgetSize.small)
+                        Label("中 (Standard)", systemImage: "rectangle.grid.2x2")
+                            .tag(WidgetSize.medium)
+                        Label("大 (Large)", systemImage: "rectangle.grid.3x2")
+                            .tag(WidgetSize.large)
+                        Label("全屏 (Full Page)", systemImage: "rectangle.expand.vertical")
+                            .tag(WidgetSize.fullPage)
                     }
                 } label: {
                     Label("调整大小", systemImage: "arrow.up.left.and.arrow.down.right")
