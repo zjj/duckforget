@@ -3,6 +3,7 @@ import SwiftUI
 struct AboutView: View {
     let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1"
     let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+    let gitCommit  = Bundle.main.infoDictionary?["GitCommit"] as? String ?? "unknown"
     @Environment(\.appTheme) private var theme
     
     var body: some View {
@@ -24,6 +25,11 @@ struct AboutView: View {
                         Text("Version \(appVersion) (\(buildNumber))")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
+
+                        Text("Commit \(gitCommit)")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .fontDesign(.monospaced)
                     }
                 }
                 .frame(maxWidth: .infinity)
