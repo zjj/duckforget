@@ -212,6 +212,22 @@ final class ExportService {
                     drawPDFTable(ctx, headers: headers, rows: rows,
                                  x: margin, y: &y,
                                  width: contentWidth, pageRect: pageRect, margin: margin)
+
+                case .inlineImage(let imgURL):
+                    // 仅渲染本地文件，网络图片已在 parsePDFSegments 中过滤
+                    guard let imgData = try? Data(contentsOf: imgURL),
+                          let img = UIImage(data: imgData) else { break }
+                    let normalizedImg = Self.normalizeImageOrientation(img)
+                    let aspect = normalizedImg.size.height / max(normalizedImg.size.width, 1)
+                    let imgW = min(contentWidth, normalizedImg.size.width)
+                    let imgH = imgW * aspect
+                    if y + imgH > pageRect.height - margin {
+                        ctx.beginPage(); y = margin
+                    }
+                    let targetSize = CGSize(width: imgW, height: imgH)
+                    let downsampledImg = Self.downsampleForPDF(normalizedImg, targetPointSize: targetSize)
+                    downsampledImg.draw(in: CGRect(x: margin, y: y, width: imgW, height: imgH))
+                    y += imgH + 10
                 }
             }
             y = pageRect.height - margin // reset to bottom of page for image logic below
@@ -508,6 +524,17 @@ final class ExportService {
     private enum PDFContentSegment {
         case text(NSAttributedString)
         case table(headers: [String], rows: [[String]])
+        case inlineImage(URL)
+    }
+
+    /// 若 `line` 整行仅由一个本地图片引用 `![alt](file:///...)` 构成，返回对应 URL；否则返回 nil。
+    /// 网络图片（http / https）以及混合行均返回 nil，不渲染。
+    private static func extractLocalImageURL(from line: String) -> URL? {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        guard let regex = try? NSRegularExpression(pattern: "^!\\[[^\\]]*\\]\\((file:///[^)]+)\\)$"),
+              let match = regex.firstMatch(in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)),
+              let range = Range(match.range(at: 1), in: trimmed) else { return nil }
+        return URL(string: String(trimmed[range]))
     }
 
     private func parsePDFSegments(_ content: String) -> [PDFContentSegment] {
@@ -553,7 +580,13 @@ final class ExportService {
                 let bodyStart = (tableLines.count > 1 && isSep(tableLines[1])) ? 2 : 1
                 let rows      = (bodyStart..<tableLines.count).map { splitCells(tableLines[$0]).map { stripMarkdownInline($0) } }
                 segments.append(.table(headers: headers, rows: rows))
+            } else if let localURL = Self.extractLocalImageURL(from: line) {
+                // 独立行本地图片：作为内联图片段渲染
+                flushText()
+                segments.append(.inlineImage(localURL))
+                i += 1
             } else {
+                // 普通文本行：保留（markdownAttributedString 中的 stripInline 会去除残留的图片语法）
                 textLines.append(line)
                 i += 1
             }
@@ -1133,6 +1166,55 @@ final class ExportService {
 
     // MARK: - HTML Builder
 
+    /// 将正文中的图片引用预处理：本地 file:/// 重写为 assets/ 相对路径，网络图片一律剥离。
+    private func preprocessContentForHTML(
+        _ content: String,
+        fileMapping: [(attachment: AttachmentExportSnapshot, destName: String)]
+    ) -> String {
+        guard content.contains("![") else { return content }
+
+        // 建立「本地文件绝对路径 → assets/ 相对路径」映射
+        var localToAsset: [String: String] = [:]
+        for m in fileMapping {
+            localToAsset[m.attachment.fileURL.path] = "assets/\(m.destName)"
+            // 位置附件的缩略图单独映射
+            if m.attachment.type == .location,
+               let thumbURL = m.attachment.thumbnailURL,
+               let thumbName = m.attachment.thumbnailFileName {
+                localToAsset[thumbURL.path] = "assets/\(thumbName)"
+            }
+        }
+
+        guard let regex = try? NSRegularExpression(pattern: "!\\[([^\\]]*)\\]\\(([^)]+)\\)") else {
+            return content
+        }
+
+        let nsContent = content as NSString
+        var result = ""
+        var cursor = 0
+
+        for match in regex.matches(in: content, range: NSRange(location: 0, length: nsContent.length)) {
+            let matchRange = match.range
+            result += nsContent.substring(with: NSRange(location: cursor, length: matchRange.location - cursor))
+            cursor = matchRange.location + matchRange.length
+
+            let urlStr = nsContent.substring(with: match.range(at: 2))
+            let altStr = nsContent.substring(with: match.range(at: 1))
+
+            if urlStr.hasPrefix("file:///") {
+                // 本地文件：查找 assets 映射
+                let fPath = URL(string: urlStr)?.path ?? ""
+                if let assetPath = localToAsset[fPath] {
+                    result += "![\(altStr)](\(assetPath))"
+                }
+                // 不在映射中的本地路径：静默跳过
+            }
+            // http:// / https:// 等网络图片：静默跳过，不渲染
+        }
+        result += nsContent.substring(from: cursor)
+        return result
+    }
+
     private func buildHTML(note: NoteExportSnapshot,
                            fileMapping: [(attachment: AttachmentExportSnapshot, destName: String)]) -> String {
         let title   = note.preview.isEmpty ? "笔记" : note.preview
@@ -1143,7 +1225,9 @@ final class ExportService {
             note.tagNames.map { "<span class=\"tag\">#\(escapeHTML($0))</span>" }.joined() +
             "</div>"
 
-        let contentHTML = markdownToHTML(note.content)
+        // 预处理正文中的内联图片：本地 file:/// → assets/，网络地址剥离
+        let processedContent = preprocessContentForHTML(note.content, fileMapping: fileMapping)
+        let contentHTML = markdownToHTML(processedContent)
 
         let imageTypes: Set<AttachmentType> = [.photo, .drawing, .scannedDocument]
         var attachHTML = ""
