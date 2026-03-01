@@ -275,27 +275,28 @@ class NoteStore {
         let noteID = note.id.uuidString
         let noteTitle = note.preview
         let noteContent = note.content
+        let forSearchContent = note.forSearch
         let noteUpdatedAt = note.updatedAt
         let noteCreatedAt = note.createdAt
         let noteTags = note.tags.map { $0.name }
 
         // 只索引非空的笔记
-        guard !noteContent.isEmpty || !note.attachments.isEmpty else { return }
+        guard !forSearchContent.isEmpty || !note.attachments.isEmpty else { return }
 
         let attributeSet = CSSearchableItemAttributeSet(contentType: .text)
 
         // 标题和显示名称
         attributeSet.title = noteTitle
         attributeSet.displayName = noteTitle
-        attributeSet.contentDescription = noteContent
-        attributeSet.textContent = noteContent // 恢复 textContent 以支持系统原生全文索引作为兜底
+        attributeSet.contentDescription = noteContent  // Spotlight 卡片展示内容，只用正文
+        attributeSet.textContent = forSearchContent   // Spotlight 全文索引，包含正文 + 附件 OCR 文本
 
         // 日期
         attributeSet.contentModificationDate = noteUpdatedAt
         attributeSet.contentCreationDate = noteCreatedAt
 
         // 分词增强：提取正文中的关键词
-        let bodyTokens = tokenize(noteContent)
+        let bodyTokens = tokenize(forSearchContent)
         var keywords = noteTags
         var seen = Set<String>(keywords)
         for token in bodyTokens {
