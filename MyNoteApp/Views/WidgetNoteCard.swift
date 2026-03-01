@@ -44,41 +44,17 @@ struct WidgetNoteCard: View {
     }
 
     var body: some View {
-        if size == .small {
-            // small：紧凑文字卡
-            Group {
-                if let att = visualAttachment {
-                    photoCard(attachment: att)
-                } else {
-                    textCard
-                }
+        let cornerRadius: CGFloat = size == .small ? 10 : 12
+        Group {
+            if let att = visualAttachment {
+                photoCard(attachment: att)
+            } else {
+                textCard
             }
-            .frame(width: cardWidth, height: cardHeight)
-            .background(theme.colors.card)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-        } else {
-            // medium / large：固定高度裁切，日期始终固定在右下角
-            NoteRowView(note: note, showDateFooter: false)
-                .environment(noteStore)
-                .frame(width: cardWidth, height: cardHeight, alignment: .top)
-                .background(theme.colors.card)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(alignment: .bottomTrailing) {
-                    Text(note.updatedAt.formattedAbsolute)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 6)
-                        .background(
-                            LinearGradient(
-                                colors: [theme.colors.card.opacity(0), theme.colors.card],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 12))
         }
+        .frame(width: cardWidth, height: cardHeight)
+        .background(theme.colors.card)
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
     }
 
     // ── 有图片：图片全填 + 渐变遮罩 + 文字底部 ────────────
@@ -126,32 +102,44 @@ struct WidgetNoteCard: View {
         }
     }
 
-    // ── 无图片（或 small）：纯文字卡片 ────────────────────
+    // ── 无图片：文字卡片 ──────────────────────────────────
     @ViewBuilder
     private var textCard: some View {
+        if size == .small {
+            smallTextCard
+        } else {
+            richTextCard
+        }
+    }
+
+    /// small：紧凑纯文字（无需完整 markdown 渲染）
+    @ViewBuilder
+    private var smallTextCard: some View {
         VStack(alignment: .leading, spacing: 4) {
-            // 标题
             Text(inlineText(noteTitle))
                 .font(.system(size: titleFontSize, weight: .semibold))
                 .foregroundColor(theme.colors.primaryText)
-                .lineLimit(size == .small ? 2 : (size == .medium ? 2 : 3))
+                .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
 
-            // 正文（medium / large）
-            if size != .small, let body = noteBodyText {
-                Text(inlineText(body))
-                    .font(.system(size: 11))
-                    .foregroundColor(theme.colors.secondaryText)
-                    .lineLimit(size == .medium ? 2 : 4)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .mask(
-                        VStack(spacing: 0) {
-                            Color.black
-                            LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom)
-                                .frame(height: 12)
-                        }
-                    )
-            }
+            Spacer(minLength: 0)
+
+            Text(note.updatedAt.formattedAbsolute)
+                .font(.system(size: 9))
+                .foregroundColor(theme.colors.secondaryText.opacity(0.5))
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .padding(8)
+    }
+
+    /// medium / large：使用 NoteCardPreview 进行完整 markdown 渲染
+    @ViewBuilder
+    private var richTextCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // markdown 渲染区域（裁切溢出内容）
+            NoteCardPreview(content: note.content)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .clipped()
 
             Spacer(minLength: 0)
 
@@ -167,6 +155,7 @@ struct WidgetNoteCard: View {
                             .clipShape(RoundedRectangle(cornerRadius: 4))
                     }
                 }
+                .padding(.bottom, 2)
             }
 
             // 日期
