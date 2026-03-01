@@ -148,6 +148,32 @@ extension NoteView {
                         selectedAttachmentIndex = index
                         showAttachmentViewer = true
                     }
+                    .onLongPressGesture(minimumDuration: 0.4) {
+                        guard canInsertAsMarkdown(attachment) else { return }
+                        let generator = UIImpactFeedbackGenerator(style: .medium)
+                        generator.impactOccurred()
+                        // anchor is set via GeometryReader background below
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            attachmentInsertMenuID = attachment.id
+                        }
+                    }
+                    // Capture this thumbnail's position in the root ZStack coordinate space
+                    // so the menu can be shown above it without being covered by the finger.
+                    .background(
+                        GeometryReader { geo in
+                            Color.clear
+                                .onChange(of: attachmentInsertMenuID) { _, newID in
+                                    guard newID == attachment.id else { return }
+                                    let frame = geo.frame(in: .named("noteRoot"))
+                                    // Position the menu center just above the thumbnail top,
+                                    // leaving ~30 pt gap so it clears the lifted finger.
+                                    attachmentInsertMenuAnchor = CGPoint(
+                                        x: frame.midX,
+                                        y: frame.minY - 30
+                                    )
+                                }
+                        }
+                    )
                 }
             }
             .padding(.horizontal, 16)
@@ -158,6 +184,75 @@ extension NoteView {
     // 切换附件显示模式
     func toggleAttachmentDisplayMode() {
         attachmentDisplayMode = attachmentDisplayMode == .grid ? .fullSize : .grid
+    }
+
+    // MARK: 附件 Markdown 插入
+
+    /// 判断附件类型是否支持插入为 Markdown 链接
+    func canInsertAsMarkdown(_ attachment: AttachmentItem) -> Bool {
+        switch attachment.type {
+        case .photo, .scannedDocument, .drawing, .location, .video, .audio:
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// 将附件以 Markdown 语法插入到光标位置
+    ///
+    /// - 图片类（照片、扫描文稿、涂鸦）：`![类型名](file:///...)` 本地路径，MarkdownRenderView 直接渲染
+    /// - 地图：使用地图截图缩略图 `![位置](file:///...thumb.jpg)` 渲染
+    /// - 视频 / 录音：Markdown 无原生嵌入语法，使用普通链接 `[▶ 视频](file:///...)`
+    func insertAttachmentMarkdown(_ attachment: AttachmentItem) {
+        let markdownText: String
+
+        switch attachment.type {
+        case .photo, .scannedDocument, .drawing:
+            let fileURL = noteStore.attachmentURL(for: attachment)
+            markdownText = "![\(attachment.type.displayName)](\(fileURL.absoluteString))"
+
+        case .location:
+            // 地图附件主文件是 JSON，使用缩略图（地图截图）插入
+            guard let thumbURL = noteStore.thumbnailURL(for: attachment) else { return }
+            markdownText = "![位置](\(thumbURL.absoluteString))"
+
+        case .video:
+            let fileURL = noteStore.attachmentURL(for: attachment)
+            markdownText = "[▶ 视频](\(fileURL.absoluteString))"
+
+        case .audio:
+            let fileURL = noteStore.attachmentURL(for: attachment)
+            markdownText = "[🎵 录音](\(fileURL.absoluteString))"
+
+        default:
+            return
+        }
+
+        // 在光标处插入（若 coordinator 不可用则回退到末尾追加）
+        let nsContent = content as NSString
+        let cursorOffset = min(
+            max(markdownCoordinator?.textView?.selectedRange.location ?? nsContent.length, 0),
+            nsContent.length
+        )
+        // 若光标不在行首则先换行
+        let atLineStart = cursorOffset == 0
+            || nsContent.substring(with: NSRange(location: cursorOffset - 1, length: 1)) == "\n"
+        let insertion = (atLineStart ? "" : "\n") + markdownText + "\n"
+
+        let before = nsContent.substring(to: cursorOffset)
+        let after  = nsContent.substring(from: cursorOffset)
+        content = before + insertion + after
+
+        // 将 UITextView 光标移到插入内容之后
+        let newCursor = cursorOffset + (insertion as NSString).length
+        markdownCoordinator?.textView?.selectedRange = NSRange(location: newCursor, length: 0)
+
+        wasEdited = true
+        saveContentInEditMode()
+
+        // 轻触感反馈
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.impactOccurred()
     }
 
     // MARK: 处理扫描结果

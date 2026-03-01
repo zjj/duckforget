@@ -9,6 +9,7 @@ struct MarkdownRenderView: View {
     // 链接跳转确认
     @State private var pendingLinkURL: URL?
     @State private var showLinkConfirmation = false
+    @State private var showLocalFileConfirmation = false
 
     // Parsed block model
     private enum TableAlignment {
@@ -146,6 +147,19 @@ struct MarkdownRenderView: View {
             }
         } message: {
             Text("您即将打开外部链接:\n\n \(pendingLinkURL?.absoluteString ?? "")\n\n本应用对外部网站的内容不承担任何责任，请注意个人信息安全。")
+        }
+        .alert("打开本地文件", isPresented: $showLocalFileConfirmation) {
+            Button("取消", role: .cancel) {
+                pendingLinkURL = nil
+            }
+            Button("打开") {
+                if let url = pendingLinkURL {
+                    UIApplication.shared.open(url)
+                }
+                pendingLinkURL = nil
+            }
+        } message: {
+            Text("即将在系统应用中打开此本地文件。")
         }
     }
 
@@ -285,7 +299,11 @@ struct MarkdownRenderView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .environment(\.openURL, OpenURLAction { url in
                             pendingLinkURL = url
-                            showLinkConfirmation = true
+                            if url.isFileURL {
+                                showLocalFileConfirmation = true
+                            } else {
+                                showLinkConfirmation = true
+                            }
                             return .handled
                         })
                 case .image(let alt, let url):

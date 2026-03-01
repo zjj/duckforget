@@ -77,6 +77,10 @@ struct NoteView: View {
     @State var floatingMenuIsTodoLine = false
     @State var floatingMenuIsTodoChecked = false
     @State var floatingMenuPosition: CGPoint = .zero
+
+    // 附件插入菜单
+    @State var attachmentInsertMenuID: UUID? = nil
+    @State var attachmentInsertMenuAnchor: CGPoint = .zero
     
     // 格式工具栏展开状态
     @State var showExpandedFormatBar = false
@@ -479,7 +483,41 @@ struct NoteView: View {
                 .transition(.scale(scale: 0.85, anchor: .top).combined(with: .opacity))
                 .zIndex(11)
             }
+
+            // 附件 Markdown 插入浮层
+            if let menuAttachmentID = attachmentInsertMenuID,
+               let menuAttachment = currentAttachments.first(where: { $0.id == menuAttachmentID }) {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        withAnimation(.easeOut(duration: 0.15)) {
+                            attachmentInsertMenuID = nil
+                        }
+                    }
+                    .zIndex(20)
+
+                Button {
+                    insertAttachmentMarkdown(menuAttachment)
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        attachmentInsertMenuID = nil
+                    }
+                } label: {
+                    Label("插入到正文", systemImage: "text.badge.plus")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+                        .shadow(color: .black.opacity(0.22), radius: 12, x: 0, y: 4)
+                }
+                .fixedSize()
+                .position(attachmentInsertMenuAnchor)
+                .transition(.scale(scale: 0.8, anchor: .bottom).combined(with: .opacity))
+                .zIndex(21)
+            }
         }
+        .coordinateSpace(name: "noteRoot")
     }
 
     // MARK: - 主内容视图
