@@ -98,7 +98,7 @@ struct NoteQueryContainer: View {
         case (.all, let token?):
             descriptor = FetchDescriptor<NoteItem>(
                 predicate: #Predicate { note in
-                    note.isDeleted == false && note.content.localizedStandardContains(token)
+                    note.isDeleted == false && note.forSearch.localizedStandardContains(token)
                 })
 
         case (.byTag(let name), nil):
@@ -112,7 +112,7 @@ struct NoteQueryContainer: View {
                 predicate: #Predicate { note in
                     note.isDeleted == false
                         && note.tags.contains { $0.name == name }
-                        && note.content.localizedStandardContains(token)
+                        && note.forSearch.localizedStandardContains(token)
                 })
 
         case (.dateRange(let start, let end), nil):
@@ -126,7 +126,7 @@ struct NoteQueryContainer: View {
                 predicate: #Predicate { note in
                     note.isDeleted == false
                         && note.updatedAt >= start && note.updatedAt < end
-                        && note.content.localizedStandardContains(token)
+                        && note.forSearch.localizedStandardContains(token)
                 })
 
         case (.byTagAndDateRange(let name, let start, let end), nil):
@@ -143,7 +143,7 @@ struct NoteQueryContainer: View {
                     note.isDeleted == false
                         && note.tags.contains { $0.name == name }
                         && note.updatedAt >= start && note.updatedAt < end
-                        && note.content.localizedStandardContains(token)
+                        && note.forSearch.localizedStandardContains(token)
                 })
 
         case (.createdDateRange(let start, let end), nil):
@@ -157,7 +157,7 @@ struct NoteQueryContainer: View {
                 predicate: #Predicate { note in
                     note.isDeleted == false
                         && note.createdAt >= start && note.createdAt < end
-                        && note.content.localizedStandardContains(token)
+                        && note.forSearch.localizedStandardContains(token)
                 })
         }
 
@@ -216,8 +216,8 @@ struct NoteQueryContainer: View {
             tokens.append(String(query[range]))
             return true
         }
-        guard !tokens.isEmpty else { return note.content.localizedCaseInsensitiveContains(query) }
-        return tokens.allSatisfy { note.content.localizedCaseInsensitiveContains($0) }
+        guard !tokens.isEmpty else { return note.forSearch.localizedCaseInsensitiveContains(query) }
+        return tokens.allSatisfy { note.forSearch.localizedCaseInsensitiveContains($0) }
     }
 
     var displayNotes: [NoteItem] {

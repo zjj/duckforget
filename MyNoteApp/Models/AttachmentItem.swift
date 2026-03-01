@@ -50,18 +50,22 @@ final class AttachmentItem {
     var thumbnailFileName: String?
     var createdAt: Date
     var note: NoteItem?
+    /// OCR 识别后的纯文本内容（照片、扫描件等支持 OCR 的附件类型）
+    var ocrMeta: String?
 
     init(
         id: UUID = UUID(),
         type: AttachmentType,
         fileName: String,
         thumbnailFileName: String? = nil,
-        createdAt: Date = Date()
+        createdAt: Date = Date(),
+        ocrMeta: String? = nil
     ) {
         self.id = id
         self.type = type
         self.fileName = fileName
         self.thumbnailFileName = thumbnailFileName
         self.createdAt = createdAt
+        self.ocrMeta = ocrMeta
     }
 }

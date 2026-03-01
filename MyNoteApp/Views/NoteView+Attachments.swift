@@ -380,6 +380,15 @@ extension NoteView {
             }
 
             wasEdited = true
+
+            // 对图片/扫描件类型异步执行 OCR，结果写入 ocrMeta 并重建 forSearch
+            if let attachment, type == .photo || type == .scannedDocument || type == .scannedText {
+                let store = noteStore
+                TextRecognizer.recognizeText(from: image) { text in
+                    guard !text.isEmpty else { return }
+                    store.applyOCR(to: attachment, text: text)
+                }
+            }
         }
     }
 

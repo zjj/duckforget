@@ -101,6 +101,9 @@ class NoteStore {
     /// 更新记录（标记更新时间并保存）
     func updateNote(_ note: NoteItem) {
         note.updatedAt = Date()
+        // 重建搜索索引：content + 所有附件 OCR 文本
+        let ocrParts = note.attachments.compactMap { $0.ocrMeta }.filter { !$0.isEmpty }
+        note.forSearch = ([note.content] + ocrParts).joined(separator: "\n")
         saveContext()
         indexNoteInSpotlight(note)
     }
@@ -354,6 +357,16 @@ class NoteStore {
     //}
 
     // MARK: - Persistence
+
+    /// 将 OCR 结果写入附件并重建所属笔记的 forSearch 索引
+    func applyOCR(to attachment: AttachmentItem, text: String) {
+        attachment.ocrMeta = text.isEmpty ? nil : text
+        if let note = attachment.note {
+            let ocrParts = note.attachments.compactMap { $0.ocrMeta }.filter { !$0.isEmpty }
+            note.forSearch = ([note.content] + ocrParts).joined(separator: "\n")
+        }
+        saveContext()
+    }
 
     /// 保存 ModelContext。保存成功后执行 onSuccess 回调（用于依赖保存结果的后续操作，例如删除物理文件）。
     /// Debug 下通过 assertionFailure 暴露错误；Release 下打印日志静默处理，避免数据静默丢失。

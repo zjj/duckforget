@@ -22,6 +22,10 @@ final class NoteItem {
     /// 存储待删除的附件ID（仅在UI中隐藏，点击完成后才真正删除）
     var pendingDeletedAttachmentIDs: [UUID]? = []
 
+    /// 搜索索引字段：content + 所有附件 OCR 文本，以换行符拼接，每次保存时重建。
+    /// 使用非可选 String 以确保 SwiftData #Predicate 能正确生成 SQL。
+    var forSearch: String = ""
+
     /// 预览：取首个有效行的前50字符，剥离 Markdown 格式符号
     var preview: String {
         let lines = content.components(separatedBy: "\n")

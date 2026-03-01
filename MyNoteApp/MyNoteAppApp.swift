@@ -20,7 +20,7 @@ struct MyNoteAppApp: App {
         #if DEBUG
         // Prints every SQL statement SwiftData/Core Data executes.
         // Level 1 = statements, 2 = + row counts, 3 = + bind variables.
-        UserDefaults.standard.set(1, forKey: "com.apple.CoreData.SQLDebug")
+        UserDefaults.standard.set(3, forKey: "com.apple.CoreData.SQLDebug")
         UserDefaults.standard.set(1, forKey: "com.apple.CoreData.Logging.stderr")
         #endif
 
