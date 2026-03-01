@@ -102,7 +102,7 @@ class NoteStore {
     func updateNote(_ note: NoteItem) {
         note.updatedAt = Date()
         // 重建搜索索引：content + 所有附件 OCR 文本
-        let ocrParts = note.attachments.compactMap { $0.ocrMeta }.filter { !$0.isEmpty }
+        let ocrParts = note.attachments.compactMap { $0.recognitionMeta }.filter { !$0.isEmpty }
         note.forSearch = ([note.content] + ocrParts).joined(separator: "\n")
         saveContext()
         indexNoteInSpotlight(note)
@@ -360,10 +360,10 @@ class NoteStore {
     // MARK: - Persistence
 
     /// 将 OCR 结果写入附件并重建所属笔记的 forSearch 索引
-    func applyOCR(to attachment: AttachmentItem, text: String) {
-        attachment.ocrMeta = text.isEmpty ? nil : text
+    func applyRecognitionMeta(to attachment: AttachmentItem, text: String) {
+        attachment.recognitionMeta = text.isEmpty ? nil : text
         if let note = attachment.note {
-            let ocrParts = note.attachments.compactMap { $0.ocrMeta }.filter { !$0.isEmpty }
+            let ocrParts = note.attachments.compactMap { $0.recognitionMeta }.filter { !$0.isEmpty }
             note.forSearch = ([note.content] + ocrParts).joined(separator: "\n")
         }
         saveContext()

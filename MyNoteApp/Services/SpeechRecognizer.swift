@@ -1,5 +1,6 @@
 import Speech
 import AVFoundation
+import CoreLocation
 
 /// 语音转文字服务 - 使用 Apple Speech 框架进行实时语音识别
 @Observable
@@ -53,6 +54,30 @@ class SpeechRecognizer {
         recognitionRequest = nil
         recognitionTask = nil
         isRecording = false
+    }
+
+    /// 离线转录已保存的音频文件，结果通过 completion 回调返回（主线程）
+    static func transcribeFile(at url: URL, completion: @escaping (String) -> Void) {
+        SFSpeechRecognizer.requestAuthorization { status in
+            guard status == .authorized else {
+                DispatchQueue.main.async { completion("") }
+                return
+            }
+            let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "zh-Hans"))
+                ?? SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
+            guard let recognizer, recognizer.isAvailable else {
+                DispatchQueue.main.async { completion("") }
+                return
+            }
+            let request = SFSpeechURLRecognitionRequest(url: url)
+            request.shouldReportPartialResults = false
+            recognizer.recognitionTask(with: request) { result, error in
+                let text = result?.bestTranscription.formattedString ?? ""
+                if result?.isFinal == true || error != nil {
+                    DispatchQueue.main.async { completion(text) }
+                }
+            }
+        }
     }
     
     // MARK: - Private

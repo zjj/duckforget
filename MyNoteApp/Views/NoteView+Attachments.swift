@@ -335,6 +335,27 @@ extension NoteView {
         }
         
         wasEdited = true
+
+        // 反向地理编码，将地址写入 recognitionMeta 以支持搜索
+        if let attachment {
+            let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+            let store = noteStore
+            CLGeocoder().reverseGeocodeLocation(location) { placemarks, _ in
+                guard let placemark = placemarks?.first else { return }
+                let parts = [
+                    placemark.country,
+                    placemark.administrativeArea,
+                    placemark.locality,
+                    placemark.subLocality,
+                    placemark.thoroughfare,
+                    placemark.subThoroughfare,
+                    placemark.name
+                ].compactMap { $0 }
+                let address = parts.joined(separator: " ")
+                guard !address.isEmpty else { return }
+                store.applyRecognitionMeta(to: attachment, text: address)
+            }
+        }
     }
 
     // MARK: 保存图片附件
@@ -381,12 +402,12 @@ extension NoteView {
 
             wasEdited = true
 
-            // 对图片/扫描件类型异步执行 OCR，结果写入 ocrMeta 并重建 forSearch
+            // 对图片/扫描件类型异步执行 OCR，结果写入 recognitionMeta 并重建 forSearch
             if let attachment, type == .photo || type == .scannedDocument || type == .scannedText {
                 let store = noteStore
                 TextRecognizer.recognizeText(from: image) { text in
                     guard !text.isEmpty else { return }
-                    store.applyOCR(to: attachment, text: text)
+                    store.applyRecognitionMeta(to: attachment, text: text)
                 }
             }
         }

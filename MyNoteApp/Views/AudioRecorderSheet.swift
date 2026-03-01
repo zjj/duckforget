@@ -143,7 +143,7 @@ struct AudioRecorderSheet: View {
             return
         }
 
-        noteStore.addAttachment(
+        let attachment = noteStore.addAttachment(
             to: note,
             type: .audio,
             data: data,
@@ -153,6 +153,16 @@ struct AudioRecorderSheet: View {
 
         // 清理临时文件
         try? FileManager.default.removeItem(at: url)
+
+        // 异步转录录音，结果写入 recognitionMeta 并重建 forSearch
+        if let attachment {
+            let savedURL = noteStore.attachmentURL(for: attachment)
+            let store = noteStore
+            SpeechRecognizer.transcribeFile(at: savedURL) { text in
+                guard !text.isEmpty else { return }
+                store.applyRecognitionMeta(to: attachment, text: text)
+            }
+        }
 
         dismiss()
     }
