@@ -195,11 +195,12 @@
 				};
 			};
 			buildConfigurationList = 28B8B6522F4195CE00820D6B /* Build configuration list for PBXProject "MyNoteApp" */;
-			developmentRegion = en;
+			developmentRegion = "zh-Hans";
 			hasScannedForEncodings = 0;
 			knownRegions = (
-				en,
 				Base,
+				"zh-Hans",
+				en,
 			);
 			mainGroup = 28B8B64E2F4195CE00820D6B;
 			minimizedProjectReferenceProxies = 1;
