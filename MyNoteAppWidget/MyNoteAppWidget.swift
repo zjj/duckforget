@@ -130,7 +130,6 @@ struct MyNoteAppWidgetEntryView: View {
 
 // MARK: - Widget Configuration
 
-@main
 struct MyNoteAppWidget: Widget {
     let kind: String = "MyNoteAppWidget"
 
