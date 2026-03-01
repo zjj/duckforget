@@ -585,15 +585,24 @@ struct GridNoteCard: View {
                         .frame(height: 20)
                 }
                 
-                // 第二行：标题
-                Text(note.preview)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .lineLimit(2)
-                    .foregroundColor(thumbnailImage != nil ? .white : .primary)
-                    .frame(height: 36)
+                // 第二行：内容预览
+                if thumbnailImage != nil {
+                    // 图片背景：白色纯文字标题保证可读性
+                    Text(note.preview)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .lineLimit(2)
+                        .foregroundColor(.white)
+                        .frame(height: 36)
+                } else {
+                    // 纯色背景：使用 NoteCardPreview 渲染 Markdown
+                    NoteCardPreview(content: note.content)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(height: 60, alignment: .top)
+                        .clipped()
+                }
                 
-                Spacer()
+                Spacer(minLength: 0)
                 
                 // 第三行：附件数量+时间
                 HStack(alignment: .bottom) {
