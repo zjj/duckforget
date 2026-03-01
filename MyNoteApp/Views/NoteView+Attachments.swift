@@ -200,29 +200,28 @@ extension NoteView {
 
     /// 将附件以 Markdown 语法插入到光标位置
     ///
-    /// - 图片类（照片、扫描文稿、涂鸦）：`![类型名](file:///...)` 本地路径，MarkdownRenderView 直接渲染
-    /// - 地图：使用地图截图缩略图 `![位置](file:///...thumb.jpg)` 渲染
-    /// - 视频 / 录音：Markdown 无原生嵌入语法，使用普通链接 `[▶ 视频](file:///...)`
+    /// - 图片类（照片、扫描文稿、涂鸦）：`![类型名](attachment://fileName)` 相对格式，渲染时动态解析
+    /// - 地图：使用地图截图缩略图 `![位置](attachment://thumbFileName)` 渲染
+    /// - 视频 / 录音：Markdown 无原生嵌入语法，使用普通链接 `[▶ 视频](attachment://fileName)`
+    ///
+    /// 使用 attachment:// 而非绝对 file:/// 路径，避免 App 更新后 Container UUID 改变导致路径失效。
     func insertAttachmentMarkdown(_ attachment: AttachmentItem) {
         let markdownText: String
 
         switch attachment.type {
         case .photo, .scannedDocument, .drawing:
-            let fileURL = noteStore.attachmentURL(for: attachment)
-            markdownText = "![\(attachment.type.displayName)](\(fileURL.absoluteString))"
+            markdownText = "![\(attachment.type.displayName)](attachment://\(attachment.fileName))"
 
         case .location:
             // 地图附件主文件是 JSON，使用缩略图（地图截图）插入
-            guard let thumbURL = noteStore.thumbnailURL(for: attachment) else { return }
-            markdownText = "![位置](\(thumbURL.absoluteString))"
+            guard let thumbName = attachment.thumbnailFileName else { return }
+            markdownText = "![位置](attachment://\(thumbName))"
 
         case .video:
-            let fileURL = noteStore.attachmentURL(for: attachment)
-            markdownText = "[▶ 视频](\(fileURL.absoluteString))"
+            markdownText = "[▶ 视频](attachment://\(attachment.fileName))"
 
         case .audio:
-            let fileURL = noteStore.attachmentURL(for: attachment)
-            markdownText = "[🎵 录音](\(fileURL.absoluteString))"
+            markdownText = "[🎵 录音](attachment://\(attachment.fileName))"
 
         default:
             return

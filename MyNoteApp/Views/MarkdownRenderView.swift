@@ -4,6 +4,9 @@ import SwiftUI
 
 struct MarkdownRenderView: View {
     let content: String
+    /// 附件存储目录，用于解析 `attachment://fileName` 相对路径。
+    /// 传入 nil 时无法加载 attachment:// 图片。
+    var attachmentsDirectory: URL? = nil
     @Environment(\.appTheme) private var theme
 
     // 链接跳转确认
@@ -301,6 +304,11 @@ struct MarkdownRenderView: View {
                             pendingLinkURL = url
                             if url.isFileURL {
                                 showLocalFileConfirmation = true
+                            } else if url.scheme == "attachment",
+                                      let resolved = resolveURL(url.absoluteString),
+                                      resolved.isFileURL {
+                                pendingLinkURL = resolved
+                                showLocalFileConfirmation = true
                             } else {
                                 showLinkConfirmation = true
                             }
@@ -308,9 +316,10 @@ struct MarkdownRenderView: View {
                         })
                 case .image(let alt, let url):
                     VStack(alignment: .leading, spacing: 4) {
-                        // Only load local file:// URLs to avoid silent network requests.
+                        // Resolve attachment:// relative paths and only load local file:// URLs.
                         // Remote http(s):// image URLs show a static placeholder instead.
-                        if let parsed = URL(string: url), parsed.isFileURL {
+                        let resolvedURL = resolveURL(url)
+                        if let parsed = resolvedURL, parsed.isFileURL {
                             AsyncImage(url: parsed) { phase in
                                 switch phase {
                                 case .empty:
@@ -337,7 +346,7 @@ struct MarkdownRenderView: View {
                                 }
                             }
                         } else {
-                            // Remote URL — show placeholder, never make spontaneous network requests
+                            // Remote URL or unresolvable attachment — show placeholder, never make spontaneous network requests
                             HStack(spacing: 6) {
                                 Image(systemName: "photo")
                                     .foregroundColor(.secondary)
@@ -400,7 +409,18 @@ struct MarkdownRenderView: View {
         case link(displayText: String, url: String)
         case image(alt: String, url: String)
     }
-    
+
+    /// `attachment://fileName` → 真实本地 file:// URL；其他格式原样解析。
+    /// 图片渲染和链接跳转均对此路径处理。
+    private func resolveURL(_ urlString: String) -> URL? {
+        if urlString.hasPrefix("attachment://") {
+            let fileName = String(urlString.dropFirst("attachment://".count))
+            guard !fileName.isEmpty, let dir = attachmentsDirectory else { return nil }
+            return dir.appendingPathComponent(fileName)
+        }
+        return URL(string: urlString)
+    }
+
     /// Parse inline markdown into segments (text, links, images)
     private func parseInlineSegments(_ raw: String) -> [InlineSegment] {
         var segments: [InlineSegment] = []

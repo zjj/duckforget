@@ -527,14 +527,24 @@ final class ExportService {
         case inlineImage(URL)
     }
 
-    /// 若 `line` 整行仅由一个本地图片引用 `![alt](file:///...)` 构成，返回对应 URL；否则返回 nil。
+    /// 若 `line` 整行仅由一个本地图片引用构成，返回对应 URL；否则返回 nil。
+    /// 支持 `attachment://fileName` 相对格式和旧版 `file:///...` 绝对格式。
     /// 网络图片（http / https）以及混合行均返回 nil，不渲染。
-    private static func extractLocalImageURL(from line: String) -> URL? {
+    private func extractLocalImageURL(from line: String) -> URL? {
         let trimmed = line.trimmingCharacters(in: .whitespaces)
-        guard let regex = try? NSRegularExpression(pattern: "^!\\[[^\\]]*\\]\\((file:///[^)]+)\\)$"),
+        guard let regex = try? NSRegularExpression(pattern: "^!\\[[^\\]]*\\]\\(([^)]+)\\)$"),
               let match = regex.firstMatch(in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)),
               let range = Range(match.range(at: 1), in: trimmed) else { return nil }
-        return URL(string: String(trimmed[range]))
+        let urlStr = String(trimmed[range])
+        if urlStr.hasPrefix("attachment://") {
+            let fileName = String(urlStr.dropFirst("attachment://".count))
+            guard !fileName.isEmpty else { return nil }
+            return noteStore.attachmentsDirectory.appendingPathComponent(fileName)
+        }
+        if urlStr.hasPrefix("file:///") {
+            return URL(string: urlStr)
+        }
+        return nil  // 网络 URL 不渲染
     }
 
     private func parsePDFSegments(_ content: String) -> [PDFContentSegment] {
@@ -580,7 +590,7 @@ final class ExportService {
                 let bodyStart = (tableLines.count > 1 && isSep(tableLines[1])) ? 2 : 1
                 let rows      = (bodyStart..<tableLines.count).map { splitCells(tableLines[$0]).map { stripMarkdownInline($0) } }
                 segments.append(.table(headers: headers, rows: rows))
-            } else if let localURL = Self.extractLocalImageURL(from: line) {
+            } else if let localURL = extractLocalImageURL(from: line) {
                 // 独立行本地图片：作为内联图片段渲染
                 flushText()
                 segments.append(.inlineImage(localURL))
@@ -1166,7 +1176,7 @@ final class ExportService {
 
     // MARK: - HTML Builder
 
-    /// 将正文中的图片引用预处理：本地 file:/// 重写为 assets/ 相对路径，网络图片一律剥离。
+    /// 将正文中的图片引用预处理：本地 file:/// / attachment:// 重写为 assets/ 相对路径，网络图片一律剥离。
     private func preprocessContentForHTML(
         _ content: String,
         fileMapping: [(attachment: AttachmentExportSnapshot, destName: String)]
@@ -1208,6 +1218,13 @@ final class ExportService {
                     result += "![\(altStr)](\(assetPath))"
                 }
                 // 不在映射中的本地路径：静默跳过
+            } else if urlStr.hasPrefix("attachment://") {
+                // attachment:// 相对路径：解析后查找 assets 映射
+                let fileName = String(urlStr.dropFirst("attachment://".count))
+                let fPath = noteStore.attachmentsDirectory.appendingPathComponent(fileName).path
+                if let assetPath = localToAsset[fPath] {
+                    result += "![\(altStr)](\(assetPath))"
+                }
             }
             // http:// / https:// 等网络图片：静默跳过，不渲染
         }

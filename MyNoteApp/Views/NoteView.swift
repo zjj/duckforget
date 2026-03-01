@@ -638,7 +638,7 @@ struct NoteView: View {
                             enterEditMode()
                         }
                 } else {
-                    MarkdownRenderView(content: content)
+                    MarkdownRenderView(content: content, attachmentsDirectory: noteStore.attachmentsDirectory)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)

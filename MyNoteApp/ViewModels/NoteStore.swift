@@ -16,7 +16,8 @@ class NoteStore {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
 
-    private var attachmentsDirectory: URL {
+    /// 附件目录（内部可访问，供 MarkdownRenderView / ExportService 解析相对路径）
+    var attachmentsDirectory: URL {
         documentsDirectory.appendingPathComponent(attachmentsDirName)
     }
 
