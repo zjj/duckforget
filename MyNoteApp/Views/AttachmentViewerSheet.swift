@@ -95,11 +95,29 @@ struct ImageViewer: View {
 struct VideoViewer: View {
     let attachment: AttachmentItem
     @Environment(NoteStore.self) var noteStore
+    @State private var player: AVPlayer?
 
     var body: some View {
-        let url = noteStore.attachmentURL(for: attachment)
-        VideoPlayer(player: AVPlayer(url: url))
-            .ignoresSafeArea(edges: .bottom)
+        Group {
+            if let player {
+                VideoPlayer(player: player)
+                    .ignoresSafeArea(edges: .bottom)
+            } else {
+                ProgressView()
+            }
+        }
+        .onAppear {
+            let url = noteStore.attachmentURL(for: attachment)
+            let avPlayer = AVPlayer(url: url)
+            // 禁用 AirPlay 设备扫描——AVKit 扫描本地网络 AirPlay 路由是
+            // 触发"本地网络权限"弹窗的根本原因
+            avPlayer.allowsExternalPlayback = false
+            player = avPlayer
+        }
+        .onDisappear {
+            player?.pause()
+            player = nil
+        }
     }
 }
 
