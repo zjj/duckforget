@@ -419,7 +419,8 @@ extension NoteView {
         Task { @MainActor in
             guard let videoData = try? Data(contentsOf: url) else { return }
 
-            let thumbnailData = await Self.generateVideoThumbnail(from: url)
+            // 首帧只解码一次，同时用于缩略图和 OCR
+            let (thumbnailData, firstFrameImage) = await Self.generateVideoFirstFrame(from: url)
             let ext = url.pathExtension.isEmpty ? "mp4" : url.pathExtension
 
             let attachment = noteStore.addAttachmentWithThumbnail(
@@ -439,23 +440,46 @@ extension NoteView {
             }
 
             wasEdited = true
+
+            // 对视频首帧异步执行 OCR，结果写入 recognitionMeta 并重建 forSearch
+            if let attachment, let firstFrameImage {
+                let store = noteStore
+                TextRecognizer.recognizeText(from: firstFrameImage) { text in
+                    guard !text.isEmpty else { return }
+                    store.applyRecognitionMeta(to: attachment, text: text)
+                }
+            }
         }
     }
 
-    /// 从视频生成缩略图（async，不阻塞线程）
-    static func generateVideoThumbnail(from url: URL) async -> Data? {
+    /// 解码视频首帧一次，返回缩略图 Data（用于存储）和全尺寸 UIImage（用于 OCR）。
+    /// 单次 AVAssetImageGenerator 调用，避免重复解码同一帧。
+    static func generateVideoFirstFrame(from url: URL) async -> (thumbnailData: Data?, image: UIImage?) {
         let asset = AVURLAsset(url: url)
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true
-        generator.maximumSize = CGSize(width: 200, height: 200)
 
         return await withCheckedContinuation { continuation in
             generator.generateCGImageAsynchronously(for: .zero) { cgImage, _, _ in
-                if let cgImage {
-                    continuation.resume(returning: UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.6))
-                } else {
-                    continuation.resume(returning: nil)
+                guard let cgImage else {
+                    continuation.resume(returning: (nil, nil))
+                    return
                 }
+                let fullImage = UIImage(cgImage: cgImage)
+                // 缩略图：等比 aspect-fill 裁切到 200×200
+                let thumbSize = CGSize(width: 200, height: 200)
+                let renderer = UIGraphicsImageRenderer(size: thumbSize)
+                let thumbImage = renderer.image { _ in
+                    let sz = fullImage.size
+                    guard sz.width > 0, sz.height > 0 else { return }
+                    let scale = max(thumbSize.width / sz.width, thumbSize.height / sz.height)
+                    let scaledW = sz.width * scale
+                    let scaledH = sz.height * scale
+                    let x = (thumbSize.width  - scaledW) / 2
+                    let y = (thumbSize.height - scaledH) / 2
+                    fullImage.draw(in: CGRect(x: x, y: y, width: scaledW, height: scaledH))
+                }
+                continuation.resume(returning: (thumbImage.jpegData(compressionQuality: 0.6), fullImage))
             }
         }
     }

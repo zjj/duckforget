@@ -50,7 +50,7 @@ final class AttachmentItem {
     var thumbnailFileName: String?
     var createdAt: Date
     var note: NoteItem?
-    /// OCR 识别后的纯文本内容（照片、扫描件等支持 OCR 的附件类型）
+    /// OCR 识别后的纯文本内容（照片、扫描件、视频首帧等支持 OCR 的附件类型）
     var recognitionMeta: String?
 
     init(
