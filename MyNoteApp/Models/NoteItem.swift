@@ -15,6 +15,9 @@ final class NoteItem {
     
     @Relationship(deleteRule: .nullify, inverse: \TagItem.notes)
     var tags: [TagItem]
+
+    @Relationship(deleteRule: .cascade, inverse: \CommentItem.note)
+    var comments: [CommentItem]
     
     /// 存储undo/redo历史的JSON数据
     var undoRedoHistoryData: Data?
@@ -67,7 +70,8 @@ final class NoteItem {
         isDeleted: Bool = false,
         deletedAt: Date? = nil,
         attachments: [AttachmentItem] = [],
-        tags: [TagItem] = []
+        tags: [TagItem] = [],
+        comments: [CommentItem] = []
     ) {
         self.id = id
         self.content = content
@@ -77,5 +81,6 @@ final class NoteItem {
         self.deletedAt = deletedAt
         self.attachments = attachments
         self.tags = tags
+        self.comments = comments
     }
 }

@@ -130,6 +130,9 @@ struct NoteView: View {
     @State var exportError: String? = nil
     @State var showExportError = false
 
+    // 评论
+    @State var addCommentTrigger = false
+
     enum ScanMode: String, Identifiable {
         case textExtraction
         case documentScan
@@ -339,6 +342,12 @@ struct NoteView: View {
                             Label("导出", systemImage: "square.and.arrow.up")
                         }
 
+                        Button {
+                            addCommentTrigger = true
+                        } label: {
+                            Label("评论", systemImage: "bubble.left")
+                        }
+
                         Divider()
 
                         Button(role: .destructive) {
@@ -532,17 +541,36 @@ struct NoteView: View {
                 tagSection
                 Divider()
             }
-            
-            textEditorSection
-            
-            if !currentAttachments.isEmpty {
-                Spacer()
-                    .frame(height: 16)
+
+            if !isEditMode {
+                // 预览模式：内容 + 附件区整体最小高度 1/3 屏幕
+                VStack(spacing: 0) {
+                    textEditorSection
+
+                    if !currentAttachments.isEmpty {
+                        Spacer()
+                            .frame(height: 16)
+                        Divider()
+                        attachmentStripSection
+                    }
+                }
+                .frame(minHeight: viewSize.height / 3, alignment: .top)
+            } else {
+                textEditorSection
+
+                if !currentAttachments.isEmpty {
+                    Spacer()
+                        .frame(height: 16)
+                    Divider()
+                    attachmentStripSection
+                }
             }
 
-            if !currentAttachments.isEmpty {
+            // 评论区（仅预览模式）
+            if !isEditMode && onPublish == nil {
                 Divider()
-                attachmentStripSection
+                NoteCommentSection(note: note, addCommentTrigger: $addCommentTrigger)
+                    .environment(noteStore)
             }
 
             if isEditMode && onPublish == nil {

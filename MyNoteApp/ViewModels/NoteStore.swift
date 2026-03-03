@@ -174,6 +174,39 @@ class NoteStore {
         return (try? modelContext.fetch(descriptor)) ?? []
     }
 
+    // MARK: - Comment CRUD
+
+    /// 为记录添加一条评论
+    @discardableResult
+    func addComment(to note: NoteItem, content: String) -> CommentItem {
+        let comment = CommentItem(content: content, note: note)
+        modelContext.insert(comment)
+        note.comments.append(comment)
+        saveContext()
+        return comment
+    }
+
+    /// 更新评论内容
+    func updateComment(_ comment: CommentItem, content: String) {
+        comment.content = content
+        comment.updatedAt = Date()
+        saveContext()
+    }
+
+    /// 删除评论
+    func deleteComment(_ comment: CommentItem) {
+        if let note = comment.note {
+            note.comments.removeAll { $0.id == comment.id }
+        }
+        modelContext.delete(comment)
+        saveContext()
+    }
+
+    /// 获取记录的所有评论（按创建时间倒序）
+    func getComments(for note: NoteItem) -> [CommentItem] {
+        note.comments.sorted { $0.createdAt > $1.createdAt }
+    }
+
     /// 添加附件（无缩略图）
     @discardableResult
     func addAttachment(to note: NoteItem, type: AttachmentType, data: Data, fileExtension: String, shouldSave: Bool = true)
