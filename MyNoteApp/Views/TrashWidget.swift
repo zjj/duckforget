@@ -10,7 +10,6 @@ struct TrashWidget: View {
     let size: WidgetSize
     let appSettings = AppSettings.shared
     @Environment(\.appTheme) private var theme
-    @State private var showTrash = false
     
     init(size: WidgetSize) {
         self.size = size
@@ -38,9 +37,12 @@ struct TrashWidget: View {
                 .environment(noteStore)
         } else {
             // 小组件模式：简单卡片，点击跳转
-            Button {
-                showTrash = true
-            } label: {
+            ZStack {
+                NavigationLink(destination: TrashDetailPage().environment(noteStore)) {
+                    EmptyView()
+                }
+                .opacity(0)
+
                 HStack(spacing: 14) {
                     ZStack {
                         Circle()
@@ -61,6 +63,9 @@ struct TrashWidget: View {
                             .foregroundColor(.secondary)
                     }
                     Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.secondary.opacity(0.45))
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, 14)
@@ -72,10 +77,6 @@ struct TrashWidget: View {
                         .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
                 )
                 .shadow(color: theme.colors.shadow, radius: 6, x: 0, y: 2)
-            }
-            .buttonStyle(.plain)
-            .navigationDestination(isPresented: $showTrash) {
-                TrashDetailPage().environment(noteStore)
             }
         }
     }
