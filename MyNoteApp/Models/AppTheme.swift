@@ -38,6 +38,7 @@ struct ThemeColors {
 
 enum AppTheme: String, CaseIterable, Identifiable {
     case system     = "system"
+    case midnight   = "midnight"
     case warmSun    = "warmSun"
     case sakura     = "sakura"
     case oceanMist  = "oceanMist"
@@ -47,6 +48,7 @@ enum AppTheme: String, CaseIterable, Identifiable {
     var displayName: String {
         switch self {
         case .system:    return "跟随系统"
+        case .midnight:  return "深夜"
         case .warmSun:   return "暖阳"
         case .sakura:    return "樱花"
         case .oceanMist: return "海雾"
@@ -56,6 +58,7 @@ enum AppTheme: String, CaseIterable, Identifiable {
     var description: String {
         switch self {
         case .system:    return "跟随 iOS 深色/浅色模式"
+        case .midnight:  return "纯黑深蓝，专注沉浸"
         case .warmSun:   return "奶油橙黄，激发灵感"
         case .sakura:    return "浅粉玫瑰，柔和浪漫"
         case .oceanMist: return "蓝灰薄雾，清爽宁静"
@@ -65,6 +68,7 @@ enum AppTheme: String, CaseIterable, Identifiable {
     var symbolName: String {
         switch self {
         case .system:    return "circle.lefthalf.filled"
+        case .midnight:  return "moon.stars.fill"
         case .warmSun:   return "sun.max.fill"
         case .sakura:    return "sparkles"
         case .oceanMist: return "cloud.fill"
@@ -89,6 +93,23 @@ enum AppTheme: String, CaseIterable, Identifiable {
                 syntaxKeyword: Color(.systemOrange),
                 syntaxCode:    Color(.systemOrange).opacity(0.7),
                 isDark:        false
+            )
+
+        // ── 深夜：纯黑深蓝 + 靛紫强调 ──────────────────────────────────
+        case .midnight:
+            return ThemeColors(
+                background:    Color(hex: "111827"),
+                surface:       Color(hex: "1F2937"),
+                card:          Color(hex: "252D3D"),
+                cardSecondary: Color(hex: "2D3748"),
+                accent:        Color(hex: "818CF8"),
+                primaryText:   Color(hex: "F1F5F9"),
+                secondaryText: Color(hex: "94A3B8"),
+                border:        Color(hex: "374151"),
+                shadow:        Color.black.opacity(0.30),
+                syntaxKeyword: Color(hex: "818CF8"),
+                syntaxCode:    Color(hex: "A5B4FC"),
+                isDark:        true
             )
 
         // ── 暖阳：奶油橙黄 + 橘强调 ─────────────────────────────────────
