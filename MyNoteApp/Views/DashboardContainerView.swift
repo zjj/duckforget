@@ -31,11 +31,9 @@ struct DashboardContainerView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Custom compact header for dashboard pages
-                if !isSettingsPage {
-                    dashboardHeaderBar
-                    Divider()
-                }
+                // Unified header for all tabs
+                unifiedHeaderBar
+                Divider()
                 
                 GeometryReader { geo in
                     TabView(selection: Binding(
@@ -83,19 +81,8 @@ struct DashboardContainerView: View {
                     .tabViewStyle(.page(indexDisplayMode: .never))
                 }
             }
-            .navigationBarHidden(!isSettingsPage)
+            .navigationBarHidden(true)
             .navigationTitle("")
-            .toolbar {
-                if isSettingsPage {
-                    // Settings Icon as Title (Display only)
-                    ToolbarItem(placement: .topBarLeading) {
-                         Image(systemName: "gear")
-                            .font(.title) // Reduced from .largeTitle
-                            .fontWeight(.bold)
-                            .foregroundColor(.primary)
-                    }
-                }
-            }
             .onAppear {
                 if selectedTab == nil {
                     if let firstPage = dashboardConfig.pages.first {
@@ -204,47 +191,80 @@ struct DashboardContainerView: View {
         return "仪表盘"
     }
     
-    // MARK: - Dashboard Header Bar
-    
-    /// 自定义头部：[名称 >] [   页面指示胶囊   ] [... / 完成]
-    private var dashboardHeaderBar: some View {
+    // MARK: - Settings Header Bar
+
+    // MARK: - Unified Header Bar
+
+    /// 所有 Tab 共用的头部：左标题 / 中指示器（设置+页面） / 右按钮
+    private var unifiedHeaderBar: some View {
         HStack(spacing: 0) {
-            // Left: Title (display only)
-            Text(currentPageName)
-                .font(.system(size: 17, weight: .semibold))
-                .lineLimit(1)
-            
+            // Left: title
+            Group {
+                if isSettingsPage {
+                    HStack(spacing: 6) {
+                        Image(systemName: "gear")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(theme.colors.secondaryText)
+                        Text("设置")
+                            .font(.system(size: 17, weight: .semibold))
+                            .lineLimit(1)
+                    }
+                } else {
+                    Text(currentPageName)
+                        .font(.system(size: 17, weight: .semibold))
+                        .lineLimit(1)
+                }
+            }
+
             Spacer()
-            
-            // Center: pill-shaped page indicators (active = stretched capsule)
-            HStack(spacing: 5) {
-                ForEach(Array(dashboardConfig.pages.enumerated()), id: \.element.id) { _, page in
+
+            // Center: capsule indicators (only shown on dashboard pages)
+            if !isSettingsPage {
+                HStack(spacing: 5) {
+                    // Settings tab indicator
                     Capsule()
-                        .fill(page.id == selectedTab
+                        .fill(isSettingsPage
                               ? theme.colors.primaryText.opacity(0.75)
                               : theme.colors.secondaryText.opacity(0.22))
-                        .frame(width: page.id == selectedTab ? 20 : 6, height: 6)
+                        .frame(width: isSettingsPage ? 20 : 6, height: 6)
                         .animation(.spring(response: 0.35, dampingFraction: 0.7), value: selectedTab)
                         .onTapGesture {
                             let generator = UISelectionFeedbackGenerator()
                             generator.selectionChanged()
-                            withAnimation { selectedTab = page.id }
+                            withAnimation { selectedTab = settingsTabID }
                         }
+
+                    // Dashboard page indicators
+                    ForEach(Array(dashboardConfig.pages.enumerated()), id: \.element.id) { _, page in
+                        Capsule()
+                            .fill(page.id == selectedTab
+                                  ? theme.colors.primaryText.opacity(0.75)
+                                  : theme.colors.secondaryText.opacity(0.22))
+                            .frame(width: page.id == selectedTab ? 20 : 6, height: 6)
+                            .animation(.spring(response: 0.35, dampingFraction: 0.7), value: selectedTab)
+                            .onTapGesture {
+                                let generator = UISelectionFeedbackGenerator()
+                                generator.selectionChanged()
+                                withAnimation { selectedTab = page.id }
+                            }
+                    }
                 }
+
+                Spacer()
             }
-            
-            Spacer()
-            
-            // Right: "..." or "完成"
-            if let currentPageId = selectedTab {
+
+            // Right: edit controls for dashboard pages; transparent placeholder for settings
+            if !isSettingsPage, let currentPageId = selectedTab {
                 currentPageToolbarButton(for: currentPageId)
+            } else {
+                Color.clear.frame(width: 44)
             }
         }
+        .frame(height: 44)
         .padding(.horizontal, 16)
-        .padding(.vertical, 10)
         .background(.bar)
     }
-    
+
     @ViewBuilder
     private func currentPageToolbarButton(for pageId: UUID) -> some View {
         let isEditing = editingStates[pageId] ?? false
@@ -280,7 +300,7 @@ struct DashboardContainerView: View {
                 Image(systemName: "ellipsis.circle")
                     .font(.system(size: 22))
                     .foregroundColor(theme.colors.primaryText.opacity(0.75))
-                    .frame(minWidth: 44, minHeight: 44)
+                    .frame(minWidth: 44)
                     .contentShape(Rectangle())
             }
         }

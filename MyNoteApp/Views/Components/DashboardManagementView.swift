@@ -168,6 +168,7 @@ struct DashboardManagementView: View {
                     .onDrag {
                         return NSItemProvider(object: page.id.uuidString as NSString)
                     }
+                    .listRowBackground(theme.colors.card)
                 }
                 .onMove { source, destination in
                     dashboardConfig.movePage(from: source, to: destination)
@@ -180,12 +181,14 @@ struct DashboardManagementView: View {
                 } label: {
                     Label("查看统计数据", systemImage: "chart.bar.xaxis")
                 }
+                .listRowBackground(theme.colors.card)
             }
             
             Section(header: Text("标签")) {
                 NavigationLink(destination: TagManagementPage()) {
                     Label("标签管理", systemImage: "tag")
                 }
+                .listRowBackground(theme.colors.card)
             }
 
             Section(header: Text("编辑器")) {
@@ -193,16 +196,19 @@ struct DashboardManagementView: View {
                     Label("语音转文字", systemImage: "mic.fill")
                 }
                 .toggleStyle(SwitchToggleStyle(tint: theme.colors.accent))
+                .listRowBackground(theme.colors.card)
                 
                 NavigationLink(destination: ToolbarSortView()) {
                     Label("工具栏", systemImage: "arrow.left.arrow.right")
                 }
+                .listRowBackground(theme.colors.card)
             }
 
             Section(header: Text("外观")) {
                 NavigationLink(destination: ThemeSettingsView()) {
                     Label("外观主题", systemImage: "paintpalette")
                 }
+                .listRowBackground(theme.colors.card)
             }
 
             Section {
@@ -217,6 +223,7 @@ struct DashboardManagementView: View {
                         AppSettings.shared.trashRetentionDays = newValue
                     }
                 }
+                .listRowBackground(theme.colors.card)
             } header: {
                 Text("废纸篓")
             } footer: {
@@ -250,6 +257,7 @@ struct DashboardManagementView: View {
                     }
                 }
                 .disabled(isExporting)
+                .listRowBackground(theme.colors.card)
             } header: {
                 Text("数据导出")
             } footer: {
@@ -327,9 +335,11 @@ struct DashboardManagementView: View {
                 } label: {
                     Label("查看引导", systemImage: "sparkles")
                 }
+                .listRowBackground(theme.colors.card)
                 NavigationLink(destination: AboutView()) {
                     Label("关于", systemImage: "info.circle")
                 }
+                .listRowBackground(theme.colors.card)
             }
         }
         .scrollContentBackground(.hidden)
