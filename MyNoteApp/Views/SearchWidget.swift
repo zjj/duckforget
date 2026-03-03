@@ -22,26 +22,29 @@ struct SearchWidget: View {
         Button {
             showSearch = true
         } label: {
-            HStack(spacing: 12) {
+            HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(theme.colors.accent)
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("搜索")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-                    Text("输入进行搜索...")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                Spacer() // 确保HStack填满宽度
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(theme.colors.secondaryText)
+
+                Text("搜索")
+                    .font(.system(size: 17))
+                    .foregroundColor(theme.colors.secondaryText)
+
+                Spacer()
             }
-            .frame(maxWidth: .infinity) // 关键：让HStack填满父容器宽度
-            .padding(16)
-            .background(theme.colors.surface)
-            .cornerRadius(16)
-            .shadow(color: theme.colors.shadow, radius: 6, x: 0, y: 3)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 11)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(theme.colors.card)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
+            )
+            .shadow(color: theme.colors.shadow, radius: 6, x: 0, y: 2)
         }
         .buttonStyle(.plain)
     }
@@ -55,45 +58,54 @@ struct SearchFullPagePreview: View {
     @Environment(\.appTheme) private var theme
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // 标题
+        VStack(alignment: .leading, spacing: 20) {
+            // Title
             Text("搜索")
-                .font(.largeTitle)
-                .fontWeight(.bold)
-                .padding(.horizontal)
+                .font(.system(size: 28, weight: .bold))
+                .padding(.horizontal, 16)
                 .padding(.top, 16)
-            
-            // 搜索框（伪）
+
+            // Apple-style search bar
             Button(action: onTap) {
                 HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass")
-                        .foregroundColor(.secondary)
-                    
-                    Text("输入进行搜索...")
-                        .foregroundColor(.secondary)
-                    
+                        .foregroundColor(theme.colors.secondaryText)
+                        .font(.system(size: 16, weight: .medium))
+
+                    Text("搜索...")
+                        .foregroundColor(theme.colors.secondaryText)
+                        .font(.system(size: 17))
+
                     Spacer()
                 }
-                .padding(10)
-                .background(theme.colors.card)
-                .cornerRadius(10)
-                .padding(.horizontal)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 11)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(theme.colors.card)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
+                        )
+                )
+                .padding(.horizontal, 16)
             }
             .buttonStyle(.plain)
-            
-            // 提示文本
+
+            // Placeholder hint
             VStack(spacing: 12) {
-                Image(systemName: "magnifyingglass.circle")
-                    .font(.system(size: 48))
-                    .foregroundColor(.secondary.opacity(0.5))
-                
-                Text("点击搜索框开始搜索")
+                Image(systemName: "doc.text.magnifyingglass")
+                    .font(.system(size: 44))
+                    .foregroundStyle(theme.colors.secondaryText.opacity(0.35))
+                    .symbolRenderingMode(.hierarchical)
+
+                Text("点击即可开始搜索")
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.colors.secondaryText.opacity(0.6))
             }
             .frame(maxWidth: .infinity)
-            .padding(.top, 40)
-            
+            .padding(.top, 32)
+
             Spacer()
         }
         .background(theme.colors.surface)

@@ -10,6 +10,7 @@ struct TrashWidget: View {
     let size: WidgetSize
     let appSettings = AppSettings.shared
     @Environment(\.appTheme) private var theme
+    @State private var showTrash = false
     
     init(size: WidgetSize) {
         self.size = size
@@ -37,29 +38,45 @@ struct TrashWidget: View {
                 .environment(noteStore)
         } else {
             // 小组件模式：简单卡片，点击跳转
-            NavigationLink(destination: TrashDetailPage().environment(noteStore)) {
-                HStack(spacing: 12) {
-                    Image(systemName: "trash")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(.orange)
-                    
+            Button {
+                showTrash = true
+            } label: {
+                HStack(spacing: 14) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.orange.opacity(0.12))
+                            .frame(width: 40, height: 40)
+                        Image(systemName: "trash")
+                            .font(.system(size: 17, weight: .medium))
+                            .foregroundStyle(Color.orange)
+                            .symbolRenderingMode(.hierarchical)
+                    }
+
                     VStack(alignment: .leading, spacing: 2) {
                         Text("废纸篓")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-                        Text("废纸篓（\(trashedNotes.count)条）")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(.primary)
+                        Text("\(trashedNotes.count) 条记录")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
                     Spacer()
                 }
                 .frame(maxWidth: .infinity)
-                .padding(16)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 14)
                 .background(theme.colors.surface)
                 .cornerRadius(16)
-                .shadow(color: theme.colors.shadow, radius: 6, x: 0, y: 3)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
+                )
+                .shadow(color: theme.colors.shadow, radius: 6, x: 0, y: 2)
             }
             .buttonStyle(.plain)
+            .navigationDestination(isPresented: $showTrash) {
+                TrashDetailPage().environment(noteStore)
+            }
         }
     }
     

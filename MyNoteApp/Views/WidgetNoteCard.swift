@@ -55,6 +55,11 @@ struct WidgetNoteCard: View {
         .frame(width: cardWidth, height: cardHeight)
         .background(theme.colors.card)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .stroke(Color.primary.opacity(0.05), lineWidth: 0.5)
+        )
+        .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 1)
     }
 
     // ── 有图片：图片全填 + 渐变遮罩 + 文字底部 ────────────

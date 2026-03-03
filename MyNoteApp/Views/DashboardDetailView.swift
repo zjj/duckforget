@@ -245,10 +245,14 @@ struct DashboardRow: View {
         widgetContent
         .frame(minHeight: item.size == .fullPage ? fullPageHeight : nil)
         .allowsHitTesting(!isEditing)
-        // 编辑模式下高亮边框，提示可长按操作
+        // 编辑模式下淡蓝轮廓提示可操作
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(theme.colors.accent.opacity(isEditing ? 0.5 : 0), lineWidth: 2)
+                .strokeBorder(
+                    style: StrokeStyle(lineWidth: isEditing ? 1.5 : 0, dash: isEditing ? [6, 3] : [])
+                )
+                .foregroundColor(theme.colors.accent.opacity(isEditing ? 0.45 : 0))
+                .animation(.easeInOut(duration: 0.2), value: isEditing)
         )
         .clipShape(RoundedRectangle(cornerRadius: 16))
         // 长按弹出上下文菜单（编辑模式下）
@@ -367,9 +371,10 @@ struct DashboardRow: View {
                 }
             }()
             VStack(spacing: 8) {
-                Image(systemName: "text.pad.header.badge.plus")
+                Image(systemName: "square.and.pencil")
                     .font(.system(size: iconSize))
-                    .foregroundColor(theme.colors.accent)
+                    .foregroundStyle(theme.colors.accent)
+                    .symbolRenderingMode(.hierarchical)
                 if size == .fullPage {
                     Text("全屏模式：直接显示编辑器")
                         .font(.caption)
@@ -414,20 +419,32 @@ struct InlineNewNoteWidget: View {
         // 点击后弹出全屏编辑器，从未彻底解决生命周期竞态问题
         VStack(spacing: 0) {
             // 模拟顶部工具栏区域
-            HStack {
-                Image(systemName: "text.pad.header.badge.plus")
-                    .font(.headline)
-                    .foregroundColor(theme.colors.accent)
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(theme.colors.accent.opacity(0.12))
+                        .frame(width: 34, height: 34)
+                    Image(systemName: "square.and.pencil")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(theme.colors.accent)
+                        .symbolRenderingMode(.hierarchical)
+                }
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("新建记录")
-                        .font(.headline)
-                        .foregroundColor(theme.colors.secondaryText)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(theme.colors.primaryText)
+                    Text("点击开始输入")
+                        .font(.caption)
+                        .foregroundColor(theme.colors.secondaryText.opacity(0.6))
                 }
                 Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(theme.colors.secondaryText.opacity(0.35))
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.vertical, 14)
             .background(theme.colors.surface)
             
             Divider()
@@ -435,10 +452,11 @@ struct InlineNewNoteWidget: View {
             // 模拟内容区域
             ZStack(alignment: .topLeading) {
                 theme.colors.surface
-                
-                Text("点击输入...")
-                    .foregroundColor(.secondary)
-                    .padding(.top, 12)
+
+                Text("今天有什么想法...")
+                    .foregroundColor(theme.colors.secondaryText.opacity(0.4))
+                    .font(.system(size: 16))
+                    .padding(.top, 16)
                     .padding(.horizontal, 16)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -556,21 +574,27 @@ struct NewNoteButton: View {
         Button {
             showEditor = true
         } label: {
-            VStack(spacing: 12) {
-                Image(systemName: "text.pad.header.badge.plus")
+            VStack(spacing: 10) {
+                Image(systemName: "square.and.pencil")
                     .font(.system(size: iconSize))
-                    .foregroundColor(theme.colors.accent)
+                    .foregroundStyle(theme.colors.accent)
                     .symbolRenderingMode(.hierarchical)
-                    .fontWeight(.bold)
-                
-                Text("点击记录")
-                    .font(.caption)
-                    .foregroundColor(theme.colors.secondaryText)
+
+                Text("新建记录")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(theme.colors.secondaryText)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, verticalPadding)
-            .background(theme.colors.card)
-            .cornerRadius(16)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(theme.colors.card)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
+                    )
+            )
+            .shadow(color: theme.colors.shadow, radius: 6, x: 0, y: 2)
         }
         .buttonStyle(.plain)
         .fullScreenCover(isPresented: $showEditor) {

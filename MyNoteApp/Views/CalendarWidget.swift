@@ -93,18 +93,33 @@ struct CalendarWidget: View {
     private var smallView: some View {
         let month = allowedMonths[pageIndex]
         let count = noteCache[monthKey(month)]?.values.reduce(0, +) ?? 0
-        return VStack(spacing: 6) {
-            Image(systemName: "calendar")
-                .font(.title2)
-                .foregroundColor(theme.colors.accent)
+        return VStack(spacing: 8) {
+            ZStack {
+                Circle()
+                    .fill(theme.colors.accent.opacity(0.12))
+                    .frame(width: 36, height: 36)
+                Image(systemName: "calendar")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(theme.colors.accent)
+                    .symbolRenderingMode(.hierarchical)
+            }
             Text(monthTitle(month))
-                .font(.caption).fontWeight(.medium)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(theme.colors.primaryText)
             Text("\(count) 条笔记")
-                .font(.caption2).foregroundColor(.secondary)
+                .font(.system(size: 11))
+                .foregroundStyle(theme.colors.secondaryText)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(theme.colors.card)
-        .cornerRadius(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(theme.colors.card)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
+                )
+        )
+        .shadow(color: theme.colors.shadow, radius: 6, x: 0, y: 2)
         .onAppear { fetchAll() }
     }
 
@@ -116,28 +131,29 @@ struct CalendarWidget: View {
             // ── 月份标题 + 分页点 ──────────────────────────────────
             HStack(spacing: 6) {
                 Image(systemName: "calendar")
-                    .foregroundColor(theme.colors.accent)
-                    .font(.subheadline)
+                    .foregroundStyle(theme.colors.accent)
+                    .font(.system(size: 14, weight: .semibold))
+                    .symbolRenderingMode(.hierarchical)
                 Text(monthTitle(allowedMonths[pageIndex]))
-                    .font(.headline)
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(theme.colors.secondaryText)
                     .contentTransition(.numericText())
                     .animation(.easeInOut(duration: 0.2), value: pageIndex)
                 Spacer()
                 HStack(spacing: 5) {
                     ForEach(0..<2, id: \.self) { idx in
-                        Circle()
+                        Capsule()
                             .fill(idx == pageIndex
                                   ? theme.colors.accent
-                                  : theme.colors.accent.opacity(0.25))
-                            .frame(width: idx == pageIndex ? 7 : 5,
-                                   height: idx == pageIndex ? 7 : 5)
+                                  : theme.colors.accent.opacity(0.2))
+                            .frame(width: idx == pageIndex ? 16 : 5,
+                                   height: 5)
                             .animation(.easeInOut(duration: 0.2), value: pageIndex)
                     }
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.top, 12)
+            .padding(.top, 14)
             .padding(.bottom, 6)
 
             // ── 周标题（静态）────────────────────────────────────────
@@ -172,6 +188,11 @@ struct CalendarWidget: View {
         }
         .background(theme.colors.card)
         .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
+        )
+        .shadow(color: theme.colors.shadow, radius: 8, x: 0, y: 2)
         // 单一 navigationDestination：Button 设 selectedDay，这里统一 push
         .navigationDestination(item: $selectedDay) { day in
             DayNotesPage(date: day).environment(noteStore)

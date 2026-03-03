@@ -49,16 +49,17 @@ struct TagWidget: View {
             VStack(alignment: .leading, spacing: 12) {
                 // 标题区域：点击跳转到完整列表
                 NavigationLink(destination: NoteSearchPage(pageTitle: tagName, filterTagName: tagName, headerIcon: "tag.fill").environment(noteStore)) {
-                    HStack {
-                        Image(systemName: "tag.fill")
+                    HStack(spacing: 6) {
+                        Image(systemName: "tag")
                             .foregroundColor(theme.colors.accent)
-                            .font(.subheadline)
+                            .font(.system(size: 13, weight: .semibold))
+                            .symbolRenderingMode(.hierarchical)
                         Text(tagName)
-                            .font(.headline)
-                            .foregroundColor(.secondary)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(theme.colors.secondaryText)
                         Spacer()
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, 14)
                 }
                 .buttonStyle(.plain)
                 .disabled(isEditing)
@@ -102,8 +103,14 @@ struct TagWidget: View {
                                     Spacer()
                                 }
                                 .frame(width: cardWidth, height: cardHeight)
-                                .background(theme.colors.card.opacity(0.5))
-                                .cornerRadius(10)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(theme.colors.card.opacity(0.6))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .stroke(Color.primary.opacity(0.05), lineWidth: 0.5)
+                                        )
+                                )
                             }
                             .buttonStyle(.plain)
                             .disabled(isEditing)
@@ -115,7 +122,11 @@ struct TagWidget: View {
             .padding(.vertical, 8)
             .background(theme.colors.surface)
             .cornerRadius(16)
-            .shadow(color: theme.colors.shadow, radius: 5, x: 0, y: 2)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
+            )
+            .shadow(color: theme.colors.shadow, radius: 8, x: 0, y: 2)
             .task { fetchTotalCount() }
         }
     }

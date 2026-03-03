@@ -206,14 +206,17 @@ struct DashboardContainerView: View {
     
     // MARK: - Dashboard Header Bar
     
-    /// 自定义头部：[齿轮+名称] [   页面指示点   ] [... / 完成]
+    /// 自定义头部：[名称 >] [   页面指示胶囊   ] [... / 完成]
     private var dashboardHeaderBar: some View {
         HStack(spacing: 0) {
-            // Left: Title (Tap to go to Settings)
-            HStack(spacing: 12) {
+            // Left: Title with chevron hint (Tap to go to Settings)
+            HStack(spacing: 5) {
                 Text(currentPageName)
-                    .font(.headline)
+                    .font(.system(size: 17, weight: .semibold))
                     .lineLimit(1)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(theme.colors.secondaryText.opacity(0.4))
             }
             .contentShape(Rectangle())
             .onTapGesture {
@@ -224,14 +227,15 @@ struct DashboardContainerView: View {
             
             Spacer()
             
-            // Center: iOS-style page indicator dots
-            HStack(spacing: 6) {
+            // Center: pill-shaped page indicators (active = stretched capsule)
+            HStack(spacing: 5) {
                 ForEach(Array(dashboardConfig.pages.enumerated()), id: \.element.id) { _, page in
-                    Circle()
-                        .fill(page.id == selectedTab ? theme.colors.primaryText.opacity(0.9) : theme.colors.secondaryText.opacity(0.3))
-                        .frame(width: 7, height: 7)
-                        .scaleEffect(page.id == selectedTab ? 1.0 : 0.85)
-                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selectedTab)
+                    Capsule()
+                        .fill(page.id == selectedTab
+                              ? theme.colors.primaryText.opacity(0.75)
+                              : theme.colors.secondaryText.opacity(0.22))
+                        .frame(width: page.id == selectedTab ? 20 : 6, height: 6)
+                        .animation(.spring(response: 0.35, dampingFraction: 0.7), value: selectedTab)
                         .onTapGesture {
                             let generator = UISelectionFeedbackGenerator()
                             generator.selectionChanged()
@@ -249,7 +253,7 @@ struct DashboardContainerView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(theme.colors.surface)
+        .background(.bar)
     }
     
     @ViewBuilder
@@ -264,11 +268,13 @@ struct DashboardContainerView: View {
                     editingStates[pageId] = false
                 }
             } label: {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 24))
+                Text("完成")
+                    .font(.system(size: 15, weight: .semibold))
                     .foregroundColor(theme.colors.accent)
-                    .frame(minWidth: 44, minHeight: 44)
-                    .contentShape(Rectangle())
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(theme.colors.accent.opacity(0.1))
+                    .clipShape(Capsule())
             }
         } else {
             Menu {
@@ -282,9 +288,9 @@ struct DashboardContainerView: View {
                     Label("编辑", systemImage: "pencil.circle")
                 }
             } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 24))
-                    .foregroundColor(.primary)
+                Image(systemName: "ellipsis.circle")
+                    .font(.system(size: 22))
+                    .foregroundColor(theme.colors.primaryText.opacity(0.75))
                     .frame(minWidth: 44, minHeight: 44)
                     .contentShape(Rectangle())
             }

@@ -51,16 +51,17 @@ struct RecentNotesWidget: View {
                     filterRecentDays: 2,
                     hideSearchBar: false // 显示顶部搜索栏
                 ).environment(noteStore)) {
-                    HStack {
-                        Image(systemName: "clock.fill")
+                    HStack(spacing: 6) {
+                        Image(systemName: "clock")
                             .foregroundColor(theme.colors.accent)
-                            .font(.subheadline)
+                            .font(.system(size: 14, weight: .semibold))
+                            .symbolRenderingMode(.hierarchical)
                         Text("最近记录")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(theme.colors.secondaryText)
                         Spacer()
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, 14)
                 }
                 .buttonStyle(.plain)
                 .disabled(isEditing)
@@ -95,21 +96,27 @@ struct RecentNotesWidget: View {
                                     let remaining = totalNotesCount - displayedNotes.count
                                     if remaining > 0 {
                                         Text("+\(remaining)")
-                                            .font(.headline)
+                                            .font(.system(size: 14, weight: .semibold))
                                             .foregroundColor(theme.colors.accent)
-                                        Text("查看更多")
+                                        Text("更多")
                                             .font(.system(size: 10))
-                                            .foregroundColor(.secondary)
+                                            .foregroundColor(theme.colors.secondaryText.opacity(0.7))
                                     } else {
                                         Image(systemName: "chevron.right")
-                                            .font(.system(size: 14, weight: .medium))
-                                            .foregroundColor(theme.colors.accent.opacity(0.7))
+                                            .font(.system(size: 13, weight: .semibold))
+                                            .foregroundColor(theme.colors.accent.opacity(0.6))
                                     }
                                     Spacer()
                                 }
                                 .frame(width: cardWidth, height: cardHeight)
-                                .background(theme.colors.card.opacity(0.5))
-                                .cornerRadius(10)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(theme.colors.card.opacity(0.6))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .stroke(Color.primary.opacity(0.05), lineWidth: 0.5)
+                                        )
+                                )
                             }
                             .buttonStyle(.plain)
                             .disabled(isEditing)
@@ -121,7 +128,11 @@ struct RecentNotesWidget: View {
             .padding(.vertical, 8)
             .background(theme.colors.surface)
             .cornerRadius(16)
-            .shadow(color: theme.colors.shadow, radius: 5, x: 0, y: 2)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
+            )
+            .shadow(color: theme.colors.shadow, radius: 8, x: 0, y: 2)
             .task { fetchTotalCount() }
         }
     }
@@ -164,20 +175,20 @@ struct RecentNotesFullPagePreview: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             // 标题
-            HStack {
-                Image(systemName: "clock.fill")
+            HStack(spacing: 6) {
+                Image(systemName: "clock")
                     .foregroundColor(theme.colors.accent)
-                    .font(.subheadline)
+                    .font(.system(size: 14, weight: .semibold))
+                    .symbolRenderingMode(.hierarchical)
                 Text("最近记录")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(theme.colors.secondaryText)
                 Spacer()
             }
-            .padding(.horizontal)
-            .padding(.top, 16)
+            .padding(.horizontal, 14)
+            .padding(.top, 14)
             
-            // 搜索框（伪）→ 直接 NavigationLink 跳转
+            // Apple-style search bar (fake) → NavigationLink
             NavigationLink(destination: NoteSearchPage(
                 pageTitle: "最近记录",
                 filterRecentDays: 2,
@@ -185,17 +196,26 @@ struct RecentNotesFullPagePreview: View {
             ).environment(noteStore)) {
                 HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(theme.colors.secondaryText)
+                        .font(.system(size: 16, weight: .medium))
                     
-                    Text("输入进行搜索...")
-                        .foregroundColor(.secondary)
+                    Text("搜索...")
+                        .foregroundColor(theme.colors.secondaryText)
+                        .font(.system(size: 17))
                     
                     Spacer()
                 }
-                .padding(10)
-                .background(theme.colors.card)
-                .cornerRadius(10)
-                .padding(.horizontal)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 11)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(theme.colors.card)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
+                        )
+                )
+                .padding(.horizontal, 14)
             }
             .buttonStyle(.plain)
             .disabled(isEditing)
