@@ -221,19 +221,6 @@ struct DashboardContainerView: View {
             // Center: capsule indicators (only shown on dashboard pages)
             if !isSettingsPage {
                 HStack(spacing: 5) {
-                    // Settings tab indicator
-                    Capsule()
-                        .fill(isSettingsPage
-                              ? theme.colors.primaryText.opacity(0.75)
-                              : theme.colors.secondaryText.opacity(0.22))
-                        .frame(width: isSettingsPage ? 20 : 6, height: 6)
-                        .animation(.spring(response: 0.35, dampingFraction: 0.7), value: selectedTab)
-                        .onTapGesture {
-                            let generator = UISelectionFeedbackGenerator()
-                            generator.selectionChanged()
-                            withAnimation { selectedTab = settingsTabID }
-                        }
-
                     // Dashboard page indicators
                     ForEach(Array(dashboardConfig.pages.enumerated()), id: \.element.id) { _, page in
                         Capsule()
