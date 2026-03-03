@@ -46,11 +46,17 @@ struct RecentNotesWidget: View {
         } else {
             VStack(alignment: .leading, spacing: 12) {
                 // 标题区域：点击跳转到完整列表
-                NavigationLink(destination: NoteSearchPage(
-                    pageTitle: "最近记录",
-                    filterRecentDays: 2,
-                    hideSearchBar: false // 显示顶部搜索栏
-                ).environment(noteStore)) {
+                ZStack(alignment: .leading) {
+                    NavigationLink(destination: NoteSearchPage(
+                        pageTitle: "最近记录",
+                        filterRecentDays: 2,
+                        hideSearchBar: false
+                    ).environment(noteStore)) {
+                        EmptyView()
+                    }
+                    .opacity(0)
+                    .disabled(isEditing)
+
                     HStack(spacing: 6) {
                         Image(systemName: "clock")
                             .foregroundColor(theme.colors.accent)
@@ -60,11 +66,13 @@ struct RecentNotesWidget: View {
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundColor(theme.colors.secondaryText)
                         Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.secondary.opacity(0.45))
                     }
                     .padding(.horizontal, 14)
+                    .allowsHitTesting(!isEditing)
                 }
-                .buttonStyle(.plain)
-                .disabled(isEditing)
                 
                 if displayedNotes.isEmpty {
                     Text("暂无记录")
