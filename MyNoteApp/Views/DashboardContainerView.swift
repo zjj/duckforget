@@ -209,21 +209,10 @@ struct DashboardContainerView: View {
     /// 自定义头部：[名称 >] [   页面指示胶囊   ] [... / 完成]
     private var dashboardHeaderBar: some View {
         HStack(spacing: 0) {
-            // Left: Title with chevron hint (Tap to go to Settings)
-            HStack(spacing: 5) {
-                Text(currentPageName)
-                    .font(.system(size: 17, weight: .semibold))
-                    .lineLimit(1)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(theme.colors.secondaryText.opacity(0.4))
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                withAnimation {
-                    selectedTab = settingsTabID
-                }
-            }
+            // Left: Title (display only)
+            Text(currentPageName)
+                .font(.system(size: 17, weight: .semibold))
+                .lineLimit(1)
             
             Spacer()
             
