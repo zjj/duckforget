@@ -62,9 +62,9 @@ struct FormatMenuSheet: View {
         /// 自定义文字标签（侄先于 SF Symbol 图标）
         var customLabel: String? {
             switch self {
-            case .h1: return "#"
-            case .h2: return "##"
-            case .h3: return "###"
+            case .h1: return "h1"
+            case .h2: return "h2"
+            case .h3: return "h3"
             case .tablePipe: return "|"
             default: return nil
             }
