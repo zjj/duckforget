@@ -544,6 +544,7 @@ struct NoteView: View {
 
             if !isEditMode {
                 // 预览模式：内容 + 附件区整体最小高度 1/3 屏幕
+                // Spacer(minLength: 0) 吸收多余空间，防止子视图（如 blockquote）被拉伸
                 VStack(spacing: 0) {
                     textEditorSection
 
@@ -553,6 +554,8 @@ struct NoteView: View {
                         Divider()
                         attachmentStripSection
                     }
+
+                    Spacer(minLength: 0)
                 }
                 .frame(minHeight: viewSize.height / 3, alignment: .top)
             } else {

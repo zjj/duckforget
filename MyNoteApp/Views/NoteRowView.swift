@@ -401,15 +401,17 @@ struct NoteCardPreview: View {
             }
 
         case .blockquote(let text):
-            HStack(spacing: 6) {
-                RoundedRectangle(cornerRadius: 1.5)
-                    .fill(theme.colors.accent.opacity(0.7))
-                    .frame(width: 3)
-                Text(inline(text))
-                    .font(.footnote.italic())
-                    .foregroundColor(theme.colors.secondaryText.opacity(0.8))
-                    .lineLimit(1)
-            }
+            Text(inline(text))
+                .font(.footnote.italic())
+                .foregroundColor(theme.colors.secondaryText.opacity(0.8))
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading, 9)
+                .overlay(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 1.5)
+                        .fill(theme.colors.accent.opacity(0.7))
+                        .frame(width: 3)
+                }
 
         case .table(let headers, let rows):
             PreviewTable(headers: headers, rows: rows)

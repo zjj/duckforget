@@ -190,16 +190,16 @@ struct MarkdownRenderView: View {
             .padding(.vertical, 4)
 
         case .blockquote(let text):
-            HStack(alignment: .top, spacing: 0) {
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(theme.colors.accent)
-                    .frame(width: 3)
-                inlineText(text)
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.leading, 10)
-            }
-            .padding(.vertical, 2)
+            inlineText(text)
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading, 13)
+                .padding(.vertical, 2)
+                .overlay(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(theme.colors.accent)
+                        .frame(width: 3)
+                }
 
         case .bullet(let text, let indent):
             HStack(alignment: .top, spacing: 8) {
