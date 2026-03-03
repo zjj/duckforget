@@ -322,6 +322,11 @@ struct DashboardManagementView: View {
             #endif
 
             Section(header: Text("其它")) {
+                Button {
+                    AppSettings.shared.hasCompletedOnboarding = false
+                } label: {
+                    Label("查看引导", systemImage: "sparkles")
+                }
                 NavigationLink(destination: AboutView()) {
                     Label("关于", systemImage: "info.circle")
                 }

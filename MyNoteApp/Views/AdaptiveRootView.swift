@@ -8,16 +8,25 @@ import SwiftData
 struct AdaptiveRootView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(NoteStore.self) private var noteStore
+    @Environment(AppSettings.self) private var appSettings
     @EnvironmentObject private var deepLinkHandler: DeepLinkHandler
 
     /// The note currently shown in the detail column (iPad only).
     @State private var selectedNote: NoteItem?
 
     var body: some View {
-        if horizontalSizeClass == .regular {
-            iPadSplitView
-        } else {
-            DashboardContainerView()
+        Group {
+            if horizontalSizeClass == .regular {
+                iPadSplitView
+            } else {
+                DashboardContainerView()
+            }
+        }
+        .fullScreenCover(isPresented: Binding(
+            get: { !appSettings.hasCompletedOnboarding },
+            set: { if !$0 { appSettings.hasCompletedOnboarding = true } }
+        )) {
+            OnboardingView()
         }
     }
 
