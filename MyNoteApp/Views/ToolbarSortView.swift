@@ -36,27 +36,31 @@ struct ToolbarSortView: View {
             }
 
             Section(footer: Text("拖动行可以调整记录编辑器底部工具栏的按钮顺序，使用开关控制按钮是否显示")) {
-                ForEach(
-                    settings.configs.indices.filter { settings.configs[$0].type != .markdown },
-                    id: \.self
-                ) { index in
+                ForEach(settings.configs.filter { $0.type != .markdown }) { config in
                     HStack {
                         HStack(spacing: 12) {
-                            Image(systemName: settings.configs[index].type.icon)
+                            Image(systemName: config.type.icon)
                                 .font(.title3)
                                 .frame(width: 24)
-                                .foregroundColor(settings.configs[index].isEnabled ? theme.colors.accent : .secondary)
+                                .foregroundColor(config.isEnabled ? theme.colors.accent : .secondary)
 
-                            Text(settings.configs[index].type.title)
+                            Text(config.type.title)
                                 .font(.body)
-                                .foregroundColor(settings.configs[index].isEnabled ? .primary : .secondary)
+                                .foregroundColor(config.isEnabled ? .primary : .secondary)
                         }
 
                         Spacer()
 
-                        Toggle("", isOn: $settings.configs[index].isEnabled)
-                            .labelsHidden()
-                            .toggleStyle(SwitchToggleStyle(tint: theme.colors.accent))
+                        Toggle("", isOn: Binding(
+                            get: { config.isEnabled },
+                            set: { newVal in
+                                if let i = settings.configs.firstIndex(where: { $0.id == config.id }) {
+                                    settings.configs[i].isEnabled = newVal
+                                }
+                            }
+                        ))
+                        .labelsHidden()
+                        .toggleStyle(SwitchToggleStyle(tint: theme.colors.accent))
                     }
                 }
                 .onMove(perform: settings.moveNonMarkdown)
