@@ -122,7 +122,7 @@ class DashboardConfig {
             let order = pages[index].items.count
             var newItem = DashboardItem(type: type, size: .medium, order: order)
             if type == .encouragement {
-                newItem.size = .small // Default size for encouragement is small
+                newItem.size = .medium // Default size for encouragement
             }
             if type == .calendar {
                 newItem.size = .large // Calendar is always large

@@ -268,7 +268,7 @@ struct DashboardRow: View {
         // 长按弹出上下文菜单（编辑模式下）
         .contextMenu(isEditing ? ContextMenu {
             // 调整大小
-            if item.type != .trash && item.type != .encouragement && item.type != .calendar {
+            if item.type != .trash && item.type != .calendar {
                 Menu {
                     Picker("调整大小", selection: Binding(
                         get: { item.size },
