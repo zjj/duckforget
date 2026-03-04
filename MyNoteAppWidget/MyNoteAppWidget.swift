@@ -17,6 +17,13 @@ private struct WidgetThemeColors {
 
 private func resolveTheme(rawValue: String?) -> WidgetThemeColors {
     switch rawValue ?? "" {
+    case "midnight":
+        return WidgetThemeColors(
+            accent:      Color(hex: "818CF8"),
+            background:  Color(hex: "111827"),
+            card:        Color(hex: "252D3D"),
+            primaryText: Color(hex: "F1F5F9")
+        )
     case "warmSun":
         return WidgetThemeColors(
             accent:      Color(hex: "E07A20"),
