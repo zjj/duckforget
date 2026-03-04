@@ -323,7 +323,7 @@ private struct OnboardingDashboardPage: View {
                 Image(systemName: "hand.draw.fill")
                     .foregroundStyle(Color.indigo)
                     .font(.subheadline)
-                Text("点击页面右上角...即可进入编辑模式，拖拽排列、添加或删除组件。")
+                Text("长按仪表盘任意位置即可进入编辑模式，拖拽排列、添加或删除组件。")
                     .font(.subheadline)
                     .foregroundStyle(theme.colors.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)

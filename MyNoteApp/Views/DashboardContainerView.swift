@@ -273,23 +273,7 @@ struct DashboardContainerView: View {
                     .clipShape(Capsule())
             }
         } else {
-            Menu {
-                Button {
-                    let generator = UIImpactFeedbackGenerator(style: .light)
-                    generator.impactOccurred()
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        editingStates[pageId] = true
-                    }
-                } label: {
-                    Label("编辑", systemImage: "pencil.circle")
-                }
-            } label: {
-                Image(systemName: "ellipsis.circle")
-                    .font(.system(size: 22))
-                    .foregroundColor(theme.colors.primaryText.opacity(0.75))
-                    .frame(minWidth: 44)
-                    .contentShape(Rectangle())
-            }
+            Color.clear.frame(width: 44)
         }
     }
 }

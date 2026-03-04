@@ -184,6 +184,16 @@ struct DashboardDetailView: View {
             Text("请输入一句鼓励自己的话")
         }
         } // ScrollViewReader
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.6).onEnded { _ in
+                let generator = UIImpactFeedbackGenerator(style: .medium)
+                generator.impactOccurred()
+                withAnimation(.easeIn(duration: 0.3)) {
+                    isEditing = true
+                }
+            },
+            including: isEditing ? .none : .all
+        )
     }
     
     private func addTagWidget(tagName: String) {
