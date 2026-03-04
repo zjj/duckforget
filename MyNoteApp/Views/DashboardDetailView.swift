@@ -97,7 +97,7 @@ struct DashboardDetailView: View {
                                     }
                                 }
                             }) {
-                                Label("添加 \(type.displayName)", systemImage: type.iconName)
+                                Label("\(type.displayName)", systemImage: type.iconName)
                             }
                         }
                     } label: {
@@ -118,6 +118,16 @@ struct DashboardDetailView: View {
             }
         }
         .listStyle(.plain)
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.6).onEnded { _ in
+                guard !isEditing else { return }
+                let generator = UIImpactFeedbackGenerator(style: .medium)
+                generator.impactOccurred()
+                withAnimation(.easeIn(duration: 0.3)) {
+                    isEditing = true
+                }
+            }
+        )
         .toolbar {
             if isEditing {
                 ToolbarItem(placement: .bottomBar) {
