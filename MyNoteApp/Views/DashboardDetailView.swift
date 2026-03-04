@@ -58,7 +58,7 @@ struct DashboardDetailView: View {
                         .font(.system(size: 60))
                         .foregroundColor(isEditing ? theme.colors.accent.opacity(0.6) : theme.colors.secondaryText.opacity(0.5))
                     
-                    Text(isEditing ? "点击添加组件" : "这个仪表盘是空的")
+                    Text(isEditing ? "点击添加组件" : "这里空空如也~")
                         .font(.headline)
                         .foregroundColor(isEditing ? theme.colors.accent : theme.colors.secondaryText)
 
@@ -152,7 +152,7 @@ struct DashboardDetailView: View {
                                     }
                                 }
                             }) {
-                                Label("添加 \(type.displayName)", systemImage: type.iconName)
+                                Label("\(type.displayName)", systemImage: type.iconName)
                             }
                         }
                     } label: {
@@ -184,16 +184,6 @@ struct DashboardDetailView: View {
             Text("请输入一句鼓励自己的话")
         }
         } // ScrollViewReader
-        .simultaneousGesture(
-            LongPressGesture(minimumDuration: 0.6).onEnded { _ in
-                let generator = UIImpactFeedbackGenerator(style: .medium)
-                generator.impactOccurred()
-                withAnimation(.easeIn(duration: 0.3)) {
-                    isEditing = true
-                }
-            },
-            including: isEditing ? .none : .all
-        )
     }
     
     private func addTagWidget(tagName: String) {
@@ -268,7 +258,7 @@ struct DashboardRow: View {
         // 长按弹出上下文菜单（编辑模式下）
         .contextMenu(isEditing ? ContextMenu {
             // 调整大小
-            if item.type != .trash && item.type != .calendar {
+            if item.type != .trash && item.type != .encouragement && item.type != .calendar {
                 Menu {
                     Picker("调整大小", selection: Binding(
                         get: { item.size },
