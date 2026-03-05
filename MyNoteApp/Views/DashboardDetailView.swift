@@ -74,7 +74,7 @@ struct DashboardDetailView: View {
 
                 if isEditing {
                     let orderedTypes: [WidgetType] = [
-                        .newNote,
+                        //.newNote,
                         .inlineInput,
                         .encouragement,
                         .tag,
@@ -137,7 +137,7 @@ struct DashboardDetailView: View {
                     Menu {
                         // 按照指定顺序展示组件类型
                         let orderedTypes: [WidgetType] = [
-                            .newNote,
+                            //.newNote,
                             .inlineInput,
                             .encouragement,
                             //.statistics,
@@ -242,8 +242,8 @@ struct DashboardRow: View {
             }
         case .recentNotes:
             RecentNotesWidget(size: item.size == .fullPage ? .fullPage : .large, isEditing: isEditing, showRecentNotes: $showRecentNotesDetail)
-        case .newNote:
-            newNoteCard(size: item.size)
+        //case .newNote:
+        //    newNoteCard(size: item.size)
         case .trash:
             TrashWidget(size: item.size)
         case .statistics:

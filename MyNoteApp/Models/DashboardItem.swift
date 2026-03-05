@@ -6,7 +6,7 @@ enum WidgetType: String, Codable, CaseIterable, Identifiable {
     case search
     case tag
     case recentNotes
-    case newNote
+    //case newNote
     case trash
     case encouragement
     case statistics
@@ -17,7 +17,7 @@ enum WidgetType: String, Codable, CaseIterable, Identifiable {
     
     var displayName: String {
         switch self {
-        case .newNote: return "新建"
+        //case .newNote: return "新建"
         case .tag: return "xx标签"
         case .recentNotes: return "最近记录"
         case .search: return "搜索"
@@ -34,7 +34,7 @@ enum WidgetType: String, Codable, CaseIterable, Identifiable {
         case .search: return "magnifyingglass"
         case .tag: return "tag"
         case .recentNotes: return "clock"
-        case .newNote: return "text.pad.header.badge.plus"
+        //case .newNote: return "text.pad.header.badge.plus"
         case .trash: return "trash"
         case .encouragement: return "heart.text.square"
         case .statistics: return "chart.bar.xaxis"
