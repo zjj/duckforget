@@ -45,6 +45,8 @@ struct DashboardContainerView: View {
                                     editingStates[key] = false
                                 }
                             }
+                            // 切换页面时收起键盘
+                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                             selectedTab = $0
                         }
                     )) {
@@ -79,6 +81,12 @@ struct DashboardContainerView: View {
                         }
                     }
                     .tabViewStyle(.page(indexDisplayMode: .never))
+                    // 用户开始滑动时立即收起键盘，避免快捷输入组件键盘残留
+                    .simultaneousGesture(
+                        DragGesture().onChanged { _ in
+                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        }
+                    )
                 }
             }
             .navigationBarHidden(true)
