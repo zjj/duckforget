@@ -42,6 +42,18 @@ enum WidgetType: String, Codable, CaseIterable, Identifiable {
         case .inlineInput: return "square.and.pencil"
         }
     }
+
+    /// 每种组件支持的尺寸列表，空数组表示不支持调整大小
+    var supportedSizes: [WidgetSize] {
+        switch self {
+        case .search, .tag, .recentNotes, .statistics:
+            return [.small, .medium, .large, .fullPage]
+        case .inlineInput:
+            return [.small, .medium, .large]
+        case .trash, .encouragement, .calendar:
+            return [] // 不支持调整大小
+        }
+    }
 }
 
 enum WidgetSize: String, Codable, CaseIterable {
@@ -65,6 +77,24 @@ enum WidgetSize: String, Codable, CaseIterable {
         case .medium: return "中"
         case .large: return "大"
         case .fullPage: return "全屏"
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .small: return "小 (Compact)"
+        case .medium: return "中 (Standard)"
+        case .large: return "大 (Large)"
+        case .fullPage: return "全屏 (Full Page)"
+        }
+    }
+
+    var iconName: String {
+        switch self {
+        case .small: return "rectangle.grid.1x2"
+        case .medium: return "rectangle.grid.2x2"
+        case .large: return "rectangle.grid.3x2"
+        case .fullPage: return "rectangle.expand.vertical"
         }
     }
 }

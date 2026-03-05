@@ -274,21 +274,15 @@ struct DashboardRow: View {
         // 长按弹出上下文菜单（编辑模式下）
         .contextMenu(isEditing ? ContextMenu {
             // 调整大小
-            if item.type != .trash && item.type != .encouragement && item.type != .calendar {
+            if !item.type.supportedSizes.isEmpty {
                 Menu {
                     Picker("调整大小", selection: Binding(
                         get: { item.size },
                         set: { updateSize($0) }
                     )) {
-                        Label("小 (Compact)", systemImage: "rectangle.grid.1x2")
-                            .tag(WidgetSize.small)
-                        Label("中 (Standard)", systemImage: "rectangle.grid.2x2")
-                            .tag(WidgetSize.medium)
-                        Label("大 (Large)", systemImage: "rectangle.grid.3x2")
-                            .tag(WidgetSize.large)
-                        if item.type != .inlineInput {
-                            Label("全屏 (Full Page)", systemImage: "rectangle.expand.vertical")
-                                .tag(WidgetSize.fullPage)
+                        ForEach(item.type.supportedSizes, id: \.self) { size in
+                            Label(size.label, systemImage: size.iconName)
+                                .tag(size)
                         }
                     }
                 } label: {
