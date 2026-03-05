@@ -286,8 +286,10 @@ struct DashboardRow: View {
                             .tag(WidgetSize.medium)
                         Label("大 (Large)", systemImage: "rectangle.grid.3x2")
                             .tag(WidgetSize.large)
-                        Label("全屏 (Full Page)", systemImage: "rectangle.expand.vertical")
-                            .tag(WidgetSize.fullPage)
+                        if item.type != .inlineInput {
+                            Label("全屏 (Full Page)", systemImage: "rectangle.expand.vertical")
+                                .tag(WidgetSize.fullPage)
+                        }
                     }
                 } label: {
                     Label("调整大小", systemImage: "arrow.up.left.and.arrow.down.right")
