@@ -36,9 +36,10 @@ struct DashboardDetailView: View {
                     dashboardConfig: dashboardConfig,
                     pageId: pageId,
                     availableHeight: availableHeight,
-                    onFullPageFocused: item.size == .fullPage ? {
+                    onFullPageFocused: (item.size == .fullPage || item.type == .inlineInput) ? {
                         withAnimation(.easeInOut(duration: 0.3)) {
-                            proxy.scrollTo(item.id, anchor: .top)
+                            let anchor: UnitPoint = item.type == .inlineInput ? .bottom : .top
+                            proxy.scrollTo(item.id, anchor: anchor)
                         }
                     } : nil
                 )
@@ -74,6 +75,7 @@ struct DashboardDetailView: View {
                 if isEditing {
                     let orderedTypes: [WidgetType] = [
                         .newNote,
+                        .inlineInput,
                         .encouragement,
                         .tag,
                         .recentNotes,
@@ -118,6 +120,7 @@ struct DashboardDetailView: View {
             }
         }
         .listStyle(.plain)
+        .scrollDismissesKeyboard(.interactively)
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.6).onEnded { _ in
                 guard !isEditing else { return }
@@ -135,6 +138,7 @@ struct DashboardDetailView: View {
                         // 按照指定顺序展示组件类型
                         let orderedTypes: [WidgetType] = [
                             .newNote,
+                            .inlineInput,
                             .encouragement,
                             //.statistics,
                             .tag,
@@ -248,6 +252,8 @@ struct DashboardRow: View {
             EncouragementWidget(content: item.content ?? DashboardItem.defaultEncouragement, size: item.size)
         case .calendar:
             CalendarWidget(size: item.size, isEditing: isEditing)
+        case .inlineInput:
+            InlineInputWidget(size: item.size, onFocused: onFullPageFocused)
         }
     }
 
@@ -487,6 +493,9 @@ struct InlineNewNoteWidget: View {
 struct NewNoteModalView: View {
     @Environment(NoteStore.self) var noteStore
     @Binding var isPresented: Bool
+    var initialContent: String = ""
+    /// 当为 true 时，用户按返回键会始终删除未发布的记录（用于从快捷输入展开的场景）
+    var deleteOnCancel: Bool = false
     @State private var currentNote: NoteItem?
     
     var body: some View {
@@ -512,11 +521,16 @@ struct NewNoteModalView: View {
              
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
-                        // 手动取消，触发清理逻辑（需确保 NoteView 的 onDisappear 能处理）
-                        // 或者在这里手动删除空记录
-                        if let note = currentNote,
-                           note.content.isEmpty && note.attachments.isEmpty {
-                            noteStore.permanentlyDeleteNote(note)
+                        // 手动取消，触发清理逻辑
+                        if let note = currentNote, !deleteOnCancel {
+                            // 当 deleteOnCancel 为 true（从快捷输入展开的场景）时，
+                            // 不在这里删除，而是交给 NoteView 的 cleanupOnExit 处理，
+                            // 否则会在 NoteView 将编辑内容同步回 model 之前就删除笔记，
+                            // 导致用户在全屏编辑器中输入的内容丢失。
+                            let isEmpty = note.content.isEmpty && note.attachments.isEmpty
+                            if isEmpty {
+                                noteStore.permanentlyDeleteNote(note)
+                            }
                         }
                         isPresented = false
                     } label: {
@@ -529,7 +543,11 @@ struct NewNoteModalView: View {
         .onAppear {
             if currentNote == nil {
                 // 创建一个全新的临时记录
-                currentNote = noteStore.createNote()
+                let note = noteStore.createNote()
+                if !initialContent.isEmpty {
+                    note.content = initialContent
+                }
+                currentNote = note
             }
         }
     }
