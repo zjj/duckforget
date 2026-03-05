@@ -50,7 +50,9 @@ enum WidgetType: String, Codable, CaseIterable, Identifiable {
             return [.small, .medium, .large, .fullPage]
         case .inlineInput:
             return [.small, .medium, .large]
-        case .trash, .encouragement, .calendar:
+        case .encouragement:
+            return [.small, .medium]
+        case .trash, .calendar:
             return [] // 不支持调整大小
         }
     }
