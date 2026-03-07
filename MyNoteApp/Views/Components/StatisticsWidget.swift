@@ -452,18 +452,23 @@ struct MonthCalendarView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(monthName)
                 .font(.headline)
-                .padding(.bottom, 4)
-            
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 8)
+
+            Divider()
+
             // Weekday Headers
             HStack {
                 ForEach(["日", "一", "二", "三", "四", "五", "六"], id: \.self) { day in
                     Text(day)
-                        .font(.caption2)
+                        .font(.caption)
+                        .fontWeight(.medium)
                         .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity)
                 }
             }
-            
+            .padding(.vertical, 6)
+
             // Days Grid
             let gridDays = days
             LazyVGrid(columns: columns, spacing: 4) {

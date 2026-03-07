@@ -17,6 +17,8 @@ struct CalendarWidget: View {
     @State private var pageIndex: Int = 5
     /// 点击日期后的目标（nil = 不导航）
     @State private var selectedDay: Date? = nil
+    /// 点击月份标题后查看当月笔记列表
+    @State private var selectedMonth: Date? = nil
 
     // ── 笔记缓存：key = "yyyy-MM"
     @State private var noteCache: [String: [Int: Int]] = [:]
@@ -109,6 +111,13 @@ struct CalendarWidget: View {
                 .foregroundStyle(theme.colors.secondaryText)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if !isEditing { selectedMonth = month }
+        }
+        .navigationDestination(item: $selectedMonth) { m in
+            MonthNotesPage(date: m).environment(noteStore)
+        }
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(theme.colors.card)
@@ -132,14 +141,24 @@ struct CalendarWidget: View {
                     .foregroundStyle(theme.colors.accent)
                     .font(.system(size: 14, weight: .semibold))
                     .symbolRenderingMode(.hierarchical)
-                Text(monthTitle(allowedMonths[pageIndex]))
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(theme.colors.secondaryText)
-                    .contentTransition(.numericText())
-                    .animation(.easeInOut(duration: 0.2), value: pageIndex)
+                Button {
+                    if !isEditing { selectedMonth = allowedMonths[pageIndex] }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(monthTitle(allowedMonths[pageIndex]))
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(theme.colors.secondaryText)
+                            .contentTransition(.numericText())
+                            .animation(.easeInOut(duration: 0.2), value: pageIndex)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(theme.colors.secondaryText.opacity(0.6))
+                    }
+                }
+                .buttonStyle(.plain)
                 Spacer()
                 HStack(spacing: 5) {
-                    ForEach(0..<2, id: \.self) { idx in
+                    ForEach(0..<allowedMonths.count, id: \.self) { idx in
                         Capsule()
                             .fill(idx == pageIndex
                                   ? theme.colors.accent
@@ -152,19 +171,24 @@ struct CalendarWidget: View {
             }
             .padding(.horizontal, 16)
             .padding(.top, 14)
-            .padding(.bottom, 6)
+            .padding(.bottom, 10)
+
+            // ── 分割线 ─────────────────────────────────────────────
+            Divider()
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
 
             // ── 周标题（静态）────────────────────────────────────────
             HStack(spacing: 0) {
                 ForEach(weekdayHeaders, id: \.self) { sym in
                     Text(sym)
-                        .font(.caption2).fontWeight(.semibold)
+                        .font(.caption).fontWeight(.semibold)
                         .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity)
                 }
             }
             .padding(.horizontal, 10)
-            .padding(.bottom, 4)
+            .padding(.bottom, 8)
 
             // ── 原生翻页 TabView ─────────────────────────────────────
             // 高度取两个月最大行数，保证切换时不跳变
@@ -194,6 +218,9 @@ struct CalendarWidget: View {
         // 单一 navigationDestination：Button 设 selectedDay，这里统一 push
         .navigationDestination(item: $selectedDay) { day in
             DayNotesPage(date: day).environment(noteStore)
+        }
+        .navigationDestination(item: $selectedMonth) { month in
+            MonthNotesPage(date: month).environment(noteStore)
         }
         .onAppear { fetchAll() }
     }
