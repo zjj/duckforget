@@ -448,7 +448,8 @@ struct NoteView: View {
                             shouldCancel: voiceDragOffset < -80
                         )
                         .offset(y: voiceDragOffset)
-                        .padding(.bottom, micBottomPadding)
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, micBottomPadding + 80) // 向上抬高，远离手指
                         .opacity(speechRecognizer.isRecording ? 1 : 0)
                         .scaleEffect(speechRecognizer.isRecording ? 1 : 0.5, anchor: .bottom)
                         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: speechRecognizer.isRecording)

@@ -1,52 +1,91 @@
 import SwiftUI
 
-/// 语音输入悬浮窗口 - 从麦克风按钮向上延伸，包含波形、文字和操作提示
+/// 语音输入悬浮面板 - 长按麦克风时显示在屏幕中央偏上，远离手指
 struct VoiceInputOverlay: View {
     let transcript: String
     let isRecording: Bool
     let dragOffset: CGFloat
     let shouldCancel: Bool
     @Environment(\.appTheme) private var theme
-    
+
     var body: some View {
-        VStack(spacing: 8) {
-            // 主卡片：从麦克风延伸出来的悬浮窗口
-            VStack(spacing: 12) {
-                // 识别的文字（顶部）
-                ScrollView {
-                    Text(transcript.isEmpty ? "开始聆听..." : transcript)
-                        .font(.body)
-                        .foregroundColor(transcript.isEmpty ? .secondary : .primary)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
-                        .padding(.horizontal, 16)
-                }
-                .frame(minHeight: 60, maxHeight: 120)
-                .padding(.top, 12)
-                
-                // 操作提示（中部）
-                HStack(spacing: 12) {
-                    Text("松开结束，上移取消")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
-                }
-                
-                Divider()
-                
-                // 波形动画（底部）
-                WaveformAnimationView(isRecording: isRecording)
-                    .frame(height: 30)
-                    .padding(.bottom, 8)
+        VStack(spacing: 0) {
+            // ── 顶部：录音状态指示 ──
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(shouldCancel ? Color.red : Color.green)
+                    .frame(width: 8, height: 8)
+                    .overlay(
+                        Circle()
+                            .fill(shouldCancel ? Color.red.opacity(0.4) : Color.green.opacity(0.4))
+                            .frame(width: 16, height: 16)
+                            .scaleEffect(isRecording ? 1.2 : 0.8)
+                            .opacity(isRecording ? 0.6 : 0)
+                            .animation(
+                                .easeInOut(duration: 0.8).repeatForever(autoreverses: true),
+                                value: isRecording
+                            )
+                    )
+                Text(shouldCancel ? "松开取消" : "正在聆听")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(shouldCancel ? .red : .primary)
             }
-            .frame(maxWidth: .infinity) // 宽度100%
-            .padding(.horizontal, 16) // 左右留边距
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(shouldCancel ? Color.red.opacity(0.1) : theme.colors.surface)
-            )
-            .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 4)
+            .padding(.top, 16)
+            .padding(.bottom, 12)
+
+            // ── 波形动画 ──
+            WaveformAnimationView(isRecording: isRecording)
+                .frame(height: 36)
+                .padding(.horizontal, 24)
+                .opacity(shouldCancel ? 0.3 : 1.0)
+
+            // ── 分隔线 ──
+            Divider()
+                .padding(.vertical, 10)
+                .padding(.horizontal, 20)
+
+            // ── 识别的文字 ──
+            ScrollView {
+                Text(transcript.isEmpty ? "等待语音..." : transcript)
+                    .font(.body)
+                    .foregroundColor(transcript.isEmpty ? .secondary : .primary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 20)
+            }
+            .frame(minHeight: 40, maxHeight: 100)
+
+            // ── 底部操作提示 ──
+            HStack(spacing: 6) {
+                Image(systemName: shouldCancel ? "xmark.circle.fill" : "arrow.up.circle.fill")
+                    .font(.caption)
+                    .foregroundColor(shouldCancel ? .red : .secondary)
+                Text(shouldCancel ? "松开即可取消" : "上滑取消")
+                    .font(.caption)
+                    .foregroundColor(shouldCancel ? .red : .secondary)
+            }
+            .padding(.top, 8)
+            .padding(.bottom, 14)
         }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(shouldCancel ? Color.red.opacity(0.08) : Color.clear)
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .strokeBorder(
+                    shouldCancel ? Color.red.opacity(0.3) : Color.primary.opacity(0.06),
+                    lineWidth: 1
+                )
+        )
+        .shadow(color: Color.black.opacity(0.12), radius: 16, x: 0, y: 6)
         .offset(y: dragOffset)
         .scaleEffect(isRecording ? 1.0 : 0.5)
         .opacity(isRecording ? 1.0 : 0.0)
@@ -56,54 +95,24 @@ struct VoiceInputOverlay: View {
     }
 }
 
-/// 三角形形状 - 用于连接卡片和按钮
-struct Triangle: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.midX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
-        path.closeSubpath()
-        return path
-    }
-}
-
 #Preview {
     ZStack {
         Color(.systemGray6).ignoresSafeArea()
-        
-        VStack(spacing: 100) {
-            // 正常状态
-            VStack(spacing: 8) {
-                Text("正常录音状态（全宽）")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                VStack(spacing: 8) {
-                    VoiceInputOverlay(
-                        transcript: "这是识别的文字内容，正在实时显示...",
-                        isRecording: true,
-                        dragOffset: 0,
-                        shouldCancel: false
-                    )
-                }
-            }
-            
-            // 取消状态
-            VStack(spacing: 8) {
-                Text("取消状态（上移）")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                VStack(spacing: 8) {
-                    VoiceInputOverlay(
-                        transcript: "上移可以取消录音",
-                        isRecording: true,
-                        dragOffset: -100,
-                        shouldCancel: true
-                    )
-                }
-            }
+
+        VStack(spacing: 60) {
+            VoiceInputOverlay(
+                transcript: "这是识别的文字内容，正在实时显示...",
+                isRecording: true,
+                dragOffset: 0,
+                shouldCancel: false
+            )
+
+            VoiceInputOverlay(
+                transcript: "上移可以取消录音",
+                isRecording: true,
+                dragOffset: 0,
+                shouldCancel: true
+            )
         }
         .padding()
     }
