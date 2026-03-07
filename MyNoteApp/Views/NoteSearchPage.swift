@@ -40,6 +40,7 @@ struct NoteSearchPage: View {
     var filterTagName: String? = nil     // 固定过滤的标签名（非 nil 时锁定为 .byTag 模式）
     var filterStartDate: Date? = nil     // 固定过滤的起始日期（与 filterRecentDays 互斥）
     var headerIcon: String? = nil        // 嵌入 header 左侧图标（如 "tag.fill"）
+    var initialSearchText: String = ""   // 初始搜索文本（从嵌入搜索栏传入）
     
     @State private var searchText = ""
     @State private var viewMode: ViewMode = .list
@@ -214,8 +215,8 @@ struct NoteSearchPage: View {
                 searchText: searchText,
                 viewMode: viewMode,
                 sortMode: sortMode,
-                isEmbedded: isEmbedded,
-                onSearchTap: onSearchTap,
+                isEmbedded: false,
+                onSearchTap: nil,
                 filterTagName: effectiveFilterTagName,
                 pageSize: 100
             )
@@ -225,34 +226,41 @@ struct NoteSearchPage: View {
         .onTapGesture {
             isSearchFocused = false
         }
-        .navigationTitle(pageTitle)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Section("视图模式") {
-                        Picker("视图", selection: $viewMode) {
-                            ForEach(ViewMode.allCases, id: \.self) { mode in
-                                Label(mode.rawValue, systemImage: mode.icon)
-                                    .tag(mode)
+        .if(!isEmbedded) { view in
+            view
+                .navigationTitle(pageTitle)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Menu {
+                            Section("视图模式") {
+                                Picker("视图", selection: $viewMode) {
+                                    ForEach(ViewMode.allCases, id: \.self) { mode in
+                                        Label(mode.rawValue, systemImage: mode.icon)
+                                            .tag(mode)
+                                    }
+                                }
                             }
+                            
+                            Section("排序方式") {
+                                Picker("排序", selection: $sortMode) {
+                                    ForEach(SortMode.allCases, id: \.self) { mode in
+                                        Label(mode.rawValue, systemImage: mode.icon)
+                                            .tag(mode)
+                                    }
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis")
                         }
                     }
-                    
-                    Section("排序方式") {
-                        Picker("排序", selection: $sortMode) {
-                            ForEach(SortMode.allCases, id: \.self) { mode in
-                                Label(mode.rawValue, systemImage: mode.icon)
-                                    .tag(mode)
-                            }
-                        }
-                    }
-                } label: {
-                    Image(systemName: "ellipsis")
                 }
-            }
         }
         .onAppear {
+            // 如果有初始搜索文本，填入搜索框
+            if !initialSearchText.isEmpty && searchText.isEmpty {
+                searchText = initialSearchText
+            }
             // 只在通用搜索页自动聚焦（固定标签/日期过滤页不需要键盘弹出）
             guard filterTagName == nil && filterRecentDays == nil && filterStartDate == nil else { return }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {

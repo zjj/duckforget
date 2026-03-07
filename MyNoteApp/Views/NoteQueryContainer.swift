@@ -221,7 +221,7 @@ struct NoteQueryContainer: View {
     }
 
     var displayNotes: [NoteItem] {
-        let sorted = sortedNotes
+        let sorted = sortedNotes.filter { !$0.isDeleted }
         guard !searchText.isEmpty else { return sorted }
         return sorted.filter { noteMatchesQuery($0, query: searchText) }
     }
@@ -250,7 +250,10 @@ struct NoteQueryContainer: View {
             searchText: searchText,
             hasMore: hasMore,
             isLoadingMore: isLoadingMore,
-            onLoadMore: loadNextPage
+            onLoadMore: loadNextPage,
+            onNoteDeleted: { note in
+                fetchedNotes.removeAll { $0.id == note.id }
+            }
         )
         .environment(noteStore)
         .task(id: filterKey) {
@@ -274,6 +277,7 @@ struct NoteListContentView: View {
     var hasMore: Bool = false
     var isLoadingMore: Bool = false
     var onLoadMore: (() -> Void)? = nil
+    var onNoteDeleted: ((NoteItem) -> Void)? = nil
 
     @Environment(NoteStore.self) var noteStore
     @State private var noteToDelete: NoteItem?
@@ -303,6 +307,7 @@ struct NoteListContentView: View {
             Button("删除", role: .destructive) {
                 if let note = noteToDelete {
                     noteStore.softDeleteNote(note)
+                    onNoteDeleted?(note)
                     noteToDelete = nil
                 }
             }

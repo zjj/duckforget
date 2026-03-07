@@ -233,7 +233,7 @@ struct DashboardRow: View {
     private var widgetContent: some View {
         switch item.type {
         case .search:
-            SearchWidget(size: item.size, showSearch: $showSearchDetail)
+            SearchWidget(size: item.size, showSearch: $showSearchDetail, onFocused: onFullPageFocused, isEditing: isEditing)
         case .tag:
             if let tagName = item.tagName {
                 TagWidget(tagName: tagName, size: item.size, isEditing: isEditing, showTagDetail: $showTagDetail)

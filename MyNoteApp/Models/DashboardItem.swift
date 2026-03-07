@@ -47,11 +47,11 @@ enum WidgetType: String, Codable, CaseIterable, Identifiable {
     var supportedSizes: [WidgetSize] {
         switch self {
         case .search:
-            return [.small, .fullPage] // 搜索组件固定为中等大小``
+            return [] // 搜索组件不支持调整大小
         case .recentNotes:
-            return [.medium, .large, .fullPage] // 最近记录组件支持中等和全屏两种尺寸
+            return [.medium, .large]
         case  .tag: 
-            return [.medium, .large, .fullPage]
+            return [.medium, .large]
         case .inlineInput:
             return [.medium, .large]
         case .encouragement:
