@@ -13,8 +13,8 @@ struct CalendarWidget: View {
     let size: WidgetSize
     let isEditing: Bool
 
-    /// 0 = 上个月  1 = 本月（默认本月）
-    @State private var pageIndex: Int = 1
+    /// 0 = 最早月份  5 = 本月（默认本月）
+    @State private var pageIndex: Int = 5
     /// 点击日期后的目标（nil = 不导航）
     @State private var selectedDay: Date? = nil
 
@@ -23,12 +23,10 @@ struct CalendarWidget: View {
 
     private let cal = Calendar.current
 
-    // MARK: - Allowed months [上月, 本月]
-
+    // MARK: - Allowed months [近6个月]
     private var allowedMonths: [Date] {
-        let now     = cal.date(from: cal.dateComponents([.year, .month], from: Date())) ?? Date()
-        let prev    = cal.date(byAdding: .month, value: -1, to: now) ?? now
-        return [prev, now]
+        let now = cal.date(from: cal.dateComponents([.year, .month], from: Date())) ?? Date()
+        return (0..<6).reversed().compactMap { cal.date(byAdding: .month, value: -$0, to: now) }
     }
 
     // MARK: - Helpers
