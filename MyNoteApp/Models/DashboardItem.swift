@@ -46,13 +46,17 @@ enum WidgetType: String, Codable, CaseIterable, Identifiable {
     /// 每种组件支持的尺寸列表，空数组表示不支持调整大小
     var supportedSizes: [WidgetSize] {
         switch self {
-        case .search, .tag, .recentNotes, .statistics:
-            return [.small, .medium, .large, .fullPage]
+        case .search:
+            return [.small, .fullPage] // 搜索组件固定为中等大小``
+        case .recentNotes:
+            return [.medium, .large, .fullPage] // 最近记录组件支持中等和全屏两种尺寸
+        case  .tag: 
+            return [.medium, .large, .fullPage]
         case .inlineInput:
-            return [.small, .medium, .large]
+            return [.medium, .large]
         case .encouragement:
             return [.small, .medium]
-        case .trash, .calendar:
+        case .trash, .calendar, .statistics:
             return [] // 不支持调整大小
         }
     }
