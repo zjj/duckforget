@@ -8,6 +8,8 @@ import SwiftData
 struct WidgetNoteCard: View {
     let note: NoteItem
     let size: WidgetSize
+    /// 网格模式：卡片填满可用宽度，不使用固定宽度
+    var gridMode: Bool = false
     @Environment(NoteStore.self) private var noteStore
     @Environment(\.appTheme) private var theme
 
@@ -52,7 +54,8 @@ struct WidgetNoteCard: View {
                 textCard
             }
         }
-        .frame(width: cardWidth, height: cardHeight)
+        .frame(width: gridMode ? nil : cardWidth, height: cardHeight)
+        .frame(maxWidth: gridMode ? .infinity : nil)
         .background(theme.colors.card)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
         .overlay(

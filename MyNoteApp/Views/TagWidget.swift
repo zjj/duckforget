@@ -45,6 +45,72 @@ struct TagWidget: View {
         if size == .fullPage {
             // 全屏嵌入模式：显示记录列表预览（前100条），点击跳转到完整列表页
             TagFullPagePreview(tagName: tagName, displayedNotes: displayedNotes, isEditing: isEditing)
+        } else if size == .large {
+            // 大尺寸：垂直网格展示，可纵向滚动
+            VStack(alignment: .leading, spacing: 10) {
+                // 标题区域
+                ZStack(alignment: .leading) {
+                    NavigationLink(destination: NoteSearchPage(pageTitle: tagName, filterTagName: tagName, headerIcon: "tag.fill").environment(noteStore)) {
+                        EmptyView()
+                    }
+                    .opacity(0)
+                    .disabled(isEditing)
+
+                    HStack(spacing: 6) {
+                        Image(systemName: "tag")
+                            .foregroundColor(theme.colors.accent)
+                            .font(.system(size: 13, weight: .semibold))
+                            .symbolRenderingMode(.hierarchical)
+                        Text(tagName)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(theme.colors.secondaryText)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.secondary.opacity(0.45))
+                    }
+                    .padding(.horizontal, 14)
+                    .allowsHitTesting(!isEditing)
+                }
+
+                if displayedNotes.isEmpty {
+                    Text("暂无记录")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding()
+                } else {
+                    ScrollView(.vertical, showsIndicators: true) {
+                        let columns = [
+                            GridItem(.flexible(), spacing: 10),
+                            GridItem(.flexible(), spacing: 10)
+                        ]
+                        LazyVGrid(columns: columns, spacing: 10) {
+                            ForEach(displayedNotes) { note in
+                                NavigationLink(destination: NoteView(note: note, startInEditMode: false).environment(noteStore)) {
+                                    WidgetNoteCard(note: note, size: size, gridMode: true)
+                                        .environment(noteStore)
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(isEditing)
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 8)
+                    }
+                    .scrollDismissesKeyboard(.interactively)
+                }
+            }
+            .padding(.vertical, 8)
+            .frame(height: size.height)
+            .background(theme.colors.surface)
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
+            )
+            .shadow(color: theme.colors.shadow, radius: 8, x: 0, y: 2)
+            .task { fetchTotalCount() }
         } else {
             VStack(alignment: .leading, spacing: 12) {
                 // 标题区域：点击跳转到完整列表

@@ -236,12 +236,12 @@ struct DashboardRow: View {
             SearchWidget(size: item.size, showSearch: $showSearchDetail)
         case .tag:
             if let tagName = item.tagName {
-                TagWidget(tagName: tagName, size: item.size == .fullPage ? .fullPage : .large, isEditing: isEditing, showTagDetail: $showTagDetail)
+                TagWidget(tagName: tagName, size: item.size, isEditing: isEditing, showTagDetail: $showTagDetail)
             } else {
                 Text("标签未设置").foregroundColor(.secondary)
             }
         case .recentNotes:
-            RecentNotesWidget(size: item.size == .fullPage ? .fullPage : .large, isEditing: isEditing, showRecentNotes: $showRecentNotesDetail)
+            RecentNotesWidget(size: item.size, isEditing: isEditing, showRecentNotes: $showRecentNotesDetail)
         //case .newNote:
         //    newNoteCard(size: item.size)
         case .trash:
