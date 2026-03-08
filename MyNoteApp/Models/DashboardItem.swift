@@ -12,6 +12,7 @@ enum WidgetType: String, Codable, CaseIterable, Identifiable {
     case statistics
     case calendar
     case inlineInput
+    case timeline
     
     var id: String { rawValue }
     
@@ -26,6 +27,7 @@ enum WidgetType: String, Codable, CaseIterable, Identifiable {
         case .statistics: return "统计"
         case .calendar: return "月历"
         case .inlineInput: return "快捷输入"
+        case .timeline: return "时间轴"
         }
     }
     
@@ -40,6 +42,7 @@ enum WidgetType: String, Codable, CaseIterable, Identifiable {
         case .statistics: return "chart.bar.xaxis"
         case .calendar: return "calendar"
         case .inlineInput: return "square.and.pencil"
+        case .timeline: return "calendar.day.timeline.left"
         }
     }
 
@@ -58,6 +61,8 @@ enum WidgetType: String, Codable, CaseIterable, Identifiable {
             return [.small, .medium]
         case .trash, .calendar, .statistics:
             return [] // 不支持调整大小
+        case .timeline:
+            return [] // 时间轴仅支持全屏，不允许调整大小
         }
     }
 }
