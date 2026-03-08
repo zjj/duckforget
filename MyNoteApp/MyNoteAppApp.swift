@@ -15,6 +15,7 @@ struct MyNoteAppApp: App {
     @State private var toolbarSettings = ToolbarSettings()
     @StateObject private var deepLinkHandler = DeepLinkHandler()
     @State private var appSettings = AppSettings.shared
+    @State private var fontManager = FontManager.shared
 
     init() {
         #if DEBUG
@@ -58,6 +59,7 @@ struct MyNoteAppApp: App {
                 .environment(noteStore)
                 .environment(toolbarSettings)
                 .environment(appSettings)
+                .environment(fontManager)
                 .environment(\.appTheme, appSettings.currentTheme)
                 .environmentObject(deepLinkHandler)
                 .preferredColorScheme(

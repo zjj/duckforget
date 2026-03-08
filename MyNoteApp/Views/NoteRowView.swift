@@ -197,7 +197,7 @@ struct NoteRowView: View {
 struct NoteCardPreview: View {
     let content: String
     @Environment(\.appTheme) private var theme
-
+    @Environment(FontManager.self) private var fontManager
     // ── 预览块类型 ────────────────────────────────────────
     private enum PreviewBlock {
         case title(String)
@@ -345,20 +345,20 @@ struct NoteCardPreview: View {
 
         case .title(let text):
             Text(inline(text))
-                .font(.subheadline.weight(.semibold))
+                .font(Font(fontManager.bodyFont(textStyle: .subheadline)).weight(.semibold))
                 .foregroundColor(theme.colors.primaryText)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
 
         case .heading(_, let text):
             Text(inline(text))
-                .font(.footnote.weight(.semibold))
+                .font(Font(fontManager.bodyFont(textStyle: .footnote)).weight(.semibold))
                 .foregroundColor(theme.colors.primaryText)
                 .lineLimit(1)
 
         case .paragraph(let text):
             Text(inline(text))
-                .font(.footnote)
+                .font(Font(fontManager.bodyFont(textStyle: .footnote)))
                 .foregroundColor(theme.colors.secondaryText)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
@@ -366,10 +366,10 @@ struct NoteCardPreview: View {
         case .bullet(let text):
             HStack(alignment: .firstTextBaseline, spacing: 5) {
                 Text("•")
-                    .font(.footnote)
+                    .font(Font(fontManager.bodyFont(textStyle: .footnote)))
                     .foregroundColor(theme.colors.secondaryText)
                 Text(inline(text))
-                    .font(.footnote)
+                    .font(Font(fontManager.bodyFont(textStyle: .footnote)))
                     .foregroundColor(theme.colors.secondaryText)
                     .lineLimit(1)
             }
@@ -377,11 +377,11 @@ struct NoteCardPreview: View {
         case .numbered(let idx, let text):
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(idx)
-                    .font(.footnote)
+                    .font(Font(fontManager.bodyFont(textStyle: .footnote)))
                     .foregroundColor(theme.colors.secondaryText)
                     .frame(minWidth: 16, alignment: .trailing)
                 Text(inline(text))
-                    .font(.footnote)
+                    .font(Font(fontManager.bodyFont(textStyle: .footnote)))
                     .foregroundColor(theme.colors.secondaryText)
                     .lineLimit(1)
             }
@@ -392,7 +392,7 @@ struct NoteCardPreview: View {
                     .font(.system(size: 11))
                     .foregroundColor(checked ? theme.colors.accent : theme.colors.secondaryText)
                 Text(inline(text))
-                    .font(.footnote)
+                    .font(Font(fontManager.bodyFont(textStyle: .footnote)))
                     .foregroundColor(checked
                         ? theme.colors.secondaryText.opacity(0.5)
                         : theme.colors.secondaryText)
@@ -402,7 +402,7 @@ struct NoteCardPreview: View {
 
         case .blockquote(let text):
             Text(inline(text))
-                .font(.footnote.italic())
+                .font(Font(fontManager.bodyFont(textStyle: .footnote)).italic())
                 .foregroundColor(theme.colors.secondaryText.opacity(0.8))
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -433,7 +433,7 @@ private struct PreviewTable: View {
     let headers: [String]
     let rows: [[String]]
     @Environment(\.appTheme) private var theme
-
+    @Environment(FontManager.self) private var fontManager
     // 最多展示 3 列、3 行，避免卡片过宽
     private var displayHeaders: [String] { Array(headers.prefix(3)) }
     private var displayRows: [[String]] {
@@ -473,8 +473,8 @@ private struct PreviewTable: View {
                 let cell = col < cells.count ? cells[col] : ""
                 Text(cell)
                     .font(isHeader
-                          ? .system(size: 10, weight: .semibold)
-                          : .system(size: 10))
+                          ? Font(fontManager.bodyFont(size: 10)).weight(.semibold)
+                          : Font(fontManager.bodyFont(size: 10)))
                     .foregroundColor(isHeader
                                      ? theme.colors.primaryText
                                      : theme.colors.secondaryText)

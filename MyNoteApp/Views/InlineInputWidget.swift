@@ -7,6 +7,7 @@ struct InlineInputWidget: View {
     var onFocused: (() -> Void)? = nil
     @Environment(NoteStore.self) var noteStore
     @Environment(\.appTheme) private var theme
+    @Environment(FontManager.self) private var fontManager
 
     @State private var inputText = ""
     @State private var showSavedFeedback = false
@@ -61,7 +62,7 @@ struct InlineInputWidget: View {
                 .foregroundStyle(theme.colors.accent)
 
             TextField("快捷输入...", text: $inputText)
-                .font(.system(size: 14))
+                .font(Font(fontManager.bodyFont(size: 14)))
                 .foregroundColor(theme.colors.primaryText)
                 .focused($isFocused)
 
@@ -88,14 +89,14 @@ struct InlineInputWidget: View {
             ZStack(alignment: .topLeading) {
                 if inputText.isEmpty {
                     Text("有什么想法，直接输入...")
-                        .font(.system(size: 15))
+                        .font(Font(fontManager.bodyFont(size: 15)))
                         .foregroundColor(theme.colors.secondaryText.opacity(0.4))
                         .padding(.top, 8)
                         .padding(.horizontal, 4)
                         .allowsHitTesting(false)
                 }
                 TextEditor(text: $inputText)
-                    .font(.system(size: 15))
+                    .font(Font(fontManager.bodyFont(size: 15)))
                     .foregroundColor(theme.colors.primaryText)
                     .scrollContentBackground(.hidden)
                     .scrollDismissesKeyboard(.interactively)
@@ -128,14 +129,14 @@ struct InlineInputWidget: View {
             ZStack(alignment: .topLeading) {
                 if inputText.isEmpty {
                     Text("有什么想法，直接输入...")
-                        .font(.system(size: 16))
+                        .font(Font(fontManager.bodyFont(size: 16)))
                         .foregroundColor(theme.colors.secondaryText.opacity(0.4))
                         .padding(.top, 8)
                         .padding(.horizontal, 4)
                         .allowsHitTesting(false)
                 }
                 TextEditor(text: $inputText)
-                    .font(.system(size: 16))
+                    .font(Font(fontManager.bodyFont(size: 16)))
                     .foregroundColor(theme.colors.primaryText)
                     .scrollContentBackground(.hidden)
                     .scrollDismissesKeyboard(.interactively)

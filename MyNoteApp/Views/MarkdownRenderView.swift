@@ -8,6 +8,7 @@ struct MarkdownRenderView: View {
     /// 传入 nil 时无法加载 attachment:// 图片。
     var attachmentsDirectory: URL? = nil
     @Environment(\.appTheme) private var theme
+    @Environment(FontManager.self) private var fontManager
 
     // 链接跳转确认
     @State private var pendingLinkURL: URL?
@@ -133,11 +134,12 @@ struct MarkdownRenderView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: max(4, 4 * fontManager.editorLineSpacing)) {
             ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
                 blockView(block)
             }
         }
+        .font(Font(fontManager.bodyFont()))
         .alert("即将离开应用", isPresented: $showLinkConfirmation) {
             Button("取消", role: .cancel) {
                 pendingLinkURL = nil
@@ -243,6 +245,8 @@ struct MarkdownRenderView: View {
 
         case .paragraph(let text):
             inlineText(text)
+                .font(Font(fontManager.bodyFont()))
+                .lineSpacing((fontManager.editorLineSpacing - 1.0) * fontManager.editorFontSize)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -510,7 +514,7 @@ struct MarkdownRenderView: View {
     /// This is used for text segments that don't contain links or images
     /// In preview mode, markers are completely removed
     private func parseTextMarkdown(_ raw: String) -> AttributedString {
-        let baseFont = UIFont.preferredFont(forTextStyle: .body)
+        let baseFont = fontManager.bodyFont()
 
         func boldItalicFont() -> UIFont {
             let traits: UIFontDescriptor.SymbolicTraits = [.traitBold, .traitItalic]
@@ -609,7 +613,7 @@ struct MarkdownRenderView: View {
                 GridRow {
                     ForEach(0..<colCount, id: \.self) { col in
                         inlineText(col < headers.count ? headers[col] : "")
-                            .font(.subheadline.weight(.semibold))
+                            .font(Font(fontManager.bodyFont(textStyle: .subheadline)).weight(.semibold))
                             .frame(minWidth: 72, maxWidth: .infinity,
                                    alignment: frameAlignment(aligns[col]))
                             .padding(.horizontal, 10)
@@ -633,7 +637,7 @@ struct MarkdownRenderView: View {
                         ForEach(0..<colCount, id: \.self) { col in
                             let bg = rowIdx % 2 == 0 ? evenBg : oddBg
                             inlineText(col < row.count ? row[col] : "")
-                                .font(.subheadline)
+                                .font(Font(fontManager.bodyFont(textStyle: .subheadline)))
                                 .frame(minWidth: 72, maxWidth: .infinity,
                                        alignment: frameAlignment(aligns[col]))
                                 .padding(.horizontal, 10)
@@ -699,13 +703,14 @@ struct MarkdownRenderView: View {
     }
 
     private func headingFont(_ level: Int) -> Font {
+        let base = fontManager.editorFontSize
         switch level {
-        case 1: return .title
-        case 2: return .title2
-        case 3: return .title3
-        case 4: return .headline
-        case 5: return .subheadline
-        default: return .footnote
+        case 1: return Font(fontManager.bodyFont(size: base * 1.5))
+        case 2: return Font(fontManager.bodyFont(size: base * 1.25))
+        case 3: return Font(fontManager.bodyFont(size: base * 1.1))
+        case 4: return Font(fontManager.bodyFont(size: base))
+        case 5: return Font(fontManager.bodyFont(size: base * 0.9))
+        default: return Font(fontManager.bodyFont(size: base * 0.85))
         }
     }
 }

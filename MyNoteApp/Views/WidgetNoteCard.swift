@@ -12,6 +12,7 @@ struct WidgetNoteCard: View {
     var gridMode: Bool = false
     @Environment(NoteStore.self) private var noteStore
     @Environment(\.appTheme) private var theme
+    @Environment(FontManager.self) private var fontManager
 
     // 第一个可视附件（用于图片卡）
     private var visualAttachment: AttachmentItem? {
@@ -87,14 +88,14 @@ struct WidgetNoteCard: View {
             // 文字层
             VStack(alignment: .leading, spacing: 2) {
                 Text(inlineText(noteTitle))
-                    .font(.system(size: titleFontSize, weight: .semibold))
+                    .font(Font(fontManager.bodyFont(size: titleFontSize)).weight(.semibold))
                     .foregroundColor(.white)
                     .lineLimit(size == .large ? 2 : 1)
                     .fixedSize(horizontal: false, vertical: true)
 
                 if size == .large, let body = noteBodyText {
                     Text(inlineText(body))
-                        .font(.system(size: 10))
+                        .font(Font(fontManager.bodyFont(size: 10)))
                         .foregroundColor(.white.opacity(0.8))
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
@@ -125,7 +126,7 @@ struct WidgetNoteCard: View {
     private var smallTextCard: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(inlineText(noteTitle))
-                .font(.system(size: titleFontSize, weight: .semibold))
+                .font(Font(fontManager.bodyFont(size: titleFontSize)).weight(.semibold))
                 .foregroundColor(theme.colors.primaryText)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)

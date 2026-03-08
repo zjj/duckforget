@@ -202,6 +202,11 @@ struct DashboardManagementView: View {
                     Label("工具栏", systemImage: "arrow.left.arrow.right")
                 }
                 .listRowBackground(theme.colors.card)
+
+                NavigationLink(destination: FontSettingsView()) {
+                    Label("字体管理", systemImage: "textformat.size")
+                }
+                .listRowBackground(theme.colors.card)
             }
 
             Section(header: Text("外观")) {

@@ -16,6 +16,7 @@ struct MarkdownTextView: UIViewRepresentable {
     var onCoordinatorReady: ((Coordinator) -> Void)?
     var onCursorLineChanged: (() -> Void)?
     @Environment(\.appTheme) var theme
+    @Environment(FontManager.self) var fontManager
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -32,7 +33,7 @@ struct MarkdownTextView: UIViewRepresentable {
         tv.keyboardDismissMode = .interactive
         tv.isEditable = isEditable
         tv.allowsEditingTextAttributes = false
-        tv.font = UIFont.preferredFont(forTextStyle: .body)
+        tv.font = fontManager.bodyFont()
         tv.textColor = .label
         tv.autocorrectionType = .default
         context.coordinator.textView = tv
@@ -75,6 +76,23 @@ struct MarkdownTextView: UIViewRepresentable {
         // Re-apply highlighting when theme changes
         if context.coordinator.lastAppliedTheme != theme {
             context.coordinator.lastAppliedTheme = theme
+            context.coordinator.invalidateFonts()
+            context.coordinator.applyHighlighting(uiView)
+        }
+
+        // Re-apply when custom font, font size, or line spacing changes
+        let newFontName    = fontManager.customFontPostScriptName
+        let newFontSize    = fontManager.editorFontSize
+        let newLineSpacing = fontManager.editorLineSpacing
+        let editorSettingsChanged = context.coordinator.lastAppliedFontPSName != newFontName
+                                 || context.coordinator.lastAppliedFontSize    != newFontSize
+                                 || context.coordinator.lastAppliedLineSpacing != newLineSpacing
+        if editorSettingsChanged {
+            context.coordinator.lastAppliedFontPSName  = newFontName
+            context.coordinator.lastAppliedFontSize    = newFontSize
+            context.coordinator.lastAppliedLineSpacing = newLineSpacing
+            context.coordinator.invalidateFonts()
+            uiView.font = fontManager.bodyFont()
             context.coordinator.applyHighlighting(uiView)
         }
 
@@ -112,6 +130,9 @@ struct MarkdownTextView: UIViewRepresentable {
         var isHighlighting = false
         private var previousCursorLine: Int = -1
         var lastAppliedTheme: AppTheme?
+        var lastAppliedFontPSName: String? = FontManager.shared.customFontPostScriptName
+        var lastAppliedFontSize: CGFloat    = FontManager.shared.editorFontSize
+        var lastAppliedLineSpacing: CGFloat = FontManager.shared.editorLineSpacing
 
         var syntaxUIColor: UIColor {
             parent.theme == .system ? .systemOrange : UIColor(parent.theme.colors.syntaxKeyword)
@@ -120,35 +141,49 @@ struct MarkdownTextView: UIViewRepresentable {
             parent.theme == .system ? .label : UIColor(parent.theme.colors.primaryText)
         }
 
-        // Fonts (cached)
-        private let bodyFont = UIFont.preferredFont(forTextStyle: .body)
-
-        private lazy var h1Font: UIFont = UIFont.systemFont(ofSize: bodyFont.pointSize * 1.6, weight: .bold)
-        private lazy var h2Font: UIFont = UIFont.systemFont(ofSize: bodyFont.pointSize * 1.35, weight: .bold)
-        private lazy var h3Font: UIFont = UIFont.systemFont(ofSize: bodyFont.pointSize * 1.15, weight: .semibold)
-        private lazy var h4Font: UIFont = UIFont.systemFont(ofSize: bodyFont.pointSize * 1.05, weight: .semibold)
-        private lazy var h5Font: UIFont = UIFont.systemFont(ofSize: bodyFont.pointSize, weight: .semibold)
-        private lazy var h6Font: UIFont = UIFont.systemFont(ofSize: bodyFont.pointSize * 0.95, weight: .semibold)
-
-        private lazy var mdBoldFont: UIFont = {
-            let desc = bodyFont.fontDescriptor.withSymbolicTraits(.traitBold) ?? bodyFont.fontDescriptor
-            return UIFont(descriptor: desc, size: bodyFont.pointSize)
+        // Fonts – rebuilt via invalidateFonts() when custom font changes
+        private var bodyFont:        UIFont = FontManager.shared.bodyFont()
+        private var h1Font:          UIFont = UIFont.systemFont(ofSize: FontManager.shared.bodyFont().pointSize * 1.6,   weight: .bold)
+        private var h2Font:          UIFont = UIFont.systemFont(ofSize: FontManager.shared.bodyFont().pointSize * 1.35,  weight: .bold)
+        private var h3Font:          UIFont = UIFont.systemFont(ofSize: FontManager.shared.bodyFont().pointSize * 1.15,  weight: .semibold)
+        private var h4Font:          UIFont = UIFont.systemFont(ofSize: FontManager.shared.bodyFont().pointSize * 1.05,  weight: .semibold)
+        private var h5Font:          UIFont = UIFont.systemFont(ofSize: FontManager.shared.bodyFont().pointSize,         weight: .semibold)
+        private var h6Font:          UIFont = UIFont.systemFont(ofSize: FontManager.shared.bodyFont().pointSize * 0.95,  weight: .semibold)
+        private var mdBoldFont:      UIFont = {
+            let b = FontManager.shared.bodyFont()
+            let desc = b.fontDescriptor.withSymbolicTraits(.traitBold) ?? b.fontDescriptor
+            return UIFont(descriptor: desc, size: b.pointSize)
         }()
-
-        private lazy var mdItalicFont: UIFont = {
-            let desc = bodyFont.fontDescriptor.withSymbolicTraits(.traitItalic) ?? bodyFont.fontDescriptor
-            return UIFont(descriptor: desc, size: bodyFont.pointSize)
+        private var mdItalicFont:    UIFont = {
+            let b = FontManager.shared.bodyFont()
+            let desc = b.fontDescriptor.withSymbolicTraits(.traitItalic) ?? b.fontDescriptor
+            return UIFont(descriptor: desc, size: b.pointSize)
         }()
-
-        private lazy var mdBoldItalicFont: UIFont = {
+        private var mdBoldItalicFont: UIFont = {
+            let b = FontManager.shared.bodyFont()
             let traits: UIFontDescriptor.SymbolicTraits = [.traitBold, .traitItalic]
-            let desc = bodyFont.fontDescriptor.withSymbolicTraits(traits) ?? bodyFont.fontDescriptor
-            return UIFont(descriptor: desc, size: bodyFont.pointSize)
+            let desc = b.fontDescriptor.withSymbolicTraits(traits) ?? b.fontDescriptor
+            return UIFont(descriptor: desc, size: b.pointSize)
         }()
+        private var codeFont:        UIFont = UIFont.monospacedSystemFont(ofSize: FontManager.shared.bodyFont().pointSize * 0.9,  weight: .regular)
+        private var smallPrefixFont: UIFont = UIFont.systemFont(ofSize: FontManager.shared.bodyFont().pointSize * 0.55)
 
-        private lazy var codeFont: UIFont = UIFont.monospacedSystemFont(ofSize: bodyFont.pointSize * 0.9, weight: .regular)
-
-        private lazy var smallPrefixFont: UIFont = UIFont.systemFont(ofSize: bodyFont.pointSize * 0.55)
+        /// Rebuilds all cached font instances from the current FontManager state.
+        func invalidateFonts() {
+            bodyFont        = FontManager.shared.bodyFont()
+            h1Font          = UIFont.systemFont(ofSize: bodyFont.pointSize * 1.6,   weight: .bold)
+            h2Font          = UIFont.systemFont(ofSize: bodyFont.pointSize * 1.35,  weight: .bold)
+            h3Font          = UIFont.systemFont(ofSize: bodyFont.pointSize * 1.15,  weight: .semibold)
+            h4Font          = UIFont.systemFont(ofSize: bodyFont.pointSize * 1.05,  weight: .semibold)
+            h5Font          = UIFont.systemFont(ofSize: bodyFont.pointSize,         weight: .semibold)
+            h6Font          = UIFont.systemFont(ofSize: bodyFont.pointSize * 0.95,  weight: .semibold)
+            let bdesc       = bodyFont.fontDescriptor
+            mdBoldFont      = UIFont(descriptor: bdesc.withSymbolicTraits(.traitBold)                         ?? bdesc, size: bodyFont.pointSize)
+            mdItalicFont    = UIFont(descriptor: bdesc.withSymbolicTraits(.traitItalic)                       ?? bdesc, size: bodyFont.pointSize)
+            mdBoldItalicFont = UIFont(descriptor: bdesc.withSymbolicTraits([.traitBold, .traitItalic])        ?? bdesc, size: bodyFont.pointSize)
+            codeFont        = UIFont.monospacedSystemFont(ofSize: bodyFont.pointSize * 0.9, weight: .regular)
+            smallPrefixFont = UIFont.systemFont(ofSize: bodyFont.pointSize * 0.55)
+        }
 
         init(_ parent: MarkdownTextView) {
             self.parent = parent
@@ -806,10 +841,13 @@ struct MarkdownTextView: UIViewRepresentable {
 
             storage.beginEditing()
 
-            // 1. Reset everything to body style
+            // 1. Reset everything to body style (with managed paragraph style)
+            let paragraphStyle = NSMutableParagraphStyle()
+            paragraphStyle.lineHeightMultiple = FontManager.shared.editorLineSpacing
             storage.setAttributes([
                 .font: bodyFont,
-                .foregroundColor: primaryUIColor
+                .foregroundColor: primaryUIColor,
+                .paragraphStyle: paragraphStyle
             ], range: fullRange)
 
             // 2. Walk lines
