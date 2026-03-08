@@ -14,15 +14,20 @@ struct NoteCardListWidget: View {
     let isEditing: Bool
     let destination: NoteSearchPage
 
+    @State private var refreshID = UUID()
+
     private var cardWidth:  CGFloat { size == .small ? 105 : size == .medium ? 145 : 160 }
     private var cardHeight: CGFloat { size == .small ?  50 : size == .medium ?  95 : 128 }
 
     var body: some View {
-        if size == .large {
-            largeLayout
-        } else {
-            mediumLayout
+        Group {
+            if size == .large {
+                largeLayout
+            } else {
+                mediumLayout
+            }
         }
+        .onChange(of: noteStore.contentRevision) { refreshID = UUID() }
     }
 
     // MARK: - Title Bar (shared)
@@ -81,6 +86,7 @@ struct NoteCardListWidget: View {
                             .disabled(isEditing)
                         }
                     }
+                    .id(refreshID)
                     .padding(.horizontal, 12)
                     .padding(.bottom, 8)
                 }
@@ -154,6 +160,7 @@ struct NoteCardListWidget: View {
                         .buttonStyle(.plain)
                         .disabled(isEditing)
                     }
+                    .id(refreshID)
                     .padding(.horizontal)
                 }
             }

@@ -15,9 +15,8 @@ struct TimelineWidget: View {
     @State private var notes: [NoteItem] = []
     @State private var fetchLimit: Int = 50
     @State private var hasMore: Bool = true
-    @State private var noteToDelete: NoteItem?
-    @State private var showDeleteAlert = false
     @State private var selectedNote: NoteItem?
+    @State private var listID = UUID()
 
     private let pageSize = 50
 
@@ -73,14 +72,6 @@ struct TimelineWidget: View {
                                     .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                                     .listRowBackground(Color.clear)
                                     .listRowSeparator(.hidden)
-                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                        Button(role: .destructive) {
-                                            noteToDelete = note
-                                            showDeleteAlert = true
-                                        } label: {
-                                            Label("删除", systemImage: "trash")
-                                        }
-                                    }
                             }
                         } header: {
                             daySectionHeader(label: group.label)
@@ -114,25 +105,18 @@ struct TimelineWidget: View {
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
                 .background(theme.colors.surface)
+                .id(listID)
                 .frame(height: max(geo.size.height - 46, 100))
             }
         }
         .onAppear { loadNotes() }
+        .onChange(of: noteStore.contentRevision) {
+            loadNotes()
+            listID = UUID()
+        }
         .navigationDestination(item: $selectedNote) { note in
             NoteView(note: note, startInEditMode: false)
                 .environment(noteStore)
-        }
-        .alert("移至废纸篓", isPresented: $showDeleteAlert) {
-            Button("取消", role: .cancel) { noteToDelete = nil }
-            Button("移至废纸篓", role: .destructive) {
-                if let note = noteToDelete {
-                    withAnimation { notes.removeAll { $0.id == note.id } }
-                    noteStore.softDeleteNote(note)
-                    noteToDelete = nil
-                }
-            }
-        } message: {
-            Text("删除后可在废纸篓中恢复。")
         }
     }
 
@@ -225,43 +209,10 @@ private struct TimelineNoteRow: View {
     @Environment(\.appTheme) private var theme
     @Environment(FontManager.self) private var fontManager
 
-    @State private var thumbImage: UIImage?
-
     private var timeText: String {
         let fmt = DateFormatter()
         fmt.dateFormat = "HH:mm"
         return fmt.string(from: note.createdAt)
-    }
-
-    /// 第一个可视附件（用于缩略图）
-    private var visualAttachment: AttachmentItem? {
-        note.attachments
-            .filter { [.photo, .video, .scannedDocument, .drawing].contains($0.type) }
-            .sorted { $0.createdAt < $1.createdAt }
-            .first
-    }
-
-    /// 右下角附件类型标注（无缩略图时显示）
-    private var attachmentBadge: (symbol: String, label: String)? {
-        let atts = note.attachments
-        if atts.contains(where: { $0.type == .audio }) {
-            let hasTranscript = atts.contains { $0.type == .audio && ($0.recognitionMeta?.isEmpty == false) }
-            return ("waveform", hasTranscript ? "录音·转文字" : "录音")
-        }
-        if visualAttachment != nil {
-            let hasOCR = atts.contains { $0.recognitionMeta?.isEmpty == false }
-            return ("photo", hasOCR ? "图片·可搜文字" : "图片")
-        }
-        if atts.contains(where: { $0.type == .drawing }) {
-            return ("pencil.tip.crop.circle", "涂鸦")
-        }
-        if atts.contains(where: { $0.type == .location }) {
-            return ("mappin.and.ellipse", "位置")
-        }
-        if atts.contains(where: { $0.type == .file }) {
-            return ("doc.fill", "文件")
-        }
-        return nil
     }
 
     var body: some View {
@@ -272,72 +223,22 @@ private struct TimelineNoteRow: View {
                     .font(.system(size: 11.5, weight: .light, design: .monospaced))
                     .foregroundColor(theme.colors.secondaryText.opacity(0.6))
                     .frame(width: 42, alignment: .leading)
-                    .padding(.top, 11)
+                    .padding(.top, 14)
                     .padding(.leading, 16)
 
                 // ── 时间线竖脊 ────────────────────────
                 timelineSpine
 
-                // ── 内容列 ──────────────────────────
-                HStack(alignment: .top, spacing: 8) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(note.preview)
-                            .font(Font(fontManager.bodyFont(size: 14)))
-                            .lineLimit(1)
-                            .foregroundColor(theme.colors.primaryText)
-                            .padding(.top, 9)
-
-                        if visualAttachment == nil, let badge = attachmentBadge {
-                            HStack(spacing: 3) {
-                                Spacer()
-                                Image(systemName: badge.symbol)
-                                    .font(.system(size: 9.5))
-                                Text(badge.label)
-                                    .font(.system(size: 9.5))
-                            }
-                            .foregroundColor(theme.colors.secondaryText.opacity(0.5))
-                            .padding(.top, 3)
-                            .padding(.bottom, 9)
-                            .padding(.trailing, 14)
-                        } else {
-                            Color.clear.frame(height: 9)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    // ── 缩略图 ──────────────────────────
-                    if visualAttachment != nil {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(theme.colors.cardSecondary)
-                            if let img = thumbImage {
-                                Image(uiImage: img)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .clipped()
-                            } else {
-                                ProgressView()
-                                    .scaleEffect(0.6)
-                            }
-                        }
-                        .frame(width: 44, height: 44)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                        .padding(.top, 6)
-                        .padding(.trailing, 12)
-                    }
-                }
-                .padding(.leading, 10)
+                // ── 笔记卡片（完整预览 + 附件马赛克）──────────
+                NoteRowView(note: note, showDateFooter: false)
+                    .environment(noteStore)
+                    .padding(.leading, 8)
+                    .padding(.trailing, 12)
+                    .padding(.vertical, 8)
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .background(alignment: .bottom) {
-            Rectangle()
-                .fill(theme.colors.border.opacity(0.3))
-                .frame(height: 0.5)
-                .padding(.leading, 74)
-        }
-        .onAppear { loadThumbnail() }
     }
 
     // 点 + 竖线
@@ -351,27 +252,9 @@ private struct TimelineNoteRow: View {
                 .strokeBorder(theme.colors.border.opacity(0.9), lineWidth: 1)
                 .background(Circle().fill(theme.colors.surface))
                 .frame(width: 7, height: 7)
-                .padding(.top, 13)
+                .padding(.top, 14)
         }
         .frame(width: 14)
         .padding(.horizontal, 6)
-    }
-
-    private func loadThumbnail() {
-        guard let att = visualAttachment else { return }
-        DispatchQueue.global(qos: .userInitiated).async {
-            var image: UIImage?
-            if let thumbURL = noteStore.thumbnailURL(for: att),
-               let data = try? Data(contentsOf: thumbURL) {
-                image = UIImage(data: data)
-            }
-            if image == nil {
-                let url = noteStore.attachmentURL(for: att)
-                if let data = try? Data(contentsOf: url) {
-                    image = UIImage(data: data)
-                }
-            }
-            DispatchQueue.main.async { thumbImage = image }
-        }
     }
 }

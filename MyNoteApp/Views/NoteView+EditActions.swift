@@ -44,6 +44,9 @@ extension NoteView {
         
         // 统一提交保存（updateNote 内部已调用 saveContext）
         noteStore.updateNote(note)
+
+        // 保存历史版本快照（完成编辑时记录一份）
+        noteStore.saveVersion(for: note)
         
         // 取消键盘焦点
         markdownCoordinator?.blur()

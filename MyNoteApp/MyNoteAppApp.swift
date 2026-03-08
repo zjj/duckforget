@@ -25,7 +25,7 @@ struct MyNoteAppApp: App {
         UserDefaults.standard.set(1, forKey: "com.apple.CoreData.Logging.stderr")
         #endif
 
-        let schema = Schema([NoteItem.self, AttachmentItem.self, TagItem.self, CommentItem.self])
+        let schema = Schema([NoteItem.self, AttachmentItem.self, TagItem.self, CommentItem.self, NoteVersion.self])
         let config = ModelConfiguration(schema: schema)
 
         // ── Attempt 1: normal open (handles additive / lightweight migrations) ──
@@ -116,7 +116,7 @@ private struct MigrationErrorModifier: ViewModifier {
     }
 
     private func eraseAndRelaunch() {
-        let schema = Schema([NoteItem.self, AttachmentItem.self, TagItem.self, CommentItem.self])
+        let schema = Schema([NoteItem.self, AttachmentItem.self, TagItem.self, CommentItem.self, NoteVersion.self])
         let storeURL = ModelConfiguration(schema: schema).url
         let fm = FileManager.default
         for ext in ["", "-shm", "-wal"] {

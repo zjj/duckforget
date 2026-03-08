@@ -12,6 +12,9 @@ class NoteStore {
 
     private let attachmentsDirName = "AttachmentFiles"
 
+    /// 每次 updateNote 调用时自增，供 UI 组件监听并刷新列表
+    private(set) var contentRevision: Int = 0
+
     private var documentsDirectory: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
@@ -104,6 +107,7 @@ class NoteStore {
         // 重建搜索索引：content + 所有附件 OCR 文本
         let ocrParts = note.attachments.compactMap { $0.recognitionMeta }.filter { !$0.isEmpty }
         note.forSearch = ([note.content] + ocrParts).joined(separator: "\n")
+        contentRevision &+= 1
         saveContext()
         indexNoteInSpotlight(note)
     }
@@ -127,12 +131,20 @@ class NoteStore {
 
     /// 永久删除记录及其所有附件文件
     func permanentlyDeleteNote(_ note: NoteItem) {
-        let attachmentsToDelete = note.attachments
+        let noteID = note.id
+        // 提前捕获文件名，避免 delete 后访问已释放的对象
+        let attachmentFiles = note.attachments.map {
+            (fileName: $0.fileName, thumbName: $0.thumbnailFileName)
+        }
         deindexNoteFromSpotlight(note)
+        // 先删除所有历史版本（删除后即可安全删除物理文件，无需版本引用检查）
+        for v in fetchVersions(for: noteID) { modelContext.delete(v) }
         modelContext.delete(note)
         // 先保存数据库，成功后再清理物理文件（防止数据库保存失败导致文件丢失）
         saveContext {
-            attachmentsToDelete.forEach { self.removeAttachmentFile($0) }
+            attachmentFiles.forEach {
+                self.deleteAttachmentFiles(fileName: $0.fileName, thumbnailFileName: $0.thumbName)
+            }
         }
     }
 
@@ -140,13 +152,19 @@ class NoteStore {
     func emptyTrash() {
         let descriptor = FetchDescriptor<NoteItem>(predicate: #Predicate { $0.isDeleted == true })
         guard let trashed = try? modelContext.fetch(descriptor), !trashed.isEmpty else { return }
-        let allAttachments = trashed.flatMap { $0.attachments }
+        let allAttachmentFiles = trashed.flatMap { note in
+            note.attachments.map { (fileName: $0.fileName, thumbName: $0.thumbnailFileName) }
+        }
         for note in trashed {
             deindexNoteFromSpotlight(note)
+            // 先删除历史版本，确保文件可以安全删除
+            for v in fetchVersions(for: note.id) { modelContext.delete(v) }
             modelContext.delete(note)
         }
         saveContext {
-            allAttachments.forEach { self.removeAttachmentFile($0) }
+            allAttachmentFiles.forEach {
+                self.deleteAttachmentFiles(fileName: $0.fileName, thumbnailFileName: $0.thumbName)
+            }
         }
     }
 
@@ -274,13 +292,22 @@ class NoteStore {
 
     /// 删除附件
     func deleteAttachment(_ attachment: AttachmentItem, shouldSave: Bool = true) {
+        let fileName = attachment.fileName
+        let thumbName = attachment.thumbnailFileName
+        let noteID = attachment.note?.id
         if let note = attachment.note {
             note.updatedAt = Date()
         }
         modelContext.delete(attachment)
         if shouldSave {
             // 先保存数据库，成功后再删除物理文件（防止破损链接）
-            saveContext { self.removeAttachmentFile(attachment) }
+            saveContext {
+                // 若该笔记的历史版本中仍引用此文件，则保留物理文件
+                if let noteID, self.isAttachmentFileReferencedByVersions(fileName: fileName, noteID: noteID) {
+                    return
+                }
+                self.deleteAttachmentFiles(fileName: fileName, thumbnailFileName: thumbName)
+            }
         }
     }
 
@@ -402,6 +429,119 @@ class NoteStore {
         saveContext()
     }
 
+    // MARK: - Version History
+
+    /// 每个笔记最多保留的历史版本数
+    private let maxVersionsPerNote = 50
+
+    /// 完成编辑时以当前内容保存一份历史版本快照
+    /// - 内容为空时不保存；与最新版本内容完全相同时同样跳过
+    func saveVersion(for note: NoteItem) {
+        let trimmed = note.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        let noteID = note.id
+        // 检查是否与最新快照内容一致，一致则跳过
+        var latestDesc = FetchDescriptor<NoteVersion>(
+            predicate: #Predicate { $0.noteID == noteID },
+            sortBy: [SortDescriptor(\.savedAt, order: .reverse)]
+        )
+        latestDesc.fetchLimit = 1
+        if let latest = try? modelContext.fetch(latestDesc).first,
+           latest.content == note.content {
+            return
+        }
+
+        // 捕获当前附件快照
+        let snapshots = note.attachments
+            .sorted { $0.createdAt < $1.createdAt }
+            .map { AttachmentSnapshot(id: $0.id, type: $0.type, fileName: $0.fileName, thumbnailFileName: $0.thumbnailFileName) }
+
+        let version = NoteVersion(noteID: noteID, content: note.content, attachmentSnapshots: snapshots)
+        modelContext.insert(version)
+
+        // 超出上限时删除最旧的版本（保持总量在 maxVersionsPerNote 以内）
+        let allDesc = FetchDescriptor<NoteVersion>(
+            predicate: #Predicate { $0.noteID == noteID },
+            sortBy: [SortDescriptor(\.savedAt, order: .reverse)]
+        )
+        if let all = try? modelContext.fetch(allDesc), all.count > maxVersionsPerNote {
+            for old in all.dropFirst(maxVersionsPerNote) {
+                modelContext.delete(old)
+            }
+        }
+
+        saveContext()
+    }
+
+    /// 获取指定笔记的所有历史版本（按保存时间倒序）
+    func fetchVersions(for noteID: UUID) -> [NoteVersion] {
+        let descriptor = FetchDescriptor<NoteVersion>(
+            predicate: #Predicate { $0.noteID == noteID },
+            sortBy: [SortDescriptor(\.savedAt, order: .reverse)]
+        )
+        return (try? modelContext.fetch(descriptor)) ?? []
+    }
+
+    /// 删除单条历史版本
+    func deleteVersion(_ version: NoteVersion) {
+        modelContext.delete(version)
+        saveContext()
+    }
+
+    /// 清空某笔记的全部历史版本
+    func deleteAllVersions(for noteID: UUID) {
+        let versions = fetchVersions(for: noteID)
+        for v in versions { modelContext.delete(v) }
+        if !versions.isEmpty { saveContext() }
+    }
+
+    /// 将笔记内容和附件完整恢复到指定历史版本
+    ///
+    /// - 恢复文本内容
+    /// - 当前附件中不在版本快照里的 → 从 note 移除（物理文件若被其他版本引用则保留）
+    /// - 版本快照中存在但 note 里已删除的 → 重建 AttachmentItem（物理文件被版本保护，已在磁盘上）
+    func restoreVersion(_ version: NoteVersion, to note: NoteItem) {
+        let snapshots = version.attachmentSnapshots
+        let snapshotIDs = Set(snapshots.map { $0.id })
+        let current = getAttachments(for: note)
+        let currentIDs = Set(current.map { $0.id })
+        let noteID = note.id
+
+        // 1. 移除当前多余的附件
+        var filesToMaybeDelete: [(fileName: String, thumbName: String?)] = []
+        for att in current where !snapshotIDs.contains(att.id) {
+            filesToMaybeDelete.append((att.fileName, att.thumbnailFileName))
+            modelContext.delete(att)
+        }
+
+        // 2. 重建版本快照里有、但当前已不存在的附件
+        for snap in snapshots where !currentIDs.contains(snap.id) {
+            let fileURL = attachmentsDirectory.appendingPathComponent(snap.fileName)
+            guard FileManager.default.fileExists(atPath: fileURL.path) else { continue }
+            let att = AttachmentItem(
+                id: snap.id,
+                type: snap.type,
+                fileName: snap.fileName,
+                thumbnailFileName: snap.thumbnailFileName
+            )
+            modelContext.insert(att)
+            note.attachments.append(att)
+        }
+
+        // 3. 恢复文本并持久化
+        note.content = version.content
+        note.pendingDeletedAttachmentIDs = []
+        updateNote(note)
+        saveVersion(for: note)
+
+        // 4. 清理已无任何版本引用的孤立物理文件
+        for file in filesToMaybeDelete
+        where !isAttachmentFileReferencedByVersions(fileName: file.fileName, noteID: noteID) {
+            deleteAttachmentFiles(fileName: file.fileName, thumbnailFileName: file.thumbName)
+        }
+    }
+
     /// 保存 ModelContext。保存成功后执行 onSuccess 回调（用于依赖保存结果的后续操作，例如删除物理文件）。
     /// Debug 下通过 assertionFailure 暴露错误；Release 下打印日志静默处理，避免数据静默丢失。
     private func saveContext(onSuccess: (() -> Void)? = nil) {
@@ -416,14 +556,28 @@ class NoteStore {
 
     // MARK: - Private Helpers
 
-    private func removeAttachmentFile(_ attachment: AttachmentItem) {
-        let fileURL = attachmentsDirectory.appendingPathComponent(attachment.fileName)
+    /// 直接删除附件物理文件（无版本安全检查，仅在已确认无版本引用时调用）
+    private func deleteAttachmentFiles(fileName: String, thumbnailFileName: String?) {
+        let fileURL = attachmentsDirectory.appendingPathComponent(fileName)
         try? FileManager.default.removeItem(at: fileURL)
 
-        if let thumbName = attachment.thumbnailFileName {
+        if let thumbName = thumbnailFileName {
             let thumbURL = attachmentsDirectory.appendingPathComponent(thumbName)
             try? FileManager.default.removeItem(at: thumbURL)
         }
+    }
+
+    /// 检查附件文件是否仍被该笔记的某个历史版本引用
+    /// （内容中的 attachment:// 链接，或附件快照列表）
+    private func isAttachmentFileReferencedByVersions(fileName: String, noteID: UUID) -> Bool {
+        let versions = fetchVersions(for: noteID)
+        for version in versions {
+            if version.content.contains("attachment://\(fileName)") { return true }
+            if version.attachmentSnapshots.contains(where: {
+                $0.fileName == fileName || $0.thumbnailFileName == fileName
+            }) { return true }
+        }
+        return false
     }
 
     private func createAttachmentsDirectoryIfNeeded() {

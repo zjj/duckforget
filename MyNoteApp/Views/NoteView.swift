@@ -133,6 +133,9 @@ struct NoteView: View {
     // 评论
     @State var addCommentTrigger = false
 
+    // 历史版本
+    @State var showHistorySheet = false
+
     enum ScanMode: String, Identifiable {
         case textExtraction
         case documentScan
@@ -223,6 +226,16 @@ struct NoteView: View {
         .sheet(isPresented: $showTagManagement) {
             TagManagementSheet(note: note)
                 .environment(noteStore)
+        }
+        .sheet(isPresented: $showHistorySheet) {
+            NoteHistorySheet(note: note) { version in
+                // 内容 + 附件整体恢复到指定版本
+                noteStore.restoreVersion(version, to: note)
+                self.content = note.content   // 同步 editor 本地文本状态
+            }
+            .environment(noteStore)
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(20)
         }
         .alert("确认删除", isPresented: $showDeleteConfirmation) {
             Button("取消", role: .cancel) { }
@@ -346,6 +359,12 @@ struct NoteView: View {
                             addCommentTrigger = true
                         } label: {
                             Label("评论", systemImage: "bubble.left")
+                        }
+
+                        Button {
+                            showHistorySheet = true
+                        } label: {
+                            Label("历史版本", systemImage: "clock.arrow.trianglehead.counterclockwise.rotate.90")
                         }
 
                         Divider()
