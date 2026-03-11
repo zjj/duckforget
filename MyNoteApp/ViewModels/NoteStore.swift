@@ -104,9 +104,11 @@ class NoteStore {
     /// 更新记录（标记更新时间并保存）
     func updateNote(_ note: NoteItem) {
         note.updatedAt = Date()
-        // 重建搜索索引：content + 所有附件 OCR 文本
+        // 重建搜索索引：content + 所有附件 OCR 文本 + 拼音
         let ocrParts = note.attachments.compactMap { $0.recognitionMeta }.filter { !$0.isEmpty }
-        note.forSearch = ([note.content] + ocrParts).joined(separator: "\n")
+        let base = ([note.content] + ocrParts).joined(separator: "\n")
+        let pinyin = PinyinConverter.pinyinForSearch(base)
+        note.forSearch = pinyin.isEmpty ? base : base + "\n" + pinyin
         contentRevision &+= 1
         saveContext()
         indexNoteInSpotlight(note)
@@ -424,7 +426,9 @@ class NoteStore {
         attachment.recognitionMeta = text.isEmpty ? nil : text
         if let note = attachment.note {
             let ocrParts = note.attachments.compactMap { $0.recognitionMeta }.filter { !$0.isEmpty }
-            note.forSearch = ([note.content] + ocrParts).joined(separator: "\n")
+            let base = ([note.content] + ocrParts).joined(separator: "\n")
+            let pinyin = PinyinConverter.pinyinForSearch(base)
+            note.forSearch = pinyin.isEmpty ? base : base + "\n" + pinyin
         }
         saveContext()
     }
