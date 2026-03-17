@@ -133,54 +133,50 @@ struct DashboardDetailView: View {
                 }
             }
         )
-        .toolbar {
+        .overlay(alignment: .bottom) {
             if isEditing {
-                ToolbarItem(placement: .bottomBar) {
-                    Menu {
-                        // 按照指定顺序展示组件类型
-                        let orderedTypes: [WidgetType] = [
-                            //.newNote,
-                            .inlineInput,
-                            .encouragement,
-                            //.statistics,
-                            .tag,
-                            .recentNotes,
-                            .search,
-                            .trash,
-                            .calendar,
-                            .timeline,
-                            .location
-                        ]
-                        ForEach(orderedTypes, id: \.self) { type in
-                            Button(action: {
-                                let generator = UIImpactFeedbackGenerator(style: .light)
-                                generator.impactOccurred()
-                                
-                                if type == .tag {
-                                    // 标签类型需要输入标签名
-                                    showingAddTagWidget = true
-                                } else if type == .encouragement {
-                                    // 鼓励组件带有默认文案，弹出输入框让用户确认或修改
-                                    newEncouragementText = DashboardItem.defaultEncouragement
-                                    showingAddEncouragementWidget = true
-                                } else {
-                                    // 其他类型直接添加
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                        dashboardConfig.addItem(to: pageId, type: type)
-                                    }
+                Menu {
+                    // 按照指定顺序展示组件类型
+                    let orderedTypes: [WidgetType] = [
+                        //.newNote,
+                        .inlineInput,
+                        .encouragement,
+                        //.statistics,
+                        .tag,
+                        .recentNotes,
+                        .search,
+                        .trash,
+                        .calendar,
+                        .timeline,
+                        .location
+                    ]
+                    ForEach(orderedTypes, id: \.self) { type in
+                        Button(action: {
+                            let generator = UIImpactFeedbackGenerator(style: .light)
+                            generator.impactOccurred()
+                            
+                            if type == .tag {
+                                showingAddTagWidget = true
+                            } else if type == .encouragement {
+                                newEncouragementText = DashboardItem.defaultEncouragement
+                                showingAddEncouragementWidget = true
+                            } else {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    dashboardConfig.addItem(to: pageId, type: type)
                                 }
-                            }) {
-                                Label("\(type.displayName)", systemImage: type.iconName)
                             }
+                        }) {
+                            Label("\(type.displayName)", systemImage: type.iconName)
                         }
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 44))
-                            .foregroundColor(theme.colors.accent)
-                            .shadow(radius: 2)
                     }
-
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 44))
+                        .foregroundColor(theme.colors.accent)
+                        .shadow(radius: 2)
                 }
+                .buttonStyle(.plain)
+                .padding(.bottom, 24)
             }
         }
         .sheet(isPresented: $showingAddTagWidget) {
