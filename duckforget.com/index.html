@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>记不住鸭 — 本地优先的随手笔记</title>
+    <meta name="description" content="记不住鸭是一款专为健忘的你设计的 iOS 笔记应用。支持文字、语音、拍照、扫描、手绘等多种记录方式，所有数据本地存储，隐私安全。" />
+    <meta property="og:title" content="记不住鸭 — 本地优先的随手笔记" />
+    <meta property="og:description" content="专为健忘的你而生。文字、语音、拍照、扫描…每一个灵感，都值得被记住。" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://duckforget.com" />
+    <link rel="stylesheet" href="style.css" />
+    <!-- Favicon placeholder: replace with real icon -->
+    <link rel="icon" href="favicon.png" type="image/png" />
+</head>
+
+<body>
+
+    <!-- ══ Navigation ══ -->
+    <header>
+        <nav class="nav">
+            <div class="nav__inner">
+                <a href="/" class="nav__logo">
+                    <div class="nav__logo-icon"><img src="logo.png" alt="记不住鸭" /></div>
+                    <span>记不住鸭</span>
+                </a>
+                <div class="nav__links">
+                    <a href="#features">功能特色</a>
+                    <a href="#screenshots">应用截图</a>
+                    <a href="#themes">主题风格</a>
+                    <a href="#privacy">隐私安全</a>
+                    <a href="privacy.html">隐私政策</a>
+                    <a href="terms.html">服务协议</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- ══ Hero ══ -->
+    <main>
+        <section class="hero">
+            <div class="hero__content">
+                <div class="hero__badge">🦆 iOS 专属应用</div>
+                <h1 class="hero__title">
+                    每一个灵感，<br>
+                    都值得被<span>记住</span>。
+                </h1>
+                <p class="hero__sub">
+                    记不住鸭 是一款本地优先的 iOS 笔记应用，
+                    支持文字、语音、拍照、扫描、手绘等多种记录方式，
+                    让灵感彻底不错过。
+                </p>
+                <div class="hero__actions">
+                    <!-- Replace href with real App Store link when available -->
+                    <a href="#" class="btn btn--primary">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                                d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
+                        </svg>
+                        App Store 下载
+                    </a>
+                    <a href="#features" class="btn btn--ghost">了解功能 →</a>
+                </div>
+                <p class="hero__note">完全免费 · 无需注册 · 离线可用</p>
+            </div>
+
+            <div class="hero__visual">
+                <div class="phone-mockup">
+                    <div class="phone-mockup__notch"></div>
+                    <div class="phone-mockup__screen">
+                        <!--
+            将此处替换为真实截图:
+            <img src="screenshots/hero.png" alt="记不住鸭截图" />
+          -->
+                        <div class="phone-mockup__screen-placeholder">
+                            <span style="font-size:2.5rem">🦆</span>
+                            <span>记不住鸭</span>
+                            <span style="font-size:.72rem;color:#ccc">截图占位<br>请替换为应用截图</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══ Features ══ -->
+        <section class="section section--soft" id="features">
+            <div class="container">
+                <div class="section__label">功能特色</div>
+                <h2 class="section__title">记录从未如此简单</h2>
+                <p class="section__sub">
+                    无论是一闪而过的想法、路上看到的风景，还是会议中的要点，
+                    记不住鸭都能帮你一键留存。
+                </p>
+
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-card__icon">⚡</div>
+                        <div class="feature-card__title">灵感速记</div>
+                        <div class="feature-card__desc">
+                            支持文本、语音录音、实时语音转文字、拍照、文档扫描、手绘涂鸦等多种记录方式，捕捉每一个灵感瞬间。
+                        </div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-card__icon">🗂️</div>
+                        <div class="feature-card__title">个性化看板</div>
+                        <div class="feature-card__desc">
+                            自由定制首页组件：鼓励语、统计数据、常用功能、日历视图……常用功能一触即达，完全按你的习惯排列。
+                        </div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-card__icon">🏷️</div>
+                        <div class="feature-card__title">高效标签管理</div>
+                        <div class="feature-card__desc">
+                            强大的标签系统让笔记井井有条。多维度分类，检索更轻松，随时找到你需要的那一条记录。
+                        </div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-card__icon">🔍</div>
+                        <div class="feature-card__title">全内容搜索</div>
+                        <div class="feature-card__desc">
+                            不只搜索文字。图片 OCR 识别、录音内容，均可被搜索到——你的每一个字都不会丢失。
+                        </div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-card__icon">🔒</div>
+                        <div class="feature-card__title">隐私优先</div>
+                        <div class="feature-card__desc">
+                            所有数据完全本地存储，无需账号，无需联网，零上传，零追踪。你的笔记只属于你自己。
+                        </div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-card__icon">✍️</div>
+                        <div class="feature-card__title">Markdown 支持</div>
+                        <div class="feature-card__desc">
+                            原生支持 Markdown 格式化，富文本工具栏一键操作，实时渲染预览，书写体验流畅自然。
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══ Screenshots ══ -->
+        <section class="section" id="screenshots">
+            <div class="container">
+                <div class="section__label">应用截图</div>
+                <h2 class="section__title">简洁，但不简单</h2>
+                <p class="section__sub">精心打磨每一个细节，让记录成为一种享受。</p>
+
+                <div class="screenshots">
+                    <!-- 替换 src 为真实截图路径, 例如 screenshots/screen1.png -->
+                    <div class="screenshot-phone">
+                        <div class="screenshot-phone__screen tint-1">
+                            <div class="screenshot-phone__placeholder">
+                                <span style="font-size:1.8rem">🏠</span>
+                                <span>首页看板</span>
+                                <span>截图占位</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="screenshot-phone">
+                        <div class="screenshot-phone__screen tint-2">
+                            <div class="screenshot-phone__placeholder">
+                                <span style="font-size:1.8rem">📝</span>
+                                <span>笔记编辑</span>
+                                <span>截图占位</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="screenshot-phone">
+                        <div class="screenshot-phone__screen tint-3">
+                            <div class="screenshot-phone__placeholder">
+                                <span style="font-size:1.8rem">🔍</span>
+                                <span>搜索页</span>
+                                <span>截图占位</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="screenshot-phone">
+                        <div class="screenshot-phone__screen" style="background:#F8F0FF;">
+                            <div class="screenshot-phone__placeholder">
+                                <span style="font-size:1.8rem">🏷️</span>
+                                <span>标签管理</span>
+                                <span>截图占位</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <p style="text-align:center;margin-top:24px;font-size:.83rem;color:var(--text-tertiary);">
+                    * 截图图片为占位图，待替换为真实应用截图（放置于 <code>screenshots/</code> 目录）
+                </p>
+            </div>
+        </section>
+
+        <!-- ══ Themes ══ -->
+        <section class="section section--soft" id="themes">
+            <div class="container">
+                <div class="section__label">主题风格</div>
+                <h2 class="section__title">四种主题，随心切换</h2>
+                <p class="section__sub">从温暖橙黄到宁静海雾，总有一款适合今天的你。</p>
+
+                <div class="themes-grid">
+                    <div class="theme-card">
+                        <div class="theme-swatch swatch-system">🌓</div>
+                        <div>
+                            <div class="theme-card__name">跟随系统</div>
+                            <div class="theme-card__desc">跟随 iOS 深色 / 浅色模式自动切换</div>
+                        </div>
+                    </div>
+                    <div class="theme-card">
+                        <div class="theme-swatch swatch-warm">☀️</div>
+                        <div>
+                            <div class="theme-card__name">暖阳</div>
+                            <div class="theme-card__desc">奶油橙黄，温暖明亮，激发灵感</div>
+                        </div>
+                    </div>
+                    <div class="theme-card">
+                        <div class="theme-swatch swatch-sakura">✨</div>
+                        <div>
+                            <div class="theme-card__name">樱花</div>
+                            <div class="theme-card__desc">浅粉玫瑰，柔和浪漫，温柔待己</div>
+                        </div>
+                    </div>
+                    <div class="theme-card">
+                        <div class="theme-swatch swatch-ocean">☁️</div>
+                        <div>
+                            <div class="theme-card__name">海雾</div>
+                            <div class="theme-card__desc">蓝灰薄雾，清爽宁静，静心思考</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══ Privacy Banner ══ -->
+        <section class="section" id="privacy">
+            <div class="container">
+                <div class="privacy-banner">
+                    <div class="privacy-banner__icon">🔒</div>
+                    <div>
+                        <div class="privacy-banner__title">你的数据，只在你的设备上</div>
+                        <p class="privacy-banner__body">
+                            记不住鸭是一款本地优先的应用。我们不设服务器，不收集任何个人信息，
+                            不接入任何第三方 SDK 或广告系统。你的每一条笔记、每一张图片、每一段录音，
+                            都完全存储在你的设备本地，由你全权掌控。
+                        </p>
+                        <div class="privacy-points">
+                            <span class="privacy-point">📵 无需联网</span>
+                            <span class="privacy-point">🙅 无需账号</span>
+                            <span class="privacy-point">🚫 零数据上传</span>
+                            <span class="privacy-point">📵 无第三方 SDK</span>
+                            <span class="privacy-point">🛡️ 无广告追踪</span>
+                        </div>
+                        <a href="privacy.html"
+                            style="display:inline-block;margin-top:20px;font-size:.9rem;color:var(--accent);font-weight:600;">
+                            阅读完整隐私政策 →
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══ CTA ══ -->
+        <section class="cta">
+            <div class="section__label" style="text-align:center;">现在开始</div>
+            <h2 class="cta__title">停止遗忘，开始记录</h2>
+            <p class="cta__sub">免费下载，无任何内购或订阅，功能完整开放。</p>
+            <a href="#" class="btn btn--primary" style="font-size:1.05rem;padding:15px 34px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path
+                        d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
+                </svg>
+                在 App Store 下载
+            </a>
+            <p style="margin-top:14px;font-size:.82rem;color:var(--text-tertiary);">
+                需要 iOS 17.0 或更高版本 · 适用于 iPhone 与 iPad
+            </p>
+        </section>
+    </main>
+
+    <!-- ══ Footer ══ -->
+    <footer class="footer">
+        <div class="footer__links">
+            <a href="/">首页</a>
+            <a href="#features">功能特色</a>
+            <a href="privacy.html">隐私政策</a>
+            <a href="terms.html">服务协议</a>
+            <a href="mailto:79492390@qq.com">联系作者</a>
+        </div>
+        <p class="footer__copy">© 2026 duckforget.com. All rights reserved.</p>
+    </footer>
+
+</body>
+
+</html>
