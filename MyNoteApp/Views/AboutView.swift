@@ -57,6 +57,15 @@ struct AboutView: View {
                             .foregroundColor(.secondary)
                     }
                 }
+                Link(destination: URL(string: "https://github.com/zjj/duckforget")!) {
+                    HStack {
+                        Text("开源地址")
+                        Spacer()
+                        Image(systemName: "chevron.left.forwardslash.chevron.right")
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                    }
+                }
             }
             
             Section(header: Text("法律与条款")) {
