@@ -336,12 +336,37 @@ extension NoteView {
         
         wasEdited = true
 
-        // 反向地理编码，将地址写入 recognitionMeta 以支持搜索
+        // 反向地理编码，将地址写入 location 字段并同步到 recognitionMeta 以支持搜索
         if let attachment {
             let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
             let store = noteStore
-            CLGeocoder().reverseGeocodeLocation(location) { placemarks, _ in
-                guard let placemark = placemarks?.first else { return }
+            let coordStr = "\(coordinate.latitude),\(coordinate.longitude)"
+            CLGeocoder().reverseGeocodeLocation(location) { placemarks, error in
+                if let error {
+                    print("📍 地理编码失败: \(error.localizedDescription)")
+                    print("📍 坐标: \(coordStr)")
+                    // 地理编码失败时，用坐标作为 fallback 保存
+                    DispatchQueue.main.async {
+                        store.applyLocation(to: attachment, address: "未知位置\t\t\t\(coordStr)")
+                    }
+                    return
+                }
+                guard let placemark = placemarks?.first else {
+                    print("📍 地理编码无结果, 坐标: \(coordStr)")
+                    DispatchQueue.main.async {
+                        store.applyLocation(to: attachment, address: "未知位置\t\t\t\(coordStr)")
+                    }
+                    return
+                }
+                print("📍 地理编码结果:")
+                print("   country: \(placemark.country ?? "nil")")
+                print("   adminArea: \(placemark.administrativeArea ?? "nil")")
+                print("   locality: \(placemark.locality ?? "nil")")
+                print("   subLocality: \(placemark.subLocality ?? "nil")")
+                print("   thoroughfare: \(placemark.thoroughfare ?? "nil")")
+                print("   subThoroughfare: \(placemark.subThoroughfare ?? "nil")")
+                print("   name: \(placemark.name ?? "nil")")
+                print("   当前线程: \(Thread.isMainThread ? "主线程" : "后台线程")")
                 let parts = [
                     placemark.country,
                     placemark.administrativeArea,
@@ -351,9 +376,14 @@ extension NoteView {
                     placemark.subThoroughfare,
                     placemark.name
                 ].compactMap { $0 }
-                let address = parts.joined(separator: " ")
-                guard !address.isEmpty else { return }
-                store.applyRecognitionMeta(to: attachment, text: address)
+                let address = parts.joined(separator: "\t")
+                print("📍 拼接地址: \(address)")
+                // SwiftData 模型必须在主线程修改
+                DispatchQueue.main.async {
+                    let finalAddress = address.isEmpty ? "未知位置\t\t\t\(coordStr)" : address
+                    store.applyLocation(to: attachment, address: finalAddress)
+                    print("📍 已写入 attachment.location: \(attachment.location ?? "nil")")
+                }
             }
         }
     }

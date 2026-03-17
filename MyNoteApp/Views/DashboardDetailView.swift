@@ -82,7 +82,8 @@ struct DashboardDetailView: View {
                         .search,
                         .trash,
                         .calendar,
-                        .timeline
+                        .timeline,
+                        .location
                     ]
                     Menu {
                         ForEach(orderedTypes, id: \.self) { type in
@@ -147,7 +148,8 @@ struct DashboardDetailView: View {
                             .search,
                             .trash,
                             .calendar,
-                            .timeline
+                            .timeline,
+                            .location
                         ]
                         ForEach(orderedTypes, id: \.self) { type in
                             Button(action: {
@@ -258,6 +260,8 @@ struct DashboardRow: View {
             InlineInputWidget(size: item.size, onFocused: onFullPageFocused)
         case .timeline:
             TimelineWidget(isEditing: isEditing)
+        case .location:
+            LocationWidget(size: item.size, isEditing: isEditing)
         }
     }
 

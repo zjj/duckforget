@@ -104,11 +104,8 @@ class NoteStore {
     /// 更新记录（标记更新时间并保存）
     func updateNote(_ note: NoteItem) {
         note.updatedAt = Date()
-        // 重建搜索索引：content + 所有附件 OCR 文本 + 拼音
-        let ocrParts = note.attachments.compactMap { $0.recognitionMeta }.filter { !$0.isEmpty }
-        let base = ([note.content] + ocrParts).joined(separator: "\n")
-        let pinyin = PinyinConverter.pinyinForSearch(base)
-        note.forSearch = pinyin.isEmpty ? base : base + "\n" + pinyin
+        // 重建搜索索引：content + 所有附件 OCR 文本 + 位置 + 拼音
+        rebuildSearchIndex(for: note)
         contentRevision &+= 1
         saveContext()
         indexNoteInSpotlight(note)
@@ -425,12 +422,29 @@ class NoteStore {
     func applyRecognitionMeta(to attachment: AttachmentItem, text: String) {
         attachment.recognitionMeta = text.isEmpty ? nil : text
         if let note = attachment.note {
-            let ocrParts = note.attachments.compactMap { $0.recognitionMeta }.filter { !$0.isEmpty }
-            let base = ([note.content] + ocrParts).joined(separator: "\n")
-            let pinyin = PinyinConverter.pinyinForSearch(base)
-            note.forSearch = pinyin.isEmpty ? base : base + "\n" + pinyin
+            rebuildSearchIndex(for: note)
         }
         saveContext()
+    }
+
+    /// 将地址写入位置附件的 location 字段，同时同步到 recognitionMeta 以支持搜索
+    func applyLocation(to attachment: AttachmentItem, address: String) {
+        attachment.location = address.isEmpty ? nil : address
+        // 同步写入 recognitionMeta 以保持搜索兼容
+        attachment.recognitionMeta = address.isEmpty ? nil : address
+        if let note = attachment.note {
+            rebuildSearchIndex(for: note)
+        }
+        saveContext()
+    }
+
+    /// 重建笔记的 forSearch 搜索索引
+    private func rebuildSearchIndex(for note: NoteItem) {
+        let ocrParts = note.attachments.compactMap { $0.recognitionMeta }.filter { !$0.isEmpty }
+        let locationParts = note.attachments.compactMap { $0.location }.filter { !$0.isEmpty }
+        let base = ([note.content] + ocrParts + locationParts).joined(separator: "\n")
+        let pinyin = PinyinConverter.pinyinForSearch(base)
+        note.forSearch = pinyin.isEmpty ? base : base + "\n" + pinyin
     }
 
     // MARK: - Version History

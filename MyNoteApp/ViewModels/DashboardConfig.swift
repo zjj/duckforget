@@ -115,6 +115,9 @@ class DashboardConfig {
             if type == .timeline {
                 newItem.size = .fullPage // Timeline only supports fullPage
             }
+            if type == .location {
+                newItem.size = .fullPage // Location only supports fullPage
+            }
             newItem.tagName = tagName
             newItem.content = content
             pages[index].items.append(newItem)

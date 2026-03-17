@@ -52,6 +52,8 @@ final class AttachmentItem {
     var note: NoteItem?
     /// OCR 识别后的纯文本内容（照片、扫描件、视频首帧等支持 OCR 的附件类型）
     var recognitionMeta: String?
+    /// 位置附件的地址信息，各字段以 \t 分隔：country\tadminArea\tlocality\tsubLocality\tthoroughfare\tsubThoroughfare\tname
+    var location: String?
 
     init(
         id: UUID = UUID(),
@@ -59,7 +61,8 @@ final class AttachmentItem {
         fileName: String,
         thumbnailFileName: String? = nil,
         createdAt: Date = Date(),
-        recognitionMeta: String? = nil
+        recognitionMeta: String? = nil,
+        location: String? = nil
     ) {
         self.id = id
         self.type = type
@@ -67,5 +70,6 @@ final class AttachmentItem {
         self.thumbnailFileName = thumbnailFileName
         self.createdAt = createdAt
         self.recognitionMeta = recognitionMeta
+        self.location = location
     }
 }
