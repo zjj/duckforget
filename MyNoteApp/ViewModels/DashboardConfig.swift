@@ -29,9 +29,20 @@ class DashboardConfig {
             saveConfig()
             UserDefaults.standard.removeObject(forKey: legacyKey)
         } else {
-            // Default Layout: Create an empty "Home" page, let users explore on their own
-            let homePage = DashboardPage(id: UUID(), name: "起点", items: [], creationDate: Date())
-            self.pages = [homePage]
+            // Default Layout: 2 pages with pre-populated widgets
+            let homeItems = [
+                DashboardItem(type: .calendar, size: .large, order: 0),
+                DashboardItem(type: .inlineInput, size: .large, order: 1)
+            ]
+            let homePage = DashboardPage(id: UUID(), name: "起点页", items: homeItems, creationDate: Date())
+
+            let searchItems = [
+                DashboardItem(type: .search, size: .medium, order: 0),
+                DashboardItem(type: .timeline, size: .fullPage, order: 1)
+            ]
+            let searchPage = DashboardPage(id: UUID(), name: "搜索", items: searchItems, creationDate: Date())
+
+            self.pages = [homePage, searchPage]
             self.selectedPageId = homePage.id
             saveConfig()
         }
@@ -43,9 +54,20 @@ class DashboardConfig {
         }
     }
 
-    func addDefaultLayoutPage() {
-        let newPage = DashboardPage(id: UUID(), name: "起点", items: [], creationDate: Date())
-        pages.append(newPage)
+    func addDefaultLayoutPages() {
+        let homeItems = [
+            DashboardItem(type: .calendar, size: .large, order: 0),
+            DashboardItem(type: .inlineInput, size: .large, order: 1)
+        ]
+        let homePage = DashboardPage(id: UUID(), name: "起点页", items: homeItems, creationDate: Date())
+
+        let searchItems = [
+            DashboardItem(type: .search, size: .medium, order: 0),
+            DashboardItem(type: .timeline, size: .fullPage, order: 1)
+        ]
+        let searchPage = DashboardPage(id: UUID(), name: "搜索", items: searchItems, creationDate: Date())
+
+        pages.append(contentsOf: [homePage, searchPage])
         saveConfig()
     }
     

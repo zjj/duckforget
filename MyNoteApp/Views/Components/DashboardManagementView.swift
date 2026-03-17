@@ -41,7 +41,7 @@ struct DashboardManagementView: View {
                     
                     Menu {
                         Button {
-                            dashboardConfig.addDefaultLayoutPage()
+                            dashboardConfig.addDefaultLayoutPages()
                         } label: {
                             Label("添加起点配置", systemImage: "plus.square.on.square")
                         }
@@ -65,7 +65,7 @@ struct DashboardManagementView: View {
                         Text("您可以添加自定义页面，或点击")
                         Menu {
                             Button {
-                                dashboardConfig.addDefaultLayoutPage()
+                                dashboardConfig.addDefaultLayoutPages()
                             } label: {
                                 Label("添加起点配置", systemImage: "plus.square.on.square")
                             }
