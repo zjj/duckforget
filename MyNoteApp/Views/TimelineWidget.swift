@@ -104,10 +104,16 @@ struct TimelineWidget: View {
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
-                .background(theme.colors.surface)
                 .id(listID)
                 .frame(height: max(geo.size.height - 46, 100))
             }
+            .background(theme.colors.card)
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
+            )
+            .shadow(color: theme.colors.shadow, radius: 8, x: 0, y: 2)
         }
         .onAppear { loadNotes() }
         .onChange(of: noteStore.contentRevision) {
@@ -142,20 +148,13 @@ struct TimelineWidget: View {
 
     private func daySectionHeader(label: String) -> some View {
         HStack(spacing: 8) {
-            Rectangle()
-                .fill(theme.colors.border.opacity(0.5))
-                .frame(height: 0.5)
             Text(label)
                 .font(.system(size: 11, weight: .medium))
                 .foregroundColor(theme.colors.secondaryText.opacity(0.65))
-                .fixedSize()
-            Rectangle()
-                .fill(theme.colors.border.opacity(0.5))
-                .frame(height: 0.5)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 6)
-        .background(theme.colors.surface)
+        .background(theme.colors.card)
         .textCase(nil)
         .listRowInsets(EdgeInsets())
     }

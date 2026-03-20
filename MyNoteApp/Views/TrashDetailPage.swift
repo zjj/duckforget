@@ -5,6 +5,7 @@ import SwiftData
 
 struct TrashDetailPage: View {
     @Environment(NoteStore.self) var noteStore
+    @Environment(\.appTheme) private var theme
     @Query var trashedNotes: [NoteItem]
     
     let appSettings = AppSettings.shared
@@ -21,6 +22,7 @@ struct TrashDetailPage: View {
     @State private var noteToDelete: NoteItem?
     @State private var showDeleteConfirmation = false
     @State private var showEmptyTrashConfirmation = false
+    @State private var showTrashActionsDialog = false
     
     var body: some View {
         Group {
@@ -29,13 +31,13 @@ struct TrashDetailPage: View {
                     Spacer()
                     Image(systemName: "trash")
                         .font(.system(size: 64))
-                        .foregroundColor(.secondary.opacity(0.6))
+                        .foregroundColor(theme.colors.secondaryText.opacity(0.6))
                     Text("废纸篓是空的")
                         .font(.title2)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(theme.colors.secondaryText)
                     Text("删除的记录将保留 \(appSettings.trashRetentionDays) 天")
                         .font(.subheadline)
-                        .foregroundColor(.secondary.opacity(0.7))
+                        .foregroundColor(theme.colors.secondaryText.opacity(0.7))
                     Spacer()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -51,11 +53,11 @@ struct TrashDetailPage: View {
                                     if let deletedAt = note.deletedAt {
                                         Text("删除于 \(deletedAt.formattedShort)")
                                             .font(.subheadline)
-                                            .foregroundColor(.secondary)
+                                            .foregroundColor(theme.colors.secondaryText)
                                     }
                                     Text(daysRemaining(note))
                                         .font(.caption)
-                                        .foregroundColor(.orange)
+                                        .foregroundColor(theme.colors.accent)
                                 }
                             }
                             .padding(.vertical, 3)
@@ -76,37 +78,29 @@ struct TrashDetailPage: View {
                             } label: {
                                 Label("恢复", systemImage: "arrow.uturn.backward")
                             }
-                            .tint(.blue)
+                            .tint(theme.colors.accent)
                         }
                     }
                 }
                 .listStyle(.plain)
             }
         }
+        .background(theme.colors.background.ignoresSafeArea())
+        .tint(theme.colors.accent)
         .navigationTitle("废纸篓")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(theme.colors.surface, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .toolbar {
             if !trashedNotes.isEmpty {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        Button {
-                            withAnimation {
-                                for note in trashedNotes {
-                                    noteStore.restoreNote(note)
-                                }
-                            }
-                        } label: {
-                            Label("恢复全部", systemImage: "arrow.uturn.backward")
-                        }
-
-                        Button(role: .destructive) {
-                            showEmptyTrashConfirmation = true
-                        } label: {
-                            Label("清空废纸篓", systemImage: "trash.slash")
-                        }
+                    Button {
+                        showTrashActionsDialog = true
                     } label: {
-                        Image(systemName: "ellipsis")
+                        Image(systemName: "ellipsis.circle")
+                            .font(.system(size: 20))
                     }
+                    .buttonStyle(.plain)
                 }
             }
         }
@@ -122,6 +116,21 @@ struct TrashDetailPage: View {
             }
         } message: {
             Text("确定要永久删除这条笔记吗？此操作无法撤销！")
+        }
+        .confirmationDialog("废纸篓", isPresented: $showTrashActionsDialog) {
+            Button("恢复全部记录") {
+                withAnimation {
+                    for note in trashedNotes {
+                        noteStore.restoreNote(note)
+                    }
+                }
+            }
+
+            Button("清空废纸篓", role: .destructive) {
+                showEmptyTrashConfirmation = true
+            }
+
+            Button("取消", role: .cancel) {}
         }
         .alert("确认清空废纸篓", isPresented: $showEmptyTrashConfirmation) {
             Button("取消", role: .cancel) { }
@@ -151,11 +160,13 @@ struct TrashDetailPage: View {
 
 struct TrashNoteDetailView: View {
     @Environment(NoteStore.self) var noteStore
+    @Environment(\.appTheme) private var theme
     @Environment(\.dismiss) var dismiss
     let note: NoteItem
     
     @State private var showRestoreConfirm = false
     @State private var showDeleteConfirm = false
+    @State private var showActionsDialog = false
     
     var body: some View {
         ScrollView {
@@ -165,20 +176,20 @@ struct TrashNoteDetailView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "calendar")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(theme.colors.secondaryText)
                         Text("创建时间：\(note.createdAt.formattedAbsolute)")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(theme.colors.secondaryText)
                     }
                     
                     if let deletedAt = note.deletedAt {
                         HStack(spacing: 8) {
                             Image(systemName: "trash")
                                 .font(.caption)
-                                .foregroundColor(.orange)
+                                .foregroundColor(theme.colors.accent)
                             Text("删除时间：\(deletedAt.formattedAbsolute)")
                                 .font(.subheadline)
-                                .foregroundColor(.orange)
+                                .foregroundColor(theme.colors.accent)
                         }
                     }
                 }
@@ -191,7 +202,7 @@ struct TrashNoteDetailView: View {
                 // 内容区域（只读）
                 Text(note.content.isEmpty ? "（无内容）" : note.content)
                     .font(.body)
-                    .foregroundColor(note.content.isEmpty ? .secondary : .primary)
+                    .foregroundColor(note.content.isEmpty ? theme.colors.secondaryText : theme.colors.primaryText)
                     .textSelection(.enabled)
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -201,7 +212,7 @@ struct TrashNoteDetailView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("附件")
                             .font(.headline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(theme.colors.secondaryText)
                             .padding(.horizontal)
                         
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 100))], spacing: 12) {
@@ -219,22 +230,25 @@ struct TrashNoteDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Menu {
-                    Button {
-                        showRestoreConfirm = true
-                    } label: {
-                        Label("恢复", systemImage: "arrow.uturn.backward")
-                    }
-                    
-                    Button(role: .destructive) {
-                        showDeleteConfirm = true
-                    } label: {
-                        Label("永久删除", systemImage: "trash.slash")
-                    }
+                Button {
+                    showActionsDialog = true
                 } label: {
-                    Image(systemName: "ellipsis")
+                    Image(systemName: "ellipsis.circle")
+                        .font(.system(size: 20))
                 }
+                .buttonStyle(.plain)
             }
+        }
+        .confirmationDialog("这条记录", isPresented: $showActionsDialog) {
+            Button("恢复这条记录") {
+                showRestoreConfirm = true
+            }
+
+            Button("永久删除这条记录", role: .destructive) {
+                showDeleteConfirm = true
+            }
+
+            Button("取消", role: .cancel) {}
         }
         .alert("恢复", isPresented: $showRestoreConfirm) {
             Button("取消", role: .cancel) {}
@@ -318,19 +332,19 @@ struct ReadOnlyAttachmentView: View {
                     .foregroundColor(theme.colors.accent)
                 Text("音频")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.colors.secondaryText)
             }
             
         case .file:
             VStack(spacing: 8) {
                 Image(systemName: "doc.fill")
                     .font(.largeTitle)
-                    .foregroundColor(.blue)
+                    .foregroundColor(theme.colors.accent)
                 Text(attachment.fileName)
                     .font(.caption2)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.colors.secondaryText)
                     .padding(.horizontal, 4)
             }
             

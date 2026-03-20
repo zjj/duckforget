@@ -291,108 +291,10 @@ struct NoteView: View {
     }
 
     private var baseView: some View {
-        mainZStackContent
-        .background(theme.colors.background.ignoresSafeArea())
-        .background {
-            GeometryReader { geo in
-                Color.clear
-                    .onAppear { viewSize = geo.size }
-                    .onChange(of: geo.size) { _, newSize in viewSize = newSize }
-            }
-        }
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItemGroup(placement: .navigationBarTrailing) {
-                if isEditMode {
-                    Button {
-                        performUndo()
-                    } label: {
-                        Image(systemName: "arrow.uturn.backward")
-                            .font(.system(size: 16))
-                    }
-                    .accessibilityLabel("撤销")
-                    .disabled(!undoRedoManager.canUndo)
-
-                    Button {
-                        performRedo()
-                    } label: {
-                        Image(systemName: "arrow.uturn.forward")
-                            .font(.system(size: 16))
-                    }
-                    .accessibilityLabel("重做")
-                    .disabled(!undoRedoManager.canRedo)
-
-                    Menu {
-                        Button {
-                            showTagManagement = true
-                        } label: {
-                            Label("标签", systemImage: "tag")
-                        }
-
-                        Button(role: .destructive) {
-                            showDeleteConfirmation = true
-                        } label: {
-                            Label("删除", systemImage: "trash")
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .font(.system(size: 16))
-                    }
-                    .accessibilityLabel("更多操作")
-
-                    Button {
-                        exitEditMode()
-                    } label: {
-                        Image(systemName: (undoRedoManager.canUndo || undoRedoManager.canRedo) ? "checkmark" : "eyes")
-                            .font(.system(size: 16))
-                    }
-                    .accessibilityLabel("完成")
-                } else {
-                    Menu {
-                        Button {
-                            showExportPicker = true
-                        } label: {
-                            Label("导出", systemImage: "square.and.arrow.up")
-                        }
-
-                        Button {
-                            addCommentTrigger = true
-                        } label: {
-                            Label("评论", systemImage: "bubble.left")
-                        }
-
-                        Button {
-                            showHistorySheet = true
-                        } label: {
-                            Label("历史版本", systemImage: "clock.arrow.trianglehead.counterclockwise.rotate.90")
-                        }
-
-                        Divider()
-
-                        Button(role: .destructive) {
-                            showDeleteConfirmation = true
-                        } label: {
-                            Label("删除", systemImage: "trash")
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .font(.system(size: 16))
-                    }
-                    .accessibilityLabel("更多操作")
-
-                    Button {
-                        enterEditMode()
-                    } label: {
-                        Image(systemName: "pencil")
-                            .font(.system(size: 16))
-                    }
-                    .accessibilityLabel("编辑")
-                }
-            }
-        }
+        baseViewContent
         .onAppear { loadContent() }
         .onDisappear { cleanupOnExit() }
-        .onChange(of: content) { 
+        .onChange(of: content) {
             guard isEditMode else { return }
             wasEdited = true
             if content != previousContent && !isPerformingUndoRedo {
@@ -435,6 +337,122 @@ struct NoteView: View {
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase != .active && isVoiceButtonPressed {
                 isVoiceButtonPressed = false
+            }
+        }
+    }
+
+    private var baseViewContent: some View {
+        mainZStackContent
+            .background(theme.colors.background.ignoresSafeArea())
+            .tint(theme.colors.accent)
+            .background(viewSizeReader)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(theme.colors.surface, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbar {
+                noteViewToolbar
+            }
+    }
+
+    private var viewSizeReader: some View {
+        GeometryReader { geo in
+            Color.clear
+                .onAppear { viewSize = geo.size }
+                .onChange(of: geo.size) { _, newSize in viewSize = newSize }
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var noteViewToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .navigationBarTrailing) {
+            if isEditMode {
+                Button {
+                    performUndo()
+                } label: {
+                    Image(systemName: "arrow.uturn.backward")
+                        .font(.system(size: 16))
+                }
+                .accessibilityLabel("撤销")
+                .disabled(!undoRedoManager.canUndo)
+
+                Button {
+                    performRedo()
+                } label: {
+                    Image(systemName: "arrow.uturn.forward")
+                        .font(.system(size: 16))
+                }
+                .accessibilityLabel("重做")
+                .disabled(!undoRedoManager.canRedo)
+
+                Menu {
+                    Button {
+                        showTagManagement = true
+                    } label: {
+                        Label("管理标签", systemImage: "tag")
+                    }
+
+                    Divider()
+
+                    Button(role: .destructive) {
+                        showDeleteConfirmation = true
+                    } label: {
+                        Label("删除", systemImage: "trash")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.system(size: 20))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("更多操作")
+
+                Button {
+                    exitEditMode()
+                } label: {
+                    Image(systemName: (undoRedoManager.canUndo || undoRedoManager.canRedo) ? "checkmark" : "eyes")
+                        .font(.system(size: 16))
+                }
+                .accessibilityLabel("完成")
+            } else {
+                Menu {
+                    Button {
+                        showExportPicker = true
+                    } label: {
+                        Label("导出记录", systemImage: "square.and.arrow.up")
+                    }
+
+                    Button {
+                        addCommentTrigger = true
+                    } label: {
+                        Label("添加评论", systemImage: "text.bubble")
+                    }
+
+                    Button {
+                        showHistorySheet = true
+                    } label: {
+                        Label("查看历史版本", systemImage: "clock.arrow.trianglehead.counterclockwise.rotate.90")
+                    }
+
+                    Divider()
+
+                    Button(role: .destructive) {
+                        showDeleteConfirmation = true
+                    } label: {
+                        Label("删除", systemImage: "trash")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.system(size: 20))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("更多操作")
+
+                Button {
+                    enterEditMode()
+                } label: {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 16))
+                }
+                .accessibilityLabel("编辑")
             }
         }
     }

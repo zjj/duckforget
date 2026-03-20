@@ -43,34 +43,26 @@ struct TrashWidget: View {
                 }
                 .opacity(0)
 
-                HStack(spacing: 14) {
-                    ZStack {
-                        Circle()
-                            .fill(Color.orange.opacity(0.12))
-                            .frame(width: 40, height: 40)
-                        Image(systemName: "trash")
-                            .font(.system(size: 17, weight: .medium))
-                            .foregroundStyle(Color.orange)
-                            .symbolRenderingMode(.hierarchical)
-                    }
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("废纸篓")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(.primary)
-                        Text("\(trashedNotes.count) 条记录")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+                HStack(spacing: 6) {
+                    Image(systemName: "trash")
+                        .foregroundColor(theme.colors.accent)
+                        .font(.system(size: 13, weight: .semibold))
+                        .symbolRenderingMode(.hierarchical)
+                    Text("废纸篓")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(theme.colors.secondaryText)
+                    Text("\(trashedNotes.count) 条")
+                        .font(.caption)
+                        .foregroundColor(theme.colors.secondaryText.opacity(0.6))
                     Spacer()
                     Image(systemName: "chevron.right")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.secondary.opacity(0.45))
+                        .foregroundColor(theme.colors.secondaryText.opacity(0.45))
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.horizontal, 14)
+                .padding(.horizontal, 16)
                 .padding(.vertical, 14)
-                .background(theme.colors.surface)
+                .background(theme.colors.card)
                 .cornerRadius(16)
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
@@ -107,21 +99,21 @@ struct TrashCardButton: View {
             HStack(spacing: 12) {
                 Image(systemName: "trash")
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(.orange)
+                    .foregroundColor(theme.colors.accent)
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("废纸篓")
                         .font(.headline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(theme.colors.secondaryText)
                     Text("废纸篓（\(trashedCount)条）")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(theme.colors.secondaryText)
                 }
                 Spacer()
             }
             .frame(maxWidth: .infinity)
             .padding(16)
-            .background(theme.colors.surface)
+            .background(theme.colors.card)
             .cornerRadius(16)
             .shadow(color: theme.colors.shadow, radius: 6, x: 0, y: 3)
         }

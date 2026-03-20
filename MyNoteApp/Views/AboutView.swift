@@ -21,14 +21,15 @@ struct AboutView: View {
                         Text("记不住鸭")
                             .font(.title2)
                             .fontWeight(.bold)
+                            .foregroundColor(theme.colors.primaryText)
                         
                         Text("Version \(appVersion) (\(buildNumber))")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(theme.colors.secondaryText)
 
                         Text("Commit \(gitCommit)")
                             .font(.caption2)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(theme.colors.secondaryText)
                             .fontDesign(.monospaced)
                     }
                 }
@@ -54,7 +55,7 @@ struct AboutView: View {
                         Spacer()
                         Image(systemName: "envelope")
                             .font(.footnote)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(theme.colors.secondaryText)
                     }
                 }
                 Link(destination: URL(string: "https://github.com/zjj/duckforget")!) {
@@ -63,7 +64,7 @@ struct AboutView: View {
                         Spacer()
                         Image(systemName: "chevron.left.forwardslash.chevron.right")
                             .font(.footnote)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(theme.colors.secondaryText)
                     }
                 }
             }
@@ -82,7 +83,7 @@ struct AboutView: View {
             Section {
                 Text("© 2026 duckforget.com. All rights reserved.")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.colors.secondaryText)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .listRowBackground(Color.clear)
             }
@@ -110,10 +111,11 @@ struct FeatureRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.headline)
+                    .foregroundColor(theme.colors.primaryText)
                 
                 Text(description)
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.colors.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }

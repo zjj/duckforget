@@ -4,6 +4,7 @@ import SwiftUI
 /// 废纸篓视图 - 显示最近删除的记录
 struct TrashView: View {
     @Environment(NoteStore.self) var noteStore
+    @Environment(\.appTheme) private var theme
     @Query var trashedNotes: [NoteItem]
     
     let appSettings = AppSettings.shared
@@ -20,6 +21,7 @@ struct TrashView: View {
     @State private var noteToDelete: NoteItem?
     @State private var showDeleteConfirmation = false
     @State private var showEmptyTrashConfirmation = false
+    @State private var showTrashActionsDialog = false
 
     var body: some View {
         Group {
@@ -28,14 +30,14 @@ struct TrashView: View {
                     Spacer()
                     Image(systemName: "trash")
                         .font(.system(size: 64))
-                        .foregroundColor(.secondary.opacity(0.6))
+                        .foregroundColor(theme.colors.secondaryText.opacity(0.6))
                         .accessibilityHidden(true)
                     Text("废纸篓是空的")
                         .font(.title2)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(theme.colors.secondaryText)
                     Text("删除的记录将保留 \(appSettings.trashRetentionDays) 天")
                         .font(.subheadline)
-                        .foregroundColor(.secondary.opacity(0.7))
+                        .foregroundColor(theme.colors.secondaryText.opacity(0.7))
                     Spacer()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -50,11 +52,11 @@ struct TrashView: View {
                                 if let deletedAt = note.deletedAt {
                                     Text("删除于 \(deletedAt.formattedShort)")
                                         .font(.subheadline)
-                                        .foregroundColor(.secondary)
+                                        .foregroundColor(theme.colors.secondaryText)
                                 }
                                 Text(daysRemaining(note))
                                     .font(.caption)
-                                    .foregroundColor(.orange)
+                                    .foregroundColor(theme.colors.accent)
                             }
                         }
                         .padding(.vertical, 3)
@@ -74,36 +76,28 @@ struct TrashView: View {
                             } label: {
                                 Label("恢复", systemImage: "arrow.uturn.backward")
                             }
-                            .tint(.blue)
+                            .tint(theme.colors.accent)
                         }
                     }
                 }
                 .listStyle(.plain)
             }
         }
+        .background(theme.colors.background.ignoresSafeArea())
+        .tint(theme.colors.accent)
         .navigationTitle("最近删除")
+        .toolbarBackground(theme.colors.surface, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .toolbar {
             if !trashedNotes.isEmpty {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        Button {
-                            withAnimation {
-                                for note in trashedNotes {
-                                    noteStore.restoreNote(note)
-                                }
-                            }
-                        } label: {
-                            Label("恢复全部", systemImage: "arrow.uturn.backward")
-                        }
-
-                        Button(role: .destructive) {
-                            showEmptyTrashConfirmation = true
-                        } label: {
-                            Label("清空废纸篓", systemImage: "trash.slash")
-                        }
+                    Button {
+                        showTrashActionsDialog = true
                     } label: {
-                        Image(systemName: "ellipsis")
+                        Image(systemName: "ellipsis.circle")
+                            .font(.system(size: 20))
                     }
+                    .buttonStyle(.plain)
                     .accessibilityLabel("废纸篓操作")
                 }
             }
@@ -120,6 +114,21 @@ struct TrashView: View {
             }
         } message: {
             Text("确定要永久删除这条笔记吗？此操作无法撤销！")
+        }
+        .confirmationDialog("废纸篓", isPresented: $showTrashActionsDialog) {
+            Button("恢复全部记录") {
+                withAnimation {
+                    for note in trashedNotes {
+                        noteStore.restoreNote(note)
+                    }
+                }
+            }
+
+            Button("清空废纸篓", role: .destructive) {
+                showEmptyTrashConfirmation = true
+            }
+
+            Button("取消", role: .cancel) {}
         }
         .alert("确认清空废纸篓", isPresented: $showEmptyTrashConfirmation) {
             Button("取消", role: .cancel) { }

@@ -25,21 +25,13 @@ struct NoteRowView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-
-            // ── 标签行 ──────────────────────────────────────
-            if !note.tags.isEmpty {
-                tagsRow
-                    .padding(.bottom, 8)
-            }
-
-            // ── 渲染内容预览 ─────────────────────────────────
-            NoteCardPreview(content: note.content)
+            NoteCardTextSummary(note: note)
                 .padding(.bottom, 10)
 
             // ── 图片 / 视频马赛克 ─────────────────────────────
             if !visualAttachments.isEmpty {
                 visualGrid
-                    .padding(.bottom, otherAttachments.isEmpty ? 8 : 6)
+                    .padding(.bottom, 8)
             }
 
             // ── 其他附件 chips ────────────────────────────────
@@ -50,13 +42,8 @@ struct NoteRowView: View {
 
             // ── 底部日期 ──────────────────────────────────────
             if showDateFooter {
-                Spacer(minLength: 0)
-                HStack {
-                    Spacer()
-                    Text(note.updatedAt.formattedAbsolute)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
+                Spacer(minLength: 6)
+                footerMetaRow
             }
         }
         .padding(12)
@@ -65,32 +52,42 @@ struct NoteRowView: View {
         .cornerRadius(12)
     }
 
-    // MARK: - 标签 Pills
+    // MARK: - 底部元信息
 
     @ViewBuilder
-    private var tagsRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 5) {
-                ForEach(Array(note.tags.prefix(6)), id: \.id) { tag in
-                    HStack(spacing: 3) {
-                        Image(systemName: "tag.fill")
-                            .font(.system(size: 8))
-                        Text(tag.name)
-                            .font(.system(size: 10, weight: .medium))
-                            .lineLimit(1)
+    private var footerMetaRow: some View {
+        HStack(alignment: .center, spacing: 8) {
+            if !note.tags.isEmpty {
+                HStack(spacing: 5) {
+                    ForEach(Array(note.tags.prefix(1)), id: \.id) { tag in
+                        HStack(spacing: 3) {
+                            Image(systemName: "tag.fill")
+                                .font(.system(size: 6))
+                            Text(tag.name)
+                                .font(.system(size: 9, weight: .medium))
+                                .lineLimit(1)
+                        }
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(theme.colors.cardSecondary.opacity(0.85))
+                        .foregroundColor(theme.colors.secondaryText.opacity(0.82))
+                        .clipShape(Capsule())
                     }
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
-                    .background(theme.colors.accentSoft)
-                    .foregroundColor(theme.colors.accent)
-                    .clipShape(Capsule())
+
+                    if note.tags.count > 1 {
+                        Text("+\(note.tags.count - 1)")
+                            .font(.caption2)
+                            .foregroundColor(theme.colors.secondaryText.opacity(0.7))
+                    }
                 }
-                if note.tags.count > 6 {
-                    Text("+\(note.tags.count - 6)")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
+                .lineLimit(1)
             }
+
+            Spacer(minLength: 0)
+
+            Text(note.updatedAt.formattedAbsolute)
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
         }
     }
 
@@ -189,6 +186,403 @@ struct NoteRowView: View {
             }
             Spacer()
         }
+    }
+}
+
+struct NoteCardTextSummary: View {
+    let note: NoteItem
+    var compact: Bool = false
+
+    @Environment(\.appTheme) private var theme
+    @Environment(FontManager.self) private var fontManager
+
+    private var summary: NotePreviewSummary { NotePreviewSummary(note: note) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: compact ? 4 : 5) {
+            if let headline = summary.headline {
+                Text(headline)
+                    .font(Font(fontManager.bodyFont(textStyle: compact ? .footnote : .subheadline)).weight(.semibold))
+                    .foregroundColor(theme.colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            switch summary.style {
+            case .standard:
+                standardContent
+
+            case .checklist:
+                checklistContent
+
+            case .table:
+                tableContent
+
+            case .quote:
+                quoteContent
+            }
+
+            if let supportText = summary.supportText,
+               let supportIcon = summary.supportIcon {
+                Label(supportText, systemImage: supportIcon)
+                    .font(Font(fontManager.bodyFont(size: 11)))
+                    .foregroundColor(theme.colors.secondaryText.opacity(0.78))
+                    .lineLimit(1)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var standardContent: some View {
+        if !summary.excerpt.isEmpty {
+            Text(summary.excerpt)
+                .font(Font(fontManager.bodyFont(textStyle: summary.headline == nil && !compact ? .subheadline : .footnote)))
+                .foregroundColor(summary.headline == nil ? theme.colors.primaryText : theme.colors.secondaryText)
+                .lineLimit(summary.headline == nil ? (compact ? 3 : 3) : 2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    @ViewBuilder
+    private var checklistContent: some View {
+        if summary.headline == nil, !summary.excerpt.isEmpty {
+            Text(summary.excerpt)
+                .font(Font(fontManager.bodyFont(textStyle: compact ? .footnote : .subheadline)))
+                .foregroundColor(theme.colors.primaryText)
+                .lineLimit(2)
+        } else if !summary.excerpt.isEmpty {
+            Text(summary.excerpt)
+                .font(Font(fontManager.bodyFont(textStyle: .footnote)))
+                .foregroundColor(theme.colors.secondaryText)
+                .lineLimit(2)
+        }
+
+        ForEach(Array(summary.detailLines.prefix(compact ? 2 : 2)), id: \.self) { item in
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Image(systemName: "circle")
+                    .font(.system(size: 7))
+                    .foregroundColor(theme.colors.accent.opacity(0.85))
+                Text(item)
+                    .font(Font(fontManager.bodyFont(size: compact ? 11 : 12)))
+                    .foregroundColor(theme.colors.secondaryText)
+                    .lineLimit(1)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var tableContent: some View {
+        HStack(alignment: .center, spacing: 6) {
+            Image(systemName: summary.badgeIcon ?? "tablecells")
+                .font(.system(size: compact ? 11 : 12, weight: .medium))
+                .foregroundColor(theme.colors.accent)
+            Text(summary.excerpt)
+                .font(Font(fontManager.bodyFont(size: compact ? 11 : 12)).weight(.medium))
+                .foregroundColor(summary.headline == nil ? theme.colors.primaryText : theme.colors.secondaryText)
+                .lineLimit(1)
+        }
+
+        if let first = summary.detailLines.first {
+            Text(first)
+                .font(Font(fontManager.bodyFont(size: 11)))
+                .foregroundColor(theme.colors.secondaryText.opacity(0.82))
+                .lineLimit(1)
+        }
+    }
+
+    @ViewBuilder
+    private var quoteContent: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(summary.excerpt)
+                .font(Font(fontManager.bodyFont(textStyle: summary.headline == nil && !compact ? .subheadline : .footnote)).italic())
+                .foregroundColor(summary.headline == nil ? theme.colors.primaryText : theme.colors.secondaryText)
+                .lineLimit(compact ? 2 : 3)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.leading, 10)
+                .overlay(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 1.5)
+                        .fill(theme.colors.accent.opacity(0.7))
+                        .frame(width: 3)
+                }
+
+            if let first = summary.detailLines.first {
+                Text(first)
+                    .font(Font(fontManager.bodyFont(size: 11)))
+                    .foregroundColor(theme.colors.secondaryText.opacity(0.78))
+                    .lineLimit(1)
+            }
+        }
+    }
+}
+
+struct NotePreviewSummary {
+    enum Style {
+        case standard
+        case checklist
+        case table
+        case quote
+    }
+
+    let style: Style
+    let headline: String?
+    let excerpt: String
+    let detailLines: [String]
+    let supportText: String?
+    let supportIcon: String?
+    let badgeIcon: String?
+
+    init(note: NoteItem) {
+        let entries = Self.parseEntries(from: note.content)
+        let checklistItems = entries.filter { if case .checkbox = $0.kind { return true } else { return false } }
+        let uncheckedItems = checklistItems.compactMap { entry -> String? in
+            if case .checkbox(let checked) = entry.kind, !checked {
+                return entry.text
+            }
+            return nil
+        }
+        let completedCount = checklistItems.filter { entry in
+            if case .checkbox(let checked) = entry.kind {
+                return checked
+            }
+            return false
+        }.count
+
+        let headingEntry = entries.first(where: { if case .heading = $0.kind { return true } else { return false } })
+        let contentEntries: [Entry]
+        if let headingEntry, entries.first?.text == headingEntry.text {
+            contentEntries = Array(entries.dropFirst())
+        } else {
+            contentEntries = entries
+        }
+        let primaryEntry = contentEntries.first ?? entries.first
+        let secondaryEntry = contentEntries.dropFirst().first(where: { !$0.text.isEmpty })
+        let primaryText = primaryEntry?.text ?? note.preview
+        let secondaryText = secondaryEntry?.text
+
+        switch primaryEntry?.kind {
+        case .table:
+            style = .table
+            headline = headingEntry?.text
+            excerpt = primaryText.isEmpty ? "表格内容" : primaryText
+            detailLines = [Self.tableMetricsText(from: contentEntries)]
+            badgeIcon = "tablecells"
+
+        case .quote:
+            style = .quote
+            headline = headingEntry?.text
+            excerpt = primaryText.isEmpty ? (note.preview.isEmpty ? "空白笔记" : note.preview) : primaryText
+            detailLines = secondaryText.map { [$0] } ?? []
+            badgeIcon = "quote.opening"
+
+        case .checkbox, .bullet, .numbered where checklistItems.count >= 2 || (primaryEntry?.isChecklistLike ?? false):
+            style = .checklist
+            headline = headingEntry?.text
+            excerpt = headingEntry == nil ? (secondaryText ?? primaryText) : ""
+            detailLines = Array((uncheckedItems.isEmpty ? checklistItems.map(\.text) : uncheckedItems).prefix(2))
+            badgeIcon = "checklist"
+
+        default:
+            style = .standard
+            if let headingEntry {
+                headline = headingEntry.text
+                excerpt = secondaryText ?? primaryText
+            } else if let primaryEntry,
+                      case .paragraph = primaryEntry.kind,
+                      primaryEntry.text.count <= 24,
+                      secondaryText != nil {
+                headline = primaryEntry.text
+                excerpt = secondaryText ?? ""
+            } else {
+                headline = nil
+                excerpt = Self.mergeExcerpt(primary: primaryText, secondary: secondaryText)
+            }
+            detailLines = []
+            badgeIcon = nil
+        }
+
+        if style == .checklist {
+            supportText = "已完成 \(completedCount)/\(checklistItems.count) 项"
+            supportIcon = "checklist"
+        } else if style == .table {
+            supportText = Self.tableMetricsText(from: contentEntries)
+            supportIcon = "tablecells"
+        } else if note.attachments.count > 0 {
+            supportText = Self.attachmentSummary(note.attachments)
+            supportIcon = note.attachments.first?.type.iconName ?? "paperclip"
+        } else {
+            supportText = nil
+            supportIcon = nil
+        }
+    }
+
+    private enum EntryKind {
+        case heading
+        case paragraph
+        case bullet
+        case checkbox(Bool)
+        case numbered
+        case quote
+        case table
+    }
+
+    private struct Entry {
+        let text: String
+        let kind: EntryKind
+
+        var isChecklistLike: Bool {
+            switch kind {
+            case .checkbox, .bullet, .numbered:
+                return true
+            default:
+                return false
+            }
+        }
+    }
+
+    private static func mergeExcerpt(primary: String, secondary: String?) -> String {
+        guard let secondary, !secondary.isEmpty, secondary != primary else {
+            return primary
+        }
+        return "\(primary)\n\(secondary)"
+    }
+
+    private static func attachmentSummary(_ attachments: [AttachmentItem]) -> String {
+        guard !attachments.isEmpty else { return "" }
+        let grouped = Dictionary(grouping: attachments, by: \.type)
+        if grouped.count == 1, let type = attachments.first?.type {
+            return "\(attachments.count) 个\(type.displayName)"
+        }
+        return "\(attachments.count) 个附件"
+    }
+
+    private static func tableMetricsText(from entries: [Entry]) -> String {
+        let tableCount = entries.filter { if case .table = $0.kind { return true } else { return false } }.count
+        return tableCount > 1 ? "包含 \(tableCount) 个表格区块" : "结构化表格预览"
+    }
+
+    private static func parseEntries(from content: String, limit: Int = 6) -> [Entry] {
+        let lines = content.components(separatedBy: "\n")
+        var result: [Entry] = []
+        var index = 0
+
+        while index < lines.count, result.count < limit {
+            let raw = lines[index]
+            let trimmed = raw.trimmingCharacters(in: .whitespaces)
+
+            if trimmed.isEmpty {
+                index += 1
+                continue
+            }
+
+            if trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~") {
+                let fence = trimmed.hasPrefix("```") ? "```" : "~~~"
+                index += 1
+                while index < lines.count, !lines[index].hasPrefix(fence) {
+                    index += 1
+                }
+                index += 1
+                continue
+            }
+
+            if trimmed == "---" || trimmed == "***" || trimmed == "___" {
+                index += 1
+                continue
+            }
+
+            if trimmed.allSatisfy({ $0 == "-" || $0 == "_" || $0 == "*" || $0 == " " }) {
+                index += 1
+                continue
+            }
+
+            if let match = trimmed.range(of: "^#{1,6} ", options: .regularExpression) {
+                let text = String(trimmed[match.upperBound...]).trimmingCharacters(in: .whitespaces)
+                if !text.isEmpty {
+                    result.append(Entry(text: cleanInline(text), kind: .heading))
+                }
+                index += 1
+                continue
+            }
+
+            if trimmed.hasPrefix("- [ ] ") {
+                result.append(Entry(text: cleanInline(String(trimmed.dropFirst(6))), kind: .checkbox(false)))
+                index += 1
+                continue
+            }
+
+            if trimmed.hasPrefix("- [x] ") || trimmed.hasPrefix("- [X] ") {
+                result.append(Entry(text: cleanInline(String(trimmed.dropFirst(6))), kind: .checkbox(true)))
+                index += 1
+                continue
+            }
+
+            if trimmed.hasPrefix("- ") || trimmed.hasPrefix("* ") || trimmed.hasPrefix("+ ") {
+                result.append(Entry(text: cleanInline(String(trimmed.dropFirst(2))), kind: .bullet))
+                index += 1
+                continue
+            }
+
+            if let range = trimmed.range(of: "^\\d+\\.\\s", options: .regularExpression) {
+                let text = String(trimmed[range.upperBound...]).trimmingCharacters(in: .whitespaces)
+                result.append(Entry(text: cleanInline(text), kind: .numbered))
+                index += 1
+                continue
+            }
+
+            if trimmed.hasPrefix("> ") {
+                result.append(Entry(text: cleanInline(String(trimmed.dropFirst(2))), kind: .quote))
+                index += 1
+                continue
+            }
+
+            if isTableLine(trimmed), index + 1 < lines.count, isSeparatorLine(lines[index + 1]) {
+                let headers = tableRow(trimmed).filter { !$0.isEmpty }
+                let headerText = headers.isEmpty ? "表格内容" : headers.joined(separator: " / ")
+                result.append(Entry(text: cleanInline(headerText), kind: .table))
+                index += 2
+                while index < lines.count, isTableLine(lines[index]) {
+                    index += 1
+                }
+                continue
+            }
+
+            result.append(Entry(text: cleanInline(trimmed), kind: .paragraph))
+            index += 1
+        }
+
+        return result.filter { !$0.text.isEmpty }
+    }
+
+    private static func cleanInline(_ text: String) -> String {
+        var value = text
+        value = value.replacingOccurrences(of: "\\*\\*(.+?)\\*\\*", with: "$1", options: .regularExpression)
+        value = value.replacingOccurrences(of: "\\*(.+?)\\*", with: "$1", options: .regularExpression)
+        value = value.replacingOccurrences(of: "~~(.+?)~~", with: "$1", options: .regularExpression)
+        value = value.replacingOccurrences(of: "`([^`]+)`", with: "$1", options: .regularExpression)
+        value = value.replacingOccurrences(of: "!\\[.*?\\]\\(.*?\\)", with: "", options: .regularExpression)
+        value = value.replacingOccurrences(of: "\\[(.+?)\\]\\(.*?\\)", with: "$1", options: .regularExpression)
+        return value.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func tableRow(_ line: String) -> [String] {
+        line.split(separator: "|", omittingEmptySubsequences: false)
+            .dropFirst()
+            .dropLast()
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+    }
+
+    private static func isTableLine(_ line: String) -> Bool {
+        line.contains("|") && !line.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    private static func isSeparatorLine(_ line: String) -> Bool {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        guard trimmed.contains("|") else { return false }
+        return trimmed.replacingOccurrences(of: "|", with: "")
+            .replacingOccurrences(of: "-", with: "")
+            .replacingOccurrences(of: ":", with: "")
+            .trimmingCharacters(in: .whitespaces)
+            .isEmpty
     }
 }
 

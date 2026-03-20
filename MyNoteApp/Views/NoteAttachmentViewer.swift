@@ -282,11 +282,31 @@ struct FullSizeAttachmentView: View {
                     .fill(theme.colors.card)
                     .aspectRatio(16/9, contentMode: .fit)
             }
-            
-            Image(systemName: "mappin.circle.fill")
-                .font(.system(size: 40))
-                .foregroundColor(.red)
-                .shadow(radius: 4)
+
+            VStack {
+                HStack {
+                    HStack(spacing: 6) {
+                        Image(systemName: "mappin.and.ellipse")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(theme.colors.accent)
+                        Text("位置")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(theme.colors.primaryText)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 7)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .overlay {
+                        Capsule()
+                            .stroke(theme.colors.accent.opacity(0.16), lineWidth: 0.8)
+                    }
+
+                    Spacer()
+                }
+
+                Spacer()
+            }
+            .padding(12)
         }
         .onAppear { loadThumbnail() }
     }

@@ -128,6 +128,7 @@ struct CalendarWidget: View {
         )
         .shadow(color: theme.colors.shadow, radius: 6, x: 0, y: 2)
         .onAppear { fetchAll() }
+        .onChange(of: noteStore.contentRevision) { fetchAll() }
     }
 
     // MARK: - Full
@@ -183,7 +184,7 @@ struct CalendarWidget: View {
                 ForEach(weekdayHeaders, id: \.self) { sym in
                     Text(sym)
                         .font(.caption).fontWeight(.semibold)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(theme.colors.secondaryText)
                         .frame(maxWidth: .infinity)
                 }
             }
@@ -223,6 +224,7 @@ struct CalendarWidget: View {
             MonthNotesPage(date: month).environment(noteStore)
         }
         .onAppear { fetchAll() }
+        .onChange(of: noteStore.contentRevision) { fetchAll() }
     }
 
     // MARK: - Calendar Grid

@@ -521,6 +521,7 @@ struct GridNoteCard: View {
     @Environment(NoteStore.self) var noteStore
     @Environment(\.appTheme) private var theme
     @State private var thumbnailImage: UIImage?
+    private var summary: NotePreviewSummary { NotePreviewSummary(note: note) }
     
     // 获取第一个可显示缩略图的附件
     private var thumbnailAttachment: AttachmentItem? {
@@ -545,13 +546,27 @@ struct GridNoteCard: View {
                     .clipped()
                     .overlay(
                         LinearGradient(
-                            colors: [.black.opacity(0.6), .clear],
+                            colors: [.clear, .black.opacity(0.14), .black.opacity(0.72)],
                             startPoint: .top,
-                            endPoint: .center
+                            endPoint: .bottom
                         )
                     )
             } else {
-                theme.colors.card
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(theme.colors.card)
+                    .overlay(alignment: .top) {
+                        VStack(spacing: 0) {
+                            Rectangle()
+                                .fill(gridAccentColor)
+                                .frame(height: 5)
+                            LinearGradient(
+                                colors: [gridAccentColor.opacity(0.22), .clear],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                            .frame(height: 14)
+                        }
+                    }
             }
             
             // 文本内容
@@ -584,25 +599,25 @@ struct GridNoteCard: View {
                     Spacer()
                         .frame(height: 20)
                 }
+
+                if thumbnailImage != nil {
+                    Spacer(minLength: 0)
+                }
                 
                 // 第二行：内容预览
                 if thumbnailImage != nil {
-                    // 图片背景：白色纯文字标题保证可读性
-                    Text(note.preview)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .lineLimit(2)
-                        .foregroundColor(.white)
-                        .frame(height: 36)
-                } else {
-                    // 纯色背景：使用 NoteCardPreview 渲染 Markdown
-                    NoteCardPreview(content: note.content)
+                    thumbnailOverlaySummary
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .frame(height: 60, alignment: .top)
+                } else {
+                    NoteCardTextSummary(note: note, compact: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(height: 70, alignment: .top)
                         .clipped()
                 }
                 
-                Spacer(minLength: 0)
+                if thumbnailImage == nil {
+                    Spacer(minLength: 0)
+                }
                 
                 // 第三行：附件数量+时间
                 HStack(alignment: .bottom) {
@@ -632,8 +647,66 @@ struct GridNoteCard: View {
         .frame(maxWidth: .infinity)
         .background(theme.colors.card)
         .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.primary.opacity(thumbnailImage != nil ? 0.06 : 0.04), lineWidth: 0.5)
+        )
         .onAppear {
             loadThumbnail()
+        }
+    }
+
+    private var gridAccentColor: Color {
+        switch summary.style {
+        case .checklist:
+            return theme.colors.accent
+        case .table:
+            return Color(red: 0.19, green: 0.52, blue: 0.95)
+        case .quote:
+            return Color(red: 0.95, green: 0.56, blue: 0.22)
+        case .standard:
+            return theme.colors.accent.opacity(0.55)
+        }
+    }
+
+    @ViewBuilder
+    private var thumbnailOverlaySummary: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            if let supportText = summary.supportText,
+               let supportIcon = summary.supportIcon {
+                Label(supportText, systemImage: supportIcon)
+                    .font(.caption2)
+                    .foregroundColor(.white.opacity(0.84))
+                    .lineLimit(1)
+            }
+
+            if let headline = summary.headline {
+                Text(headline)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .lineLimit(2)
+                    .foregroundColor(.white)
+
+                if !summary.excerpt.isEmpty {
+                    Text(summary.excerpt)
+                        .font(.caption)
+                        .lineLimit(1)
+                        .foregroundColor(.white.opacity(0.88))
+                }
+            } else {
+                Text(summary.excerpt)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .lineLimit(2)
+                    .foregroundColor(.white)
+            }
+
+            if let first = summary.detailLines.first, !first.isEmpty {
+                Text(first)
+                    .font(.caption2)
+                    .lineLimit(1)
+                    .foregroundColor(.white.opacity(0.8))
+            }
         }
     }
     

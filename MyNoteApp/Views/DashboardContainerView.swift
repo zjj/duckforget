@@ -166,6 +166,7 @@ struct DashboardContainerView: View {
                             }
                         }
                 }
+                .tint(theme.colors.accent)
                 .gesture(
                     DragGesture()
                         .onEnded { value in
@@ -177,6 +178,7 @@ struct DashboardContainerView: View {
                 )
             }
         }
+        .tint(theme.colors.accent)
     }
     
     // MARK: - Computed Properties
@@ -218,9 +220,21 @@ struct DashboardContainerView: View {
                             .lineLimit(1)
                     }
                 } else {
-                    Text(currentPageName)
-                        .font(.system(size: 17, weight: .semibold))
-                        .lineLimit(1)
+                    HStack(spacing: 7) {
+                        Text(currentPageName)
+                            .font(.system(size: 17, weight: .semibold))
+                            .lineLimit(1)
+                        if isAnyPageEditing {
+                            Text("编辑中")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(theme.colors.accent)
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 3)
+                                .background(theme.colors.accent.opacity(0.12), in: Capsule())
+                                .transition(.scale.combined(with: .opacity))
+                        }
+                    }
+                    .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isAnyPageEditing)
                 }
             }
 
@@ -257,7 +271,12 @@ struct DashboardContainerView: View {
         }
         .frame(height: 44)
         .padding(.horizontal, 16)
-        .background(.bar)
+        .background(
+            isAnyPageEditing && !isSettingsPage
+                ? AnyShapeStyle(theme.colors.accent.opacity(0.07))
+                : AnyShapeStyle(.bar)
+        )
+        .animation(.easeInOut(duration: 0.25), value: isAnyPageEditing)
     }
 
     @ViewBuilder
@@ -274,14 +293,27 @@ struct DashboardContainerView: View {
             } label: {
                 Text("完成")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(theme.colors.accent)
+                    .foregroundColor(.white)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 7)
-                    .background(theme.colors.accent.opacity(0.1))
+                    .background(theme.colors.accent)
                     .clipShape(Capsule())
             }
         } else {
-            Color.clear.frame(width: 44)
+            Button {
+                let generator = UIImpactFeedbackGenerator(style: .light)
+                generator.impactOccurred()
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    editingStates[pageId] = true
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .font(.system(size: 20))
+                    .foregroundStyle(theme.colors.accent)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
         }
     }
 }

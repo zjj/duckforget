@@ -32,7 +32,7 @@ struct FontSettingsView: View {
                         Spacer()
                         Text("\(Int(fontSize)) pt")
                             .monospacedDigit()
-                            .foregroundColor(.secondary)
+                            .foregroundColor(theme.colors.secondaryText)
                         if fontSize != systemBodySize {
                             Button("重置") {
                                 fontSize = systemBodySize
@@ -45,9 +45,9 @@ struct FontSettingsView: View {
                     Slider(value: $fontSize, in: fontSizeRange, step: 1) {
                         Text("字体大小")
                     } minimumValueLabel: {
-                        Text("12").font(.caption).foregroundColor(.secondary)
+                        Text("12").font(.caption).foregroundColor(theme.colors.secondaryText)
                     } maximumValueLabel: {
-                        Text("28").font(.caption).foregroundColor(.secondary)
+                        Text("28").font(.caption).foregroundColor(theme.colors.secondaryText)
                     }
                     .tint(theme.colors.accent)
                     .onChange(of: fontSize) { _, v in
@@ -60,7 +60,7 @@ struct FontSettingsView: View {
             } footer: {
                 Text("调整编辑器正文字体大小，标题等元素将按比例缩放。")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.colors.secondaryText)
             }
             .listRowBackground(theme.colors.card)
 
@@ -72,7 +72,7 @@ struct FontSettingsView: View {
                         Spacer()
                         Text(String(format: "%.1f×", lineSpacing))
                             .monospacedDigit()
-                            .foregroundColor(.secondary)
+                            .foregroundColor(theme.colors.secondaryText)
                         if lineSpacing != 1.0 {
                             Button("重置") {
                                 lineSpacing = 1.0
@@ -85,9 +85,9 @@ struct FontSettingsView: View {
                     Slider(value: $lineSpacing, in: lineSpacingRange, step: 0.1) {
                         Text("行高")
                     } minimumValueLabel: {
-                        Text("1×").font(.caption).foregroundColor(.secondary)
+                        Text("1×").font(.caption).foregroundColor(theme.colors.secondaryText)
                     } maximumValueLabel: {
-                        Text("2.5×").font(.caption).foregroundColor(.secondary)
+                        Text("2.5×").font(.caption).foregroundColor(theme.colors.secondaryText)
                     }
                     .tint(theme.colors.accent)
                     .onChange(of: lineSpacing) { _, v in
@@ -100,7 +100,7 @@ struct FontSettingsView: View {
             } footer: {
                 Text("1.0 为紧凑行高，1.5 为舒适，2.0 为宽松。")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.colors.secondaryText)
             }
             .listRowBackground(theme.colors.card)
 
@@ -109,7 +109,7 @@ struct FontSettingsView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("预览")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(theme.colors.secondaryText)
                     Text("这是一段预览文字，展示当前字体大小与行高效果。\nThe quick brown fox jumps over the lazy dog.\n你好，世界！Hello, World! 0123456789")
                         .font(Font(fontManager.bodyFont()))
                         .lineSpacing((lineSpacing - 1.0) * fontSize)
@@ -129,9 +129,9 @@ struct FontSettingsView: View {
                 } else {
                     HStack(spacing: 10) {
                         Image(systemName: "textformat")
-                            .foregroundColor(.secondary)
+                            .foregroundColor(theme.colors.secondaryText)
                         Text("当前使用系统默认字体")
-                            .foregroundColor(.secondary)
+                            .foregroundColor(theme.colors.secondaryText)
                     }
                     .padding(.vertical, 2)
                 }
@@ -154,7 +154,7 @@ struct FontSettingsView: View {
             } footer: {
                 Text("支持 TTF、OTF 格式。每次只能安装一个字体文件，上传后编辑器与预览将自动使用该字体。")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.colors.secondaryText)
             }
             .listRowBackground(theme.colors.card)
         }
@@ -202,7 +202,7 @@ struct FontSettingsView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("已安装字体")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(theme.colors.secondaryText)
                     Text(fontManager.customFontFileName ?? "自定义字体")
                         .font(.subheadline.weight(.medium))
                         .foregroundColor(theme.colors.primaryText)
@@ -224,7 +224,7 @@ struct FontSettingsView: View {
             VStack(alignment: .leading, spacing: 5) {
                 Text("预览")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.colors.secondaryText)
                 Text("这是自定义字体的预览效果。")
                     .font(Font(fontManager.bodyFont()))
                     .foregroundColor(theme.colors.primaryText)

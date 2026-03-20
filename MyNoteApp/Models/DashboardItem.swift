@@ -20,7 +20,7 @@ enum WidgetType: String, Codable, CaseIterable, Identifiable {
     var displayName: String {
         switch self {
         //case .newNote: return "新建"
-        case .tag: return "xx标签"
+        case .tag: return "标签视图"
         case .recentNotes: return "最近记录"
         case .search: return "搜索"
         case .trash: return "废纸篓"
@@ -59,7 +59,7 @@ enum WidgetType: String, Codable, CaseIterable, Identifiable {
         case  .tag: 
             return [.medium, .large]
         case .inlineInput:
-            return [.medium, .large]
+            return [.large]
         case .encouragement:
             return [.small, .medium]
         case .trash, .calendar, .statistics:
@@ -67,7 +67,7 @@ enum WidgetType: String, Codable, CaseIterable, Identifiable {
         case .timeline:
             return [] // 时间轴仅支持全屏，不允许调整大小
         case .location:
-            return [.large]
+            return [.large, .fullPage]
         }
     }
 }
@@ -98,10 +98,10 @@ enum WidgetSize: String, Codable, CaseIterable {
 
     var label: String {
         switch self {
-        case .small: return "小 (Compact)"
-        case .medium: return "中 (Standard)"
-        case .large: return "大 (Large)"
-        case .fullPage: return "全屏 (Full Page)"
+        case .small: return "小"
+        case .medium: return "中"
+        case .large: return "大"
+        case .fullPage: return "全屏"
         }
     }
 

@@ -47,7 +47,7 @@ struct DashboardManagementView: View {
                         }
                     } label: {
                         Image(systemName: "ellipsis.circle")
-                            .font(.headline)
+                            .font(.system(size: 20))
                             .foregroundColor(theme.colors.accent)
                     }
                     .padding(.trailing, 8)
@@ -71,6 +71,7 @@ struct DashboardManagementView: View {
                             }
                         } label: {
                             Image(systemName: "ellipsis.circle")
+                                .font(.system(size: 20))
                                 .foregroundColor(theme.colors.accent)
                         }
                         Text("添加起点配置。")
@@ -84,7 +85,7 @@ struct DashboardManagementView: View {
                                 .foregroundColor(theme.colors.accent)
                             
                             Text(page.name)
-                                .foregroundColor(.primary)
+                                .foregroundColor(theme.colors.primaryText)
                             
                             Spacer()
                         }
@@ -139,9 +140,9 @@ struct DashboardManagementView: View {
                                 Label("删除", systemImage: "trash")
                             }
                         } label: {
-                            Image(systemName: "ellipsis")
+                            Image(systemName: "ellipsis.circle")
                                 .font(.system(size: 20))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(theme.colors.accent)
                                 .frame(width: 44, height: 44)
                                 .contentShape(Rectangle())
                         }
@@ -163,7 +164,7 @@ struct DashboardManagementView: View {
                         } label: {
                             Label("重命名", systemImage: "pencil")
                         }
-                        .tint(.blue)
+                        .tint(theme.colors.accent)
                     }
                     .onDrag {
                         return NSItemProvider(object: page.id.uuidString as NSString)
@@ -222,7 +223,7 @@ struct DashboardManagementView: View {
                     Spacer()
                     Stepper(value: $trashRetentionDays, in: 1...90, step: 1) {
                         Text("\(trashRetentionDays) 天")
-                            .foregroundColor(.secondary)
+                            .foregroundColor(theme.colors.secondaryText)
                     }
                     .onChange(of: trashRetentionDays) { _, newValue in
                         AppSettings.shared.trashRetentionDays = newValue
@@ -234,7 +235,7 @@ struct DashboardManagementView: View {
             } footer: {
                 Text("废纸篓中的记录将在删除后保留指定天数，超过时间后将被永久删除")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.colors.secondaryText)
             }
             
             Section {
@@ -243,13 +244,13 @@ struct DashboardManagementView: View {
                 } label: {
                     HStack {
                         Label("导出笔记", systemImage: "arrow.up.doc.on.clipboard")
-                            .foregroundColor(.primary)
+                            .foregroundColor(theme.colors.primaryText)
                         Spacer()
                         if isExporting {
                             HStack(spacing: 6) {
                                 Text(exportTotal > 0 ? "\(exportCurrent)/\(exportTotal)" : "")
                                     .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(theme.colors.secondaryText)
                                     .monospacedDigit()
                                 ProgressView()
                                     .scaleEffect(0.8)
@@ -257,7 +258,7 @@ struct DashboardManagementView: View {
                         } else {
                             Image(systemName: "chevron.right")
                                 .font(.footnote)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(theme.colors.secondaryText)
                         }
                     }
                 }
@@ -273,7 +274,7 @@ struct DashboardManagementView: View {
                 } else {
                     Text("按时间范围或标签筛选笔记，打包为 ZIP 文件导出")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(theme.colors.secondaryText)
                 }
             }
 
@@ -294,13 +295,13 @@ struct DashboardManagementView: View {
                 } label: {
                     HStack {
                         Label("插入 10 000 条测试笔记", systemImage: "doc.badge.plus")
-                            .foregroundColor(.primary)
+                            .foregroundColor(theme.colors.primaryText)
                         Spacer()
                         if isSeeding {
                             HStack(spacing: 6) {
                                 Text("\(seedProgress.0)/\(seedProgress.1)")
                                     .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(theme.colors.secondaryText)
                                     .monospacedDigit()
                                 ProgressView()
                                     .scaleEffect(0.8)
@@ -322,7 +323,7 @@ struct DashboardManagementView: View {
             } footer: {
                 Text("仅在 Debug 构建中可见，Release 版本不包含此区域。")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.colors.secondaryText)
             }
             .alert("确认删除全部", isPresented: $showDeleteAllConfirm) {
                 Button("取消", role: .cancel) {}

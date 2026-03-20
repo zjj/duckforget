@@ -119,6 +119,7 @@ struct LocationWidget: View {
                 if showMapMode {
                     LocationMapView(
                         notes: notes,
+                        containerSize: CGSize(width: geo.size.width, height: max(geo.size.height - 46, 100)),
                         selectedNote: $selectedNote,
                         visibleNoteIDs: $visibleNoteIDs,
                         hasMapRegion: $hasMapRegion
@@ -160,16 +161,22 @@ struct LocationWidget: View {
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
-                    .background(theme.colors.surface)
                     .id(listID)
                     .frame(height: max(geo.size.height - 46, 100))
                 }
             }
+            .background(theme.colors.card)
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
+            )
+            .shadow(color: theme.colors.shadow, radius: 8, x: 0, y: 2)
         }
-        .frame(minHeight: size == .fullPage ? nil : UIScreen.main.bounds.height * 3 / 5)
-        .onAppear { loadNotes() }
+        .frame(height: size == .fullPage ? nil : size.height)
+        .onAppear { loadNotes(resetVisibleRegion: true) }
         .onChange(of: noteStore.contentRevision) {
-            loadNotes()
+            loadNotes(resetVisibleRegion: false)
             listID = UUID()
         }
         .navigationDestination(item: $selectedNote) { note in
@@ -311,7 +318,7 @@ struct LocationWidget: View {
 
     // MARK: - Data Fetching
 
-    private func loadNotes() {
+    private func loadNotes(resetVisibleRegion: Bool) {
         var descriptor = FetchDescriptor<NoteItem>(
             predicate: #Predicate { !$0.isDeleted }
         )
@@ -319,6 +326,10 @@ struct LocationWidget: View {
         let fetched = (try? modelContext.fetch(descriptor)) ?? []
         notes = fetched.filter { note in
             note.attachments.contains { $0.type == .location }
+        }
+        if resetVisibleRegion {
+            visibleNoteIDs = Set(notes.map(\.id))
+            hasMapRegion = false
         }
     }
 }
@@ -418,7 +429,9 @@ private struct LocationNoteRow: View {
 /// 在地图上标记所有带位置的日记，同一地区合并为一个标记
 private struct LocationMapView: View {
     let notes: [NoteItem]
+    let containerSize: CGSize
     @Environment(NoteStore.self) private var noteStore
+    @Environment(\.appTheme) private var theme
     @Binding var selectedNote: NoteItem?
     @Binding var visibleNoteIDs: Set<UUID>
     @Binding var hasMapRegion: Bool
@@ -445,13 +458,24 @@ private struct LocationMapView: View {
         }
     }
 
+    private enum ClusterSheetDetent: CGFloat, CaseIterable {
+        case compact = 0.38
+        case medium = 0.6
+        case large = 0.82
+    }
+
     @State private var clusters: [ClusterPin] = []
     @State private var position: MapCameraPosition = .automatic
     @State private var expandedCluster: ClusterPin?
     @State private var selectedTag: String?
+    @State private var activeClusterID: String?
+    @State private var pulsingClusterID: String?
+    @State private var sheetDetent: ClusterSheetDetent = .medium
+    @State private var sheetDragOffset: CGFloat = 0
+    @State private var currentRegion: MKCoordinateRegion?
 
     var body: some View {
-        ZStack(alignment: .bottom) {
+        ZStack(alignment: compactWidgetPresentation ? .top : .bottom) {
             Map(position: $position, selection: $selectedTag) {
                 ForEach(clusters) { cluster in
                     Annotation(cluster.title, coordinate: cluster.coordinate) {
@@ -470,23 +494,60 @@ private struct LocationMapView: View {
                       let cluster = clusters.first(where: { $0.id == tag }) else { return }
                 selectedTag = nil
                 if cluster.notes.count == 1 {
-                    selectedNote = cluster.notes[0]
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+                        if activeClusterID == cluster.id {
+                            selectedNote = cluster.notes[0]
+                            activeClusterID = nil
+                        } else {
+                            activeClusterID = cluster.id
+                            expandedCluster = nil
+                        }
+                    }
+                    if activeClusterID != cluster.id {
+                        triggerMarkerPulse(for: cluster.id)
+                    }
                 } else {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        expandedCluster = cluster
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+                        if activeClusterID == cluster.id {
+                            expandedCluster = cluster
+                            sheetDetent = defaultSheetDetent
+                            sheetDragOffset = 0
+                        } else {
+                            activeClusterID = cluster.id
+                            expandedCluster = nil
+                        }
+                    }
+                    if activeClusterID != cluster.id {
+                        triggerMarkerPulse(for: cluster.id)
                     }
                 }
             }
             .onMapCameraChange { context in
+                currentRegion = context.region
                 updateVisibleNotes(region: context.region)
             }
             .onAppear { loadPins() }
-            .onChange(of: notes.count) { loadPins() }
+            .onChange(of: notes.count) {
+                loadPins()
+                if let activeClusterID,
+                   !clusters.contains(where: { $0.id == activeClusterID }) {
+                    self.activeClusterID = nil
+                }
+                if let expandedCluster,
+                   !clusters.contains(where: { $0.id == expandedCluster.id }) {
+                    self.expandedCluster = nil
+                }
+            }
 
             // 展开的笔记列表弹出面板
             if let cluster = expandedCluster {
                 clusterSheet(cluster)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .transition(
+                        .asymmetric(
+                            insertion: .offset(y: compactWidgetPresentation ? -10 : 18).combined(with: .opacity),
+                            removal: .opacity
+                        )
+                    )
             }
         }
     }
@@ -494,85 +555,272 @@ private struct LocationMapView: View {
     // MARK: - Cluster Marker View
 
     private func clusterView(_ cluster: ClusterPin) -> some View {
-        ZStack {
-            if cluster.notes.count == 1 {
-                Image(systemName: "mappin.circle.fill")
-                    .font(.system(size: 28))
-                    .foregroundColor(.red)
-            } else {
-                ZStack(alignment: .topTrailing) {
-                    Image(systemName: "mappin.circle.fill")
-                        .font(.system(size: 28))
-                        .foregroundColor(.red)
-                    Text("\(cluster.notes.count)")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(minWidth: 16, minHeight: 16)
-                        .background(Circle().fill(.blue))
-                        .offset(x: 6, y: -6)
+        LocationMarkerBadge(
+            title: cluster.title,
+            noteCount: cluster.notes.count,
+            isSelected: activeClusterID == cluster.id,
+            accentColor: theme.colors.accent
+        )
+        .scaleEffect(markerScale(for: cluster))
+        .offset(y: pulsingClusterID == cluster.id ? -4 : 0)
+        .animation(.spring(response: 0.24, dampingFraction: 0.56), value: pulsingClusterID == cluster.id)
+        .animation(.spring(response: 0.28, dampingFraction: 0.84), value: activeClusterID == cluster.id)
+    }
+
+    private func markerScale(for cluster: ClusterPin) -> CGFloat {
+        let activeScale: CGFloat = activeClusterID == cluster.id ? 1.07 : 1
+        let pulseScale: CGFloat = pulsingClusterID == cluster.id ? 1.08 : 1
+        return activeScale * pulseScale
+    }
+
+    private func triggerMarkerPulse(for clusterID: String) {
+        pulsingClusterID = clusterID
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+            withAnimation(.spring(response: 0.26, dampingFraction: 0.68)) {
+                if pulsingClusterID == clusterID {
+                    pulsingClusterID = nil
                 }
             }
         }
+    }
+
+    private func clusterEyebrow(_ cluster: ClusterPin) -> String {
+        cluster.notes.count > 1 ? "此处有 \(cluster.notes.count) 条笔记" : "位置笔记"
+    }
+
+    private func clusterHint(_ cluster: ClusterPin) -> String {
+        cluster.notes.count > 1 ? "你正在查看这个地点的笔记列表" : "这是一条绑定到该地点的笔记"
+    }
+
+    private func compactOverlayHint(_ cluster: ClusterPin) -> String {
+        cluster.notes.count > 1 ? "查看这个地点的多条记录" : "查看这条位置记录"
     }
 
     // MARK: - Expanded Cluster Sheet
 
     private func clusterSheet(_ cluster: ClusterPin) -> some View {
         VStack(spacing: 0) {
-            // 标题栏
-            HStack {
-                Image(systemName: "mappin.circle.fill")
-                    .font(.system(size: 14))
-                    .foregroundColor(.red)
-                Text(cluster.title)
-                    .font(.system(size: 14, weight: .semibold))
-                Spacer()
-                Button {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        expandedCluster = nil
-                    }
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 18))
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
+            if !compactWidgetPresentation {
+                Capsule()
+                    .fill(theme.colors.secondaryText.opacity(0.22))
+                    .frame(width: 36, height: 5)
+                    .padding(.top, 8)
+                    .padding(.bottom, 6)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
 
-            Divider()
+            if compactWidgetPresentation {
+                HStack {
+                    Spacer()
+
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            expandedCluster = nil
+                            activeClusterID = nil
+                        }
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 18))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 10)
+                .padding(.top, 8)
+                .padding(.bottom, 2)
+            } else {
+                // 标题栏
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 6) {
+                            Image(systemName: cluster.notes.count > 1 ? "square.stack.3d.up.fill" : "mappin.and.ellipse")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(theme.colors.accent)
+                            Text(clusterEyebrow(cluster))
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(theme.colors.secondaryText.opacity(0.72))
+                        }
+
+                        Text(cluster.title)
+                            .font(.system(size: 15, weight: .semibold))
+                            .lineLimit(3)
+
+                        Text(clusterHint(cluster))
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(theme.colors.secondaryText.opacity(0.7))
+                            .lineLimit(2)
+                    }
+
+                    Spacer()
+
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            expandedCluster = nil
+                            activeClusterID = nil
+                        }
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 18))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+
+                Divider()
+            }
 
             // 使用和其他组件一致的列表样式
             ScrollView {
-                LazyVStack(spacing: 8) {
+                LazyVStack(spacing: compactWidgetPresentation ? 6 : 8) {
                     ForEach(cluster.notes) { note in
                         Button {
                             withAnimation(.easeInOut(duration: 0.25)) {
                                 expandedCluster = nil
+                                activeClusterID = nil
                             }
                             selectedNote = note
                         } label: {
                             NoteRowView(note: note, showDateFooter: true)
                                 .environment(noteStore)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 10)
+                                .padding(.horizontal, compactWidgetPresentation ? 10 : 12)
+                                .padding(.vertical, compactWidgetPresentation ? 8 : 10)
                                 .background(.regularMaterial)
                                 .clipShape(RoundedRectangle(cornerRadius: 10))
                         }
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
+                .padding(.horizontal, compactWidgetPresentation ? 8 : 12)
+                .padding(.top, compactWidgetPresentation ? 4 : 8)
+                .padding(.bottom, compactWidgetPresentation ? 8 : 8)
             }
-            .frame(maxHeight: UIScreen.main.bounds.height * 0.55)
+            .frame(maxHeight: sheetBodyHeight)
         }
         .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .shadow(color: .black.opacity(0.15), radius: 10, y: -2)
-        .padding(.horizontal, 12)
-        .padding(.bottom, 12)
+        .clipShape(RoundedRectangle(cornerRadius: compactWidgetPresentation ? 12 : 14))
+        .shadow(color: .black.opacity(compactWidgetPresentation ? 0.18 : 0.15), radius: compactWidgetPresentation ? 12 : 10, y: compactWidgetPresentation ? 4 : -2)
+        .frame(width: sheetWidth, height: sheetHeight)
+        .offset(y: max(sheetDragOffset, 0))
+        .gesture(compactWidgetPresentation ? nil : sheetDragGesture)
+        .padding(.horizontal, horizontalInset)
+        .padding(.top, compactWidgetPresentation ? 46 : 0)
+        .padding(.bottom, compactWidgetPresentation ? 0 : bottomInset)
+        .overlay(alignment: .top) {
+            if compactWidgetPresentation {
+                VStack(spacing: 0) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(theme.colors.accent.opacity(0.6))
+                        .frame(width: 28, height: 4)
+                    RoundedRectangle(cornerRadius: 1)
+                        .fill(theme.colors.accent.opacity(0.22))
+                        .frame(width: 2, height: 10)
+                }
+                .offset(y: 34)
+            }
+        }
+    }
+
+    private var availableHeight: CGFloat {
+        max(containerSize.height, 100)
+    }
+
+    private var availableWidth: CGFloat {
+        max(containerSize.width, 160)
+    }
+
+    private var horizontalInset: CGFloat {
+        compactWidgetPresentation ? 10 : (availableWidth >= 520 ? 20 : 10)
+    }
+
+    private var bottomInset: CGFloat {
+        availableHeight >= 500 ? 14 : 8
+    }
+
+    private var compactWidgetPresentation: Bool {
+        availableHeight < 420 || availableWidth < 420
+    }
+
+    private var defaultSheetDetent: ClusterSheetDetent {
+        compactWidgetPresentation ? .compact : (availableHeight >= 520 ? .medium : .compact)
+    }
+
+    private var sheetWidth: CGFloat {
+        if compactWidgetPresentation {
+            return min(max(availableWidth - horizontalInset * 2, 220), 360)
+        }
+        let maxUsableWidth = max(availableWidth - horizontalInset * 2, 140)
+        if availableWidth >= 560 {
+            return min(maxUsableWidth, 460)
+        }
+        return maxUsableWidth
+    }
+
+    private var sheetHeight: CGFloat {
+        if compactWidgetPresentation {
+            let minimumHeight = max(176, availableHeight * 0.52)
+            let maximumHeight = max(availableHeight - 34, minimumHeight)
+            return min(max(minimumHeight, availableHeight * 0.72), maximumHeight)
+        }
+        let minimumHeight = min(170, max(118, availableHeight * 0.34))
+        let targetHeight = availableHeight * sheetDetent.rawValue
+        let maximumHeight = max(availableHeight - bottomInset - 8, minimumHeight)
+        return min(max(targetHeight, minimumHeight), maximumHeight)
+    }
+
+    private var sheetBodyHeight: CGFloat {
+        max(sheetHeight - (compactWidgetPresentation ? 42 : 114), 96)
+    }
+
+    private var sheetDragGesture: some Gesture {
+        DragGesture(minimumDistance: 8)
+            .onChanged { value in
+                let proposedOffset = value.translation.height
+                sheetDragOffset = proposedOffset > 0 ? proposedOffset : proposedOffset * 0.35
+            }
+            .onEnded { value in
+                let sensitivity = availableHeight * 0.08
+                let projectedHeight = sheetHeight - value.predictedEndTranslation.height
+                let nearest = ClusterSheetDetent.allCases.min { left, right in
+                    abs(availableHeight * left.rawValue - projectedHeight) < abs(availableHeight * right.rawValue - projectedHeight)
+                } ?? .medium
+
+                let resolvedDetent: ClusterSheetDetent
+                if value.translation.height > sensitivity {
+                    resolvedDetent = previousDetent(from: sheetDetent)
+                } else if value.translation.height < -sensitivity {
+                    resolvedDetent = nextDetent(from: sheetDetent)
+                } else {
+                    resolvedDetent = nearest
+                }
+
+                withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+                    sheetDetent = resolvedDetent
+                    sheetDragOffset = 0
+                }
+            }
+    }
+
+    private func previousDetent(from detent: ClusterSheetDetent) -> ClusterSheetDetent {
+        switch detent {
+        case .large:
+            return .medium
+        case .medium:
+            return .compact
+        case .compact:
+            return .compact
+        }
+    }
+
+    private func nextDetent(from detent: ClusterSheetDetent) -> ClusterSheetDetent {
+        switch detent {
+        case .compact:
+            return .medium
+        case .medium:
+            return .large
+        case .large:
+            return .large
+        }
     }
 
     // MARK: - Visible Region Filtering
@@ -634,20 +882,85 @@ private struct LocationMapView: View {
             ClusterPin(id: key, coordinate: value.coord, notes: value.notes)
         }
 
-        // 初始化时不设置 hasMapRegion，等用户操作地图后再开始过滤
+        clusters.sort {
+            if $0.notes.count != $1.notes.count {
+                return $0.notes.count > $1.notes.count
+            }
+            return $0.title < $1.title
+        }
 
-        // 以当前位置为中心，5km 比例尺
-        let mgr = CLLocationManager()
-        mgr.requestWhenInUseAuthorization()
-        if let coord = mgr.location?.coordinate {
-            position = .region(MKCoordinateRegion(
-                center: coord,
+        if let activeClusterID,
+           !clusters.contains(where: { $0.id == activeClusterID }) {
+            self.activeClusterID = nil
+        }
+
+        if let expandedCluster,
+           let refreshedCluster = clusters.first(where: { $0.id == expandedCluster.id }) {
+            self.expandedCluster = refreshedCluster
+        } else if expandedCluster != nil {
+            self.expandedCluster = nil
+        }
+
+        if hasMapRegion, let currentRegion {
+            updateVisibleNotes(region: currentRegion)
+        } else if let initialRegion = preferredInitialRegion(for: clusters) {
+            currentRegion = initialRegion
+            position = .region(initialRegion)
+            updateVisibleNotes(region: initialRegion)
+        } else {
+            hasMapRegion = false
+            visibleNoteIDs = []
+        }
+    }
+
+    private func preferredInitialRegion(for clusters: [ClusterPin]) -> MKCoordinateRegion? {
+        let locationManager = CLLocationManager()
+        locationManager.requestWhenInUseAuthorization()
+
+        if let coordinate = locationManager.location?.coordinate {
+            return MKCoordinateRegion(
+                center: coordinate,
                 latitudinalMeters: 5000,
                 longitudinalMeters: 5000
-            ))
-        } else {
-            position = .userLocation(fallback: .automatic)
+            )
         }
+
+        return fittedRegion(for: clusters)
+    }
+
+    private func fittedRegion(for clusters: [ClusterPin]) -> MKCoordinateRegion? {
+        guard !clusters.isEmpty else { return nil }
+
+        if clusters.count == 1, let only = clusters.first {
+            return MKCoordinateRegion(
+                center: only.coordinate,
+                latitudinalMeters: 2200,
+                longitudinalMeters: 2200
+            )
+        }
+
+        let latitudes = clusters.map { $0.coordinate.latitude }
+        let longitudes = clusters.map { $0.coordinate.longitude }
+
+        guard let minLat = latitudes.min(),
+              let maxLat = latitudes.max(),
+              let minLon = longitudes.min(),
+              let maxLon = longitudes.max() else {
+            return nil
+        }
+
+        let center = CLLocationCoordinate2D(
+            latitude: (minLat + maxLat) / 2,
+            longitude: (minLon + maxLon) / 2
+        )
+
+        let latDelta = max((maxLat - minLat) * 1.5, 0.03)
+        let lonDelta = max((maxLon - minLon) * 1.5, 0.03)
+
+        return MKCoordinateRegion(
+            center: center,
+            span: MKCoordinateSpan(latitudeDelta: latDelta, longitudeDelta: lonDelta)
+        )
     }
 
 }

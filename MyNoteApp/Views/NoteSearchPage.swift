@@ -1,32 +1,6 @@
 import SwiftUI
 import SwiftData
 
-enum ViewMode: String, CaseIterable {
-    case list = "列表"
-    case grid = "网格"
-    
-    var icon: String {
-        switch self {
-        case .list: return "list.bullet"
-        case .grid: return "square.grid.2x2"
-        }
-    }
-}
-
-enum SortMode: String, CaseIterable {
-    case dateModified = "修改日期"
-    case dateCreated = "创建日期"
-    case title = "标题"
-    
-    var icon: String {
-        switch self {
-        case .dateModified: return "clock"
-        case .dateCreated: return "calendar"
-        case .title: return "textformat"
-        }
-    }
-}
-
 struct NoteSearchPage: View {
     @Environment(NoteStore.self) var noteStore
     @Environment(\.dismiss) private var dismiss
@@ -104,10 +78,10 @@ struct NoteSearchPage: View {
                         HStack(spacing: 12) {
                             HStack(spacing: 8) {
                                 Image(systemName: "magnifyingglass")
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(theme.colors.secondaryText)
                                 
                                 Text(filterTagName != nil ? "搜索 \(filterTagName!) 标签" : "输入进行搜索...")
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(theme.colors.secondaryText)
                                 Spacer()
                             }
                             .padding(10)
@@ -125,7 +99,7 @@ struct NoteSearchPage: View {
                     HStack(spacing: 8) {
                         HStack(spacing: 8) {
                             Image(systemName: "magnifyingglass")
-                                .foregroundColor(.secondary)
+                                .foregroundColor(theme.colors.secondaryText)
                             
                             SearchTextField(
                                 placeholder: filterTagName != nil ? "搜索 \(filterTagName!) 标签" : "输入进行搜索...",
@@ -173,7 +147,7 @@ struct NoteSearchPage: View {
                                         }
                                     } label: {
                                         Image(systemName: allTags.isEmpty ? "tag.slash" : "tag")
-                                            .foregroundColor(.secondary)
+                                            .foregroundColor(theme.colors.secondaryText)
                                             .padding(.horizontal, 4)
                                     }
                                 }
@@ -184,7 +158,7 @@ struct NoteSearchPage: View {
                                     searchText = ""
                                 } label: {
                                     Image(systemName: "xmark.circle.fill")
-                                        .foregroundColor(.secondary)
+                                        .foregroundColor(theme.colors.secondaryText)
                                 }
                             }
                         }
@@ -223,38 +197,21 @@ struct NoteSearchPage: View {
             .environment(noteStore)
             .scrollDismissesKeyboard(.interactively)
         }
+        .background(theme.colors.surface)
         .onTapGesture {
             isSearchFocused = false
         }
+        .tint(theme.colors.accent)
         .if(!isEmbedded) { view in
             view
                 .navigationTitle(pageTitle)
                 .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Menu {
-                            Section("视图模式") {
-                                Picker("视图", selection: $viewMode) {
-                                    ForEach(ViewMode.allCases, id: \.self) { mode in
-                                        Label(mode.rawValue, systemImage: mode.icon)
-                                            .tag(mode)
-                                    }
-                                }
-                            }
-                            
-                            Section("排序方式") {
-                                Picker("排序", selection: $sortMode) {
-                                    ForEach(SortMode.allCases, id: \.self) { mode in
-                                        Label(mode.rawValue, systemImage: mode.icon)
-                                            .tag(mode)
-                                    }
-                                }
-                            }
-                        } label: {
-                            Image(systemName: "ellipsis")
-                        }
-                    }
-                }
+                .toolbarBackground(theme.colors.surface, for: .navigationBar)
+                .toolbarBackground(.visible, for: .navigationBar)
+                .displaySortOptionsToolbar(
+                    viewMode: $viewMode,
+                    sortMode: $sortMode
+                )
         }
         .onAppear {
             // 如果有初始搜索文本，填入搜索框

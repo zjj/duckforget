@@ -67,7 +67,7 @@ struct OnboardingView: View {
                     // Skip — hidden on last page
                     if currentPage < pageCount - 1 {
                         Button("跳过") {
-                            withAnimation { currentPage = pageCount - 1 }
+                            currentPage = pageCount - 1
                         }
                         .font(.subheadline)
                         .foregroundStyle(theme.colors.secondaryText)
@@ -104,6 +104,10 @@ struct OnboardingView: View {
                 .padding(.horizontal, 32)
             }
             .padding(.bottom, 48)
+            .padding(.top, 20)
+            .frame(maxWidth: .infinity)
+            .background(theme.colors.background)
+            .contentShape(Rectangle())
         }
     }
 }

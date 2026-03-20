@@ -18,7 +18,7 @@ class SpeechRecognizer {
     private var isStartRequested = false
     
     // MARK: - Public
-    
+
     func startRecording() {
         isStartRequested = true
         currentTranscript = ""

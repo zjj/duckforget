@@ -39,7 +39,7 @@ struct DayNotesPage: View {
             HStack(spacing: 8) {
                 HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(theme.colors.secondaryText)
 
                     SearchTextField(
                         placeholder: "搜索当日笔记...",
@@ -52,7 +52,7 @@ struct DayNotesPage: View {
                             searchText = ""
                         } label: {
                             Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.secondary)
+                                .foregroundColor(theme.colors.secondaryText)
                         }
                     }
                 }
@@ -89,31 +89,15 @@ struct DayNotesPage: View {
         .onTapGesture {
             isSearchFocused = false
         }
+        .background(theme.colors.surface)
+        .tint(theme.colors.accent)
         .navigationTitle(pageTitle)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Section("视图模式") {
-                        Picker("视图", selection: $viewMode) {
-                            ForEach(ViewMode.allCases, id: \.self) { mode in
-                                Label(mode.rawValue, systemImage: mode.icon)
-                                    .tag(mode)
-                            }
-                        }
-                    }
-                    Section("排序方式") {
-                        Picker("排序", selection: $sortMode) {
-                            ForEach(SortMode.allCases, id: \.self) { mode in
-                                Label(mode.rawValue, systemImage: mode.icon)
-                                    .tag(mode)
-                            }
-                        }
-                    }
-                } label: {
-                    Image(systemName: "ellipsis")
-                }
-            }
-        }
+        .toolbarBackground(theme.colors.surface, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .displaySortOptionsToolbar(
+            viewMode: $viewMode,
+            sortMode: $sortMode
+        )
     }
 }

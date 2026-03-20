@@ -26,12 +26,12 @@ struct TagManagementPage: View {
                 ForEach(allTags) { tag in
                     HStack {
                         Image(systemName: "tag.fill")
-                            .foregroundColor(.orange)
+                            .foregroundColor(theme.colors.accent)
                         
                         VStack(alignment: .leading, spacing: 4) {
                             Text(tag.name)
                                 .font(.headline)
-                                .foregroundColor(.primary)
+                                .foregroundColor(theme.colors.primaryText)
                             
                             TagNoteCountView(tagName: tag.name)
                         }
@@ -54,9 +54,9 @@ struct TagManagementPage: View {
                                 Label("删除", systemImage: "trash")
                             }
                         } label: {
-                            Image(systemName: "ellipsis")
+                            Image(systemName: "ellipsis.circle")
                                 .font(.system(size: 20))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(theme.colors.accent)
                         }
                     }
                     .swipeActions(edge: .trailing) {
@@ -73,15 +73,18 @@ struct TagManagementPage: View {
                         } label: {
                             Label("重命名", systemImage: "pencil")
                         }
-                        .tint(.blue)
+                        .tint(theme.colors.accent)
                     }
                 }
             }
         }
         .scrollContentBackground(.hidden)
         .background(theme.colors.background.ignoresSafeArea())
+        .tint(theme.colors.accent)
         .navigationTitle("标签管理")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(theme.colors.surface, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -168,6 +171,7 @@ struct TagManagementPage: View {
 }
 
 struct TagNoteCountView: View {
+    @Environment(\.appTheme) private var theme
     @Query var notes: [NoteItem]
     
     init(tagName: String) {
@@ -184,6 +188,6 @@ struct TagNoteCountView: View {
     var body: some View {
         Text("\(notes.count) 个记录")
             .font(.caption)
-            .foregroundColor(.secondary)
+            .foregroundColor(theme.colors.secondaryText)
     }
 }

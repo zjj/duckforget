@@ -22,7 +22,14 @@ struct LocationPickerView: View {
                 MapReader { proxy in
                     Map(position: $position) {
                         if let coordinate = selectedCoordinate {
-                            Marker(selectedLocationName, coordinate: coordinate)
+                            Annotation(selectedLocationName, coordinate: coordinate) {
+                                LocationMarkerBadge(
+                                    title: selectedLocationName,
+                                    noteCount: 1,
+                                    isSelected: true,
+                                    accentColor: theme.colors.accent
+                                )
+                            }
                         }
                     }
                     .onTapGesture { screenCoord in
@@ -81,10 +88,9 @@ struct LocationPickerView: View {
             let search = MKLocalSearch(request: searchRequest)
             if let response = try? await search.start(),
                let item = response.mapItems.first {
-                selectedLocationName = item.name ?? "Selected Location"
+                selectedLocationName = item.name ?? "标记位置"
             } else {
-                // Format as coordinates if no POI found nearby
-                selectedLocationName = String(format: "%.4f, %.4f", location.latitude, location.longitude)
+                selectedLocationName = "标记位置"
             }
         }
     }
@@ -105,28 +111,12 @@ struct LocationPickerView: View {
                 dismiss()
                 return
             }
-            
-            // Draw marker on snapshot
-            let image = UIGraphicsImageRenderer(size: options.size).image { _ in
-                snapshot.image.draw(at: .zero)
-                
-                let pinImage = UIImage(systemName: "mappin.circle.fill") ?? UIImage()
-                let pinCenter = snapshot.point(for: coordinate)
-                let pinSize = CGSize(width: 40, height: 40)
-                                
-                // Draw pin centered on the coordinate
-                let pinRect = CGRect(
-                    x: pinCenter.x - pinSize.width / 2,
-                    y: pinCenter.y - pinSize.height / 2,
-                    width: pinSize.width,
-                    height: pinSize.height
-                )
-                
-                // Set color to red/accent
-                let config = UIImage.SymbolConfiguration(paletteColors: [.red, .white])
-                let configuredPin = pinImage.applyingSymbolConfiguration(config) ?? pinImage
-                configuredPin.draw(in: pinRect)
-            }
+            let image = LocationSnapshotRenderer.render(
+                snapshot: snapshot,
+                coordinate: coordinate,
+                title: selectedLocationName,
+                accentColor: UIColor(theme.colors.accent)
+            )
             
             onSelect(coordinate, image)
             dismiss()

@@ -16,14 +16,18 @@ class DashboardConfig {
     func loadConfig() {
         if let data = UserDefaults.standard.data(forKey: pagesKey),
            let decoded = try? JSONDecoder().decode([DashboardPage].self, from: data) {
-            self.pages = decoded
+            let normalized = normalizePages(decoded)
+            self.pages = normalized
             if !pages.isEmpty && selectedPageId == nil {
                 selectedPageId = pages.first?.id
+            }
+            if normalized != decoded {
+                saveConfig()
             }
         } else if let data = UserDefaults.standard.data(forKey: legacyKey),
                   let decoded = try? JSONDecoder().decode([DashboardItem].self, from: data) {
             // Migration: Convert single dashboard to first page
-            let homePage = DashboardPage(id: UUID(), name: "Dashboard", items: decoded, creationDate: Date())
+            let homePage = DashboardPage(id: UUID(), name: "Dashboard", items: normalizeItems(decoded), creationDate: Date())
             self.pages = [homePage]
             self.selectedPageId = homePage.id
             saveConfig()
@@ -69,6 +73,29 @@ class DashboardConfig {
 
         pages.append(contentsOf: [homePage, searchPage])
         saveConfig()
+    }
+
+    private func normalizePages(_ pages: [DashboardPage]) -> [DashboardPage] {
+        pages.map { page in
+            var normalizedPage = page
+            normalizedPage.items = normalizeItems(page.items)
+            return normalizedPage
+        }
+    }
+
+    private func normalizeItems(_ items: [DashboardItem]) -> [DashboardItem] {
+        items.map { item in
+            var normalizedItem = item
+            let supportedSizes = item.type.supportedSizes
+
+            guard !supportedSizes.isEmpty,
+                  !supportedSizes.contains(item.size) else {
+                return normalizedItem
+            }
+
+            normalizedItem.size = supportedSizes.first ?? item.size
+            return normalizedItem
+        }
     }
     
     // MARK: - Page Management
@@ -138,7 +165,7 @@ class DashboardConfig {
                 newItem.size = .fullPage // Timeline only supports fullPage
             }
             if type == .location {
-                newItem.size = .fullPage // Location only supports fullPage
+                newItem.size = .large // Default to large; fullPage remains available manually
             }
             newItem.tagName = tagName
             newItem.content = content

@@ -51,9 +51,9 @@ struct NoteCardListWidget: View {
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(.secondary.opacity(0.45))
+                    .foregroundColor(theme.colors.secondaryText.opacity(0.45))
             }
-            .padding(.horizontal, 14)
+            .padding(.horizontal, 16)
             .allowsHitTesting(!isEditing)
         }
     }
@@ -65,9 +65,9 @@ struct NoteCardListWidget: View {
             titleBar
 
             if notes.isEmpty {
-                Text("暂无记录")
+                Text("还没有记录，写下第一条吧")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.colors.secondaryText)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding()
             } else {
@@ -94,8 +94,8 @@ struct NoteCardListWidget: View {
             }
         }
         .padding(.vertical, 8)
-        .frame(height: size.height)
-        .background(theme.colors.surface)
+        .frame(height: size.height, alignment: .top)
+        .background(theme.colors.card)
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
@@ -111,9 +111,9 @@ struct NoteCardListWidget: View {
             titleBar
 
             if notes.isEmpty {
-                Text("暂无记录")
+                Text("还没有记录，写下第一条吧")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.colors.secondaryText)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding()
             } else {
@@ -166,7 +166,7 @@ struct NoteCardListWidget: View {
             }
         }
         .padding(.vertical, 8)
-        .background(theme.colors.surface)
+        .background(theme.colors.card)
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
