@@ -245,6 +245,8 @@ struct InlineInputWidget: View {
         }
         .onChange(of: speechRecognizer.currentTranscript) { _, transcript in
             guard voiceState == .recording else { return }
+            // 忽略空转录（取消任务或无语音时的回调），防止已显示文字被清除
+            guard !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
             inputText = mergedVoiceText(base: voiceBaseText, transcript: transcript)
         }
         .onChange(of: speechRecognizer.errorMessage) { _, message in
@@ -762,10 +764,10 @@ struct InlineInputWidget: View {
                 finalizeVoiceCapture(shouldCancel: shouldCancel)
             }
         } else {
-            // 授权弹窗还在显示、录音尚未真正开始，取消待处理的请求
+            // 授权弹窗还在显示、录音尚未真正开始，或识别已自然完成（isFinal）
+            // 用 finalizeVoiceCapture 统一处理：有转录内容则保留，否则还原基准文本
             speechRecognizer.stopRecording()
-            voiceState = .idle
-            inputText = voiceBaseText
+            finalizeVoiceCapture(shouldCancel: shouldCancel)
         }
     }
 
@@ -780,11 +782,12 @@ struct InlineInputWidget: View {
 
         let finalTranscript = speechRecognizer.currentTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        if finalTranscript.isEmpty {
-            inputText = voiceBaseText
-        } else {
+        if !finalTranscript.isEmpty {
             inputText = mergedVoiceText(base: voiceBaseText, transcript: finalTranscript)
         }
+        // finalTranscript 为空时不重置 inputText：
+        // - 若 onChange 已通过分段识别写入了内容，保留该内容
+        // - 若从未收到识别内容，inputText 本就等于 voiceBaseText，无需重置
 
         speechRecognizer.currentTranscript = ""
         voiceBaseText = ""
